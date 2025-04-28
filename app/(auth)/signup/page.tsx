@@ -27,20 +27,18 @@ export default function SignUpPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(undefined);
 
-    const { error } = await authClient.signUp.email(
+    await authClient.signUp.email(
       { email, password, name, callbackURL: "/" },
       {
-        onRequest: () => setLoading(true),
+        onRequest: () => {
+          setLoading(true);
+          setError(undefined);
+        },
         onSuccess: () => router.push("/"),
         onError: (ctx) => setError(ctx.error.message),
       }
     );
-
-    setLoading(false);
-    if (error) setError(error.message);
   };
 
   return (

@@ -25,23 +25,21 @@ export default function LoginPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(undefined);
-
-    const { data, error } = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: "/",
-    });
-
-    setLoading(false);
-    console.log(data);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    router.push("/");
+    await authClient.signIn.email(
+      {
+        email,
+        password,
+        callbackURL: "/",
+      },
+      {
+        onRequest: () => {
+          setLoading(true);
+          setError(undefined);
+        },
+        onSuccess: () => router.push("/"),
+        onError: (ctx) => setError(ctx.error.message),
+      }
+    );
   };
 
   return (
