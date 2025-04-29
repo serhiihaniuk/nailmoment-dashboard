@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { generateAndStoreQRCode, sendEmail } from "./util";
 import { db } from "@/shared/db";
 import { ticketTable } from "@/shared/db/schema";
+import { logtail } from "@/shared/logtail";
 
 if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error("Missing Stripe secret key");
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
 
     if (!signature) {
-      console.log("No signature found");
+      logtail.error("No signature found", { body });
       return NextResponse.json(
         { error: "No signature found" },
         { status: 400 }
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
     } catch (err) {
       console.log(`❌ Error message: ${err}`);
+      logtail.error(`Webhook Error: ${err}`, { body });
       return NextResponse.json(
         { error: `Webhook Error: ${err}` },
         { status: 400 }
@@ -53,7 +55,15 @@ export async function POST(req: Request) {
         const eventData = session.metadata?.event;
 
         if (eventData !== "nailmoment") {
-          throw new Error("Invalid event data");
+          logtail.error("Invalid event data", {
+            stripe_id: session.id,
+            event_data: eventData,
+          });
+
+          return NextResponse.json(
+            { error: "Invalid event data" },
+            { status: 400 }
+          );
         }
 
         const id = nanoid(7);
@@ -76,6 +86,8 @@ export async function POST(req: Request) {
           `moment-qr/test/qr-code-${id}.png`
         );
 
+        logtail.info("Trying to insert ticket", { stripe_id: session.id });
+
         await db.insert(ticketTable).values({
           id,
           stripe_event_id: session.id,
@@ -91,12 +103,14 @@ export async function POST(req: Request) {
 
         break;
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        logtail.info(`Unhandled event type ${event.type}`, {
+          stripe_event: event,
+        });
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error(error);
+    logtail.error("unexpected error", { error });
     return NextResponse.json({ error: `${error}` }, { status: 400 });
   }
 }
