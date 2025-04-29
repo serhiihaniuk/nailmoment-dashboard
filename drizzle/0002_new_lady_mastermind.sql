@@ -1,0 +1,1 @@
+ALTER TABLE "ticket" ADD COLUMN "stripe_event_id" text NOT NULL;

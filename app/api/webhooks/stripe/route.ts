@@ -53,8 +53,7 @@ export async function POST(req: Request) {
         const eventData = session.metadata?.event;
 
         if (eventData !== "nailmoment") {
-          console.error("Invalid event data", eventData);
-          break;
+          throw new Error("Invalid event data");
         }
 
         const id = nanoid(7);
@@ -97,7 +96,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: `${error}` }, { status: 400 });
   }
 }
