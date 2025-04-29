@@ -1,7 +1,7 @@
 import { extractInstagramUsername } from "@/shared/utils";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { generateAndStoreQRCode } from "./util";
+import { generateAndStoreQRCode, sendEmail } from "./util";
 import { db } from "@/shared/db";
 import { ticketTable } from "@/shared/db/schema";
 
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         const instagram = extractInstagramUsername(instagramInput);
         const name =
           customFields.find((field) => field.key === "name")?.text?.value || "";
-        const ticketGrade = session.metadata?.ticket_grade || "name not found";
+        const ticketGrade = session.metadata?.ticket_grade || "guest";
 
         const qrCodeUrl = await generateAndStoreQRCode(
           `https://nailmoment-dashboard.vercel.app/ticket/${id}`,
@@ -73,6 +73,13 @@ export async function POST(req: Request) {
           qr_code: qrCodeUrl,
           grade: ticketGrade,
         });
+
+        await sendEmail(
+          email,
+          name,
+          qrCodeUrl,
+          ticketGrade.toLowerCase() as "guest" | "standard" | "vip"
+        );
 
         break;
       default:

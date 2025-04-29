@@ -1,9 +1,9 @@
 import QRCode from "qrcode";
-// import { Resend } from "resend";
-// import { EmailTemplate } from "./email-template";
+import { Resend } from "resend";
+import { EmailTemplate } from "./email-template";
 import { put } from "@vercel/blob";
 
-// const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function generateAndStoreQRCode(
   url: string,
@@ -22,12 +22,11 @@ export async function generateAndStoreQRCode(
   }
 }
 
-/*
 export async function sendEmail(
   to: string,
   name: string,
   qrCodeUrl: string,
-  ticketType: "fan" | "vip" | "premium"
+  ticketType: "guest" | "standard" | "vip"
 ) {
   try {
     const { data, error } = await resend.emails.send({
@@ -48,4 +47,3 @@ export async function sendEmail(
     throw new Error("Failed to send email");
   }
 }
-*/
