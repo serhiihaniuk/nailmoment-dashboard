@@ -1,3 +1,4 @@
+import { extractInstagramUsername } from "@/shared/utils";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -35,12 +36,27 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    console.log(event);
 
     switch (event.type) {
       case "checkout.session.completed":
         const session = event.data.object;
-        console.log(session);
+
+        const email = session.customer_details?.email || "email not found";
+        const phone = session.customer_details?.phone || "phone not found";
+
+        const customFields = session.custom_fields || [];
+        const instagramInput =
+          customFields.find(
+            (field) => field?.key?.toLowerCase() === "instagram"
+          )?.text?.value || "instagram not found";
+
+        const instagram = extractInstagramUsername(instagramInput);
+        const name =
+          customFields.find((field) => field.key === "name")?.text?.value || "";
+        const ticketGrade = session.metadata?.ticket_grade || "name not found";
+
+        console.log({ email, phone, instagram, name, ticketGrade });
+
         break;
       default:
         console.log(`Unhandled event type ${event.type}`);
