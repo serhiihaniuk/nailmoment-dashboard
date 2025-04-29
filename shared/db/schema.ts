@@ -49,3 +49,21 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });
+
+export const ticketTable = pgTable("ticket", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  instagram: text("instagram").notNull(),
+  phone: text("phone").notNull(),
+  qr_code: text("qr_code").notNull(),
+  arrived: boolean("arrived").notNull().default(false),
+  grade: text("grade").notNull().default("unknown"),
+  date: timestamp("date", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow(),
+  archived: boolean("archived").notNull().default(false),
+});

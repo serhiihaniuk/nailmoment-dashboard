@@ -1,6 +1,9 @@
 import { extractInstagramUsername } from "@/shared/utils";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { generateAndStoreQRCode } from "./util";
+import { db } from "@/shared/db";
+import { ticketTable } from "@/shared/db/schema";
 
 if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error("Missing Stripe secret key");
@@ -41,6 +44,7 @@ export async function POST(req: Request) {
       case "checkout.session.completed":
         const session = event.data.object;
 
+        const id = session.id;
         const email = session.customer_details?.email || "email not found";
         const phone = session.customer_details?.phone || "phone not found";
 
@@ -55,7 +59,20 @@ export async function POST(req: Request) {
           customFields.find((field) => field.key === "name")?.text?.value || "";
         const ticketGrade = session.metadata?.ticket_grade || "name not found";
 
-        console.log({ email, phone, instagram, name, ticketGrade });
+        const qrCodeUrl = await generateAndStoreQRCode(
+          `https://nailmoment-dashboard.vercel.app/ticket/${id}`,
+          `moment-qr/test/qr-code-${id}.png`
+        );
+
+        await db.insert(ticketTable).values({
+          id,
+          name,
+          email,
+          phone,
+          instagram,
+          qr_code: qrCodeUrl,
+          grade: ticketGrade,
+        });
 
         break;
       default:
