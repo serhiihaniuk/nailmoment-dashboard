@@ -52,6 +52,7 @@ export const verification = pgTable("verification", {
 
 export const ticketTable = pgTable("ticket", {
   id: text("id").primaryKey(),
+  stripe_event_id: text("stripe_event_id").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   instagram: text("instagram").notNull(),

@@ -17,7 +17,7 @@ import * as React from "react";
 interface EmailTemplateProps {
   name: string;
   qrCodeUrl: string;
-  ticketType: "guest" | "standard" | "vip";
+  ticketType: string;
   logoUrl?: string;
   battleOfMastersLink?: string;
 }

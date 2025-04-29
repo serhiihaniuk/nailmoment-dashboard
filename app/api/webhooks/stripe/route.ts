@@ -1,4 +1,5 @@
 import { extractInstagramUsername } from "@/shared/utils";
+import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { generateAndStoreQRCode, sendEmail } from "./util";
@@ -44,7 +45,19 @@ export async function POST(req: Request) {
       case "checkout.session.completed":
         const session = event.data.object;
 
-        const id = session.id;
+        /**
+         * stripe payment link should have 2 metadata fields:
+         * event: nailmoment
+         * ticket_grade: guest | standard | vip;
+         */
+        const eventData = session.metadata?.event;
+
+        if (eventData !== "nailmoment") {
+          console.error("Invalid event data", eventData);
+          break;
+        }
+
+        const id = nanoid(7);
         const email = session.customer_details?.email || "email not found";
         const phone = session.customer_details?.phone || "phone not found";
 
@@ -53,19 +66,20 @@ export async function POST(req: Request) {
           customFields.find(
             (field) => field?.key?.toLowerCase() === "instagram"
           )?.text?.value || "instagram not found";
+        const ticketGrade = session.metadata?.ticket_grade || "guest";
 
         const instagram = extractInstagramUsername(instagramInput);
         const name =
           customFields.find((field) => field.key === "name")?.text?.value || "";
-        const ticketGrade = session.metadata?.ticket_grade || "guest";
 
         const qrCodeUrl = await generateAndStoreQRCode(
-          `https://nailmoment-dashboard.vercel.app/ticket/${id}`,
+          `https://dashboard.nailmoment.pl/ticket/${id}`,
           `moment-qr/test/qr-code-${id}.png`
         );
 
         await db.insert(ticketTable).values({
           id,
+          stripe_event_id: session.id,
           name,
           email,
           phone,
@@ -74,12 +88,7 @@ export async function POST(req: Request) {
           grade: ticketGrade,
         });
 
-        await sendEmail(
-          email,
-          name,
-          qrCodeUrl,
-          ticketGrade.toLowerCase() as "guest" | "standard" | "vip"
-        );
+        await sendEmail(email, name, qrCodeUrl, ticketGrade.toLowerCase());
 
         break;
       default:

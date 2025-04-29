@@ -26,11 +26,11 @@ export async function sendEmail(
   to: string,
   name: string,
   qrCodeUrl: string,
-  ticketType: "guest" | "standard" | "vip"
+  ticketType: string
 ) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "conference@nailmoment.pl",
+      from: "nailmoment-ticket@nailmoment.pl",
       to,
       subject: "Ваш квиток на конференцію Nail Moment",
       html: "",
