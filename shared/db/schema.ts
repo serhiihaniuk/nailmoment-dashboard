@@ -68,3 +68,6 @@ export const ticketTable = pgTable("ticket", {
     .defaultNow(),
   archived: boolean("archived").notNull().default(false),
 });
+
+export type Ticket = typeof ticketTable.$inferSelect;
+export type InsertTicket = typeof ticketTable.$inferInsert;

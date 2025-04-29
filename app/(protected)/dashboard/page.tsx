@@ -1,14 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { TicketsTable } from "@/widgets/ticket-table";
+import React from "react";
 
 export default function DashboardPage() {
-  const router = useRouter();
+  // No data fetching or state management needed here for the table anymore
 
-  useEffect(() => {
-    router.push("/dashboard");
-  }, [router]);
-
-  return <div>Dashboard</div>;
+  return (
+    <div className="container mx-auto p-4">
+      <TicketsTable />
+    </div>
+  );
 }

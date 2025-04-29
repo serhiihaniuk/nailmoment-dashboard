@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "@/shared/better-auth/hooks";
+import QueryProvider from "@/shared/providers/react-query";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -21,7 +22,7 @@ export default function ProtectedLayout({
 
   if (session.isPending) {
     return (
-      <div>
+      <div className="h-full flex items-center justify-center">
         <Loader2 className="animate-spin mx-auto" />
       </div>
     );
@@ -29,11 +30,11 @@ export default function ProtectedLayout({
 
   if (!session.data) {
     return (
-      <div>
+      <div className="h-full flex items-center justify-center">
         <p>You are not signed in</p>
       </div>
     );
   }
 
-  return <>{children}</>;
+  return <QueryProvider>{children}</QueryProvider>;
 }

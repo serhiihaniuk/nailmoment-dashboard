@@ -43,60 +43,64 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
-        <CardDescription className="text-center">
-          Enter your email and password to sign in
-        </CardDescription>
-      </CardHeader>
+    <div className="w-full min-h-[100dvh] flex items-center justify-center">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Login
+          </CardTitle>
+          <CardDescription className="text-center">
+            Enter your email and password to sign in
+          </CardDescription>
+        </CardHeader>
 
-      <CardContent>
-        <form id="login-form" className="space-y-8" onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                className="pl-10"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+        <CardContent>
+          <form id="login-form" className="space-y-8" onSubmit={onSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  className="pl-10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                className="pl-10"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  className="pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <p className="text-sm text-red-600" aria-live="assertive">
-              {error}
-            </p>
-          )}
-        </form>
-      </CardContent>
+            {error && (
+              <p className="text-sm text-red-600" aria-live="assertive">
+                {error}
+              </p>
+            )}
+          </form>
+        </CardContent>
 
-      <CardFooter className="border-t">
-        <Button form="login-form" type="submit" className="w-full">
-          {loading ? "Signing in…" : "Sign in"}
-        </Button>
-      </CardFooter>
-    </Card>
+        <CardFooter className="border-t">
+          <Button form="login-form" type="submit" className="w-full">
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }

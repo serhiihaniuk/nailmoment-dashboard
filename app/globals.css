@@ -112,16 +112,15 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-body {
-  background: linear-gradient(to bottom, transparent, rgb(255, 255, 255))
-    rgb(198, 203, 204);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
   }
+}
+
+body {
+  background-color: #f2f2f2;
 }

@@ -25,10 +25,9 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 const endpointSecret = stripeWebhookSecret;
 
-// --- Webhook Handler ---
 export async function POST(req: Request) {
-  let event: Stripe.Event | null = null; // Initialize event to null
-  let stripeSessionId: string | null = null; // To hold session ID for logging across scopes
+  let event: Stripe.Event | null = null;
+  let stripeSessionId: string | null = null;
 
   try {
     const body = await req.text();
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
         });
 
         const eventData = session.metadata?.event;
-        const ticketGrade = session.metadata?.ticket_grade || "guest"; // Default to guest
+        const ticketGrade = session.metadata?.ticket_grade || "guest";
 
         if (eventData !== "nailmoment") {
           logtail.error("Invalid 'event' metadata in Stripe session", {
@@ -100,11 +99,11 @@ export async function POST(req: Request) {
         const phone = session.customer_details?.phone || "";
         const customFields = session.custom_fields || [];
         const name =
-          customFields.find((field) => field.key === "name")?.text?.value || ""; // Default to empty string
+          customFields.find((field) => field.key === "name")?.text?.value || "";
         const instagramInput =
           customFields.find(
             (field) => field?.key?.toLowerCase() === "instagram"
-          )?.text?.value || null; // Default to null if not found
+          )?.text?.value || null;
 
         const instagram = instagramInput
           ? extractInstagramUsername(instagramInput)
