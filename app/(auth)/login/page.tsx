@@ -29,14 +29,14 @@ export default function LoginPage() {
       {
         email,
         password,
-        callbackURL: "/",
+        callbackURL: "/dashboard",
       },
       {
         onRequest: () => {
           setLoading(true);
           setError(undefined);
         },
-        onSuccess: () => router.push("/"),
+        onSuccess: () => router.push("/dashboard"),
         onError: (ctx) => setError(ctx.error.message),
       }
     );
