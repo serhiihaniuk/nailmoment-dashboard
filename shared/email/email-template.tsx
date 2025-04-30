@@ -20,11 +20,13 @@ interface EmailTemplateProps {
   ticketType: string;
   logoUrl?: string;
   battleOfMastersLink?: string;
+  instagramLink?: string; // Optional: Add link for "дірект"
 }
 
 const DEFAULT_LOGO_URL =
   "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/assets/logo-sYFHGN18H1zPtjucntQDiZXrYdpXQB.png";
 const DEFAULT_BATTLE_LINK = "https://www.nailmoment.pl/battle";
+const DEFAULT_INSTAGRAM_LINK = "https://www.instagram.com/nail_moment_pl";
 
 export const EmailTemplate = ({
   name,
@@ -32,6 +34,7 @@ export const EmailTemplate = ({
   ticketType,
   logoUrl = DEFAULT_LOGO_URL,
   battleOfMastersLink = DEFAULT_BATTLE_LINK,
+  instagramLink = DEFAULT_INSTAGRAM_LINK, // Use default or pass specific link
 }: EmailTemplateProps) => {
   const eventDetails = {
     date: "27 липня 2025",
@@ -41,6 +44,11 @@ export const EmailTemplate = ({
       "https://www.google.com/maps/place/Concordia+Design+Wroc%C5%82aw+I+Wynajem+biur+I+Centrum+Konferencyjno+-+Eventowe/@51.116155,17.039087,18z/data=!4m6!3m5!1s0x470fe9d955a31883:0xe8473c13af04dfb3!8m2!3d51.1161551!4d17.039087!16s%2Fg%2F11h42p_991?hl=pl&entry=ttu&g_ep=EgoyMDI1MDQyMy4wIKXMDSoASAFQAw%3D%3D",
   };
   const currentYear = new Date().getFullYear(); // Get current year for footer
+
+  // Normalize ticket type for comparison
+  const normalizedTicketType = ticketType.toLocaleLowerCase();
+  const isVipOrStandard =
+    normalizedTicketType === "vip" || normalizedTicketType === "standard";
 
   return (
     <Html>
@@ -78,7 +86,6 @@ export const EmailTemplate = ({
               style={qrCode}
             />
             <Text style={ticketTypeText}>
-              Тип квитка:{" "}
               <span style={ticketTypeHighlight}>
                 {ticketType.toUpperCase()}
               </span>
@@ -103,10 +110,11 @@ export const EmailTemplate = ({
               </Link>
             </Text>
           </Section>
-          {(ticketType.toLocaleLowerCase() === "vip" ||
-            ticketType.toLocaleLowerCase() === "standard") && <Hr style={hr} />}
-          {(ticketType.toLocaleLowerCase() === "vip" ||
-            ticketType.toLocaleLowerCase() === "standard") && (
+
+          {/* Conditional Section: Battle for VIP/Standard, Upgrade for Others */}
+          <Hr style={hr} />
+
+          {isVipOrStandard && (
             <Section style={competitionSection}>
               <Heading style={h2}>🔥 Бонус: Битва Майстрів!</Heading>
               <Text style={text}>
@@ -121,7 +129,28 @@ export const EmailTemplate = ({
             </Section>
           )}
 
+          {!isVipOrStandard && (
+            <Section style={upgradeSectionStyle}>
+              <Heading style={h2}>Хочеш Більшого?</Heading>
+              <Text style={text}>
+                Якщо хочеш <strong>БІЛЬШОГО</strong>, у тебе є шанс: більше
+                побачити, більше навчитися та потрапити на конференцію з
+                виступами наших спікерів: Анастасія Костенко, Юлія Зварич, Яна,
+                Ангеліна Рагоза, Юлія Бельмас та інші.
+              </Text>
+              <Text style={text}>
+                Щоб змінити твій квиток на квиток STANDARD чи VIP,{" "}
+                <Link href={instagramLink} style={link}>
+                  напиши до нас у дірект
+                </Link>
+                📩
+              </Text>
+            </Section>
+          )}
+
           <Hr style={hr} />
+
+          {/* Footer Section Remains the Same */}
           <Section style={footerSection}>
             <Text style={footerText}>
               З нетерпінням чекаємо на зустріч з вами у Вроцлаві!
@@ -162,6 +191,8 @@ export const EmailTemplate = ({
   );
 };
 
+// --- STYLES ---
+
 const main = {
   backgroundColor: "#f6f9fc",
   fontFamily:
@@ -180,13 +211,13 @@ const container = {
   marginBottom: "64px",
   border: "1px solid #eee",
   borderRadius: "5px",
-  maxWidth: "600px", // Ensure container doesn't get too wide
+  maxWidth: "600px",
 };
 
 const logoContainer = {
   textAlign: "center" as const,
   padding: "20px 0",
-  backgroundColor: "#bcd9f7", // Consider matching this to your brand or removing
+  backgroundColor: "#bcd9f7",
 };
 
 const h1 = {
@@ -207,7 +238,7 @@ const h2 = {
 
 const brandName = {
   fontWeight: "bold" as const,
-  color: "#6a0dad", // Example brand color (purple) - adjust if needed
+  color: "#6a0dad",
 };
 
 const text = {
@@ -267,9 +298,19 @@ const competitionSection = {
   textAlign: "center" as const,
   margin: "30px 0",
   padding: "20px",
-  backgroundColor: "#fff9e6",
+  backgroundColor: "#fff9e6", // Yellowish background for attention
   borderRadius: "5px",
   border: "1px solid #ffeeba",
+};
+
+// Style for the new upgrade section
+const upgradeSectionStyle = {
+  textAlign: "center" as const,
+  margin: "30px 0",
+  padding: "20px",
+  backgroundColor: "#eaf6ff", // Light blue background
+  borderRadius: "5px",
+  border: "1px solid #cde7ff",
 };
 
 const button = {
@@ -286,14 +327,13 @@ const button = {
   marginTop: "10px",
 };
 
-// Styles for the enhanced footer
 const footerSection = {
   textAlign: "center" as const,
   marginTop: "30px",
 };
 
 const footerText = {
-  color: "#555", // Slightly darker than copyright for emphasis
+  color: "#555",
   fontSize: "14px",
   lineHeight: "22px",
   margin: "0 0 10px 0",
@@ -307,12 +347,12 @@ const footerInfo = {
 };
 
 const footerLink = {
-  color: "#007bff", // Use consistent link color
+  color: "#007bff",
   textDecoration: "underline",
 };
 
 const footerCopyright = {
-  color: "#aaaaaa", // Lightest grey for copyright
+  color: "#aaaaaa",
   fontSize: "11px",
   lineHeight: "16px",
   margin: "0",
