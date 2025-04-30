@@ -84,7 +84,6 @@ export function TicketsTable() {
           <p>Квитків не знайдено.</p>
         )}
         {isError && <p>Помилка завантаження квитків</p>}
-        {isLoading && <Skeleton className="h-36 w-full" />}
 
         <div className="flex gap-4 mb-4">
           <Input
@@ -109,6 +108,8 @@ export function TicketsTable() {
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
+
+        {isLoading && <Skeleton className="h-36 w-full" />}
 
         {filtered.length > 0 && (
           <Table>
