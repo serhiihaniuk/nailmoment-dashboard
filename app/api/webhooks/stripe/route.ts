@@ -2,11 +2,11 @@ import { extractInstagramUsername } from "@/shared/utils";
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { generateAndStoreQRCode, sendEmail } from "./util";
 import { db } from "@/shared/db";
 import { ticketTable } from "@/shared/db/schema";
 import { eq } from "drizzle-orm";
 import { logtail } from "@/shared/logtail";
+import { generateAndStoreQRCode, sendEmail } from "@/shared/email/send-email";
 
 (["info", "warn", "error"] as const).forEach((lvl) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

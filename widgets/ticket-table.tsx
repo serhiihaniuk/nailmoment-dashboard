@@ -87,7 +87,7 @@ export function TicketsTable() {
             placeholder="Пошук: імʼя, email, insta, телефон"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs text-[18px]"
+            className="sm:max-w-xs text-[16px]"
           />
 
           <ToggleGroup

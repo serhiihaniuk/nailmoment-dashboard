@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 import { Resend } from "resend";
-import { EmailTemplate } from "./email-template";
 import { put } from "@vercel/blob";
+import { EmailTemplate } from "./email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
