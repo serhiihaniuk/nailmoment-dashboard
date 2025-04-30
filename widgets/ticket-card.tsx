@@ -25,6 +25,7 @@ import {
   User,
   BadgeCheck,
   CalendarClock,
+  ArrowBigDownDashIcon,
 } from "lucide-react";
 
 const getTicketTypeClasses = (ticketType: string) => {
@@ -111,18 +112,18 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
 
         {data && (
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-            <span className="font-medium flex items-center gap-1">
-              <User size={14} /> Імʼя
+            <span className="font-medium flex items-center gap-2">
+              <User size={14} className="text-gray-400" /> Імʼя
             </span>
             <span>{data.name}</span>
 
-            <span className="font-medium flex items-center gap-1">
-              <Mail size={14} /> Email
+            <span className="font-medium flex items-center gap-2">
+              <Mail size={14} className="text-gray-400" /> Email
             </span>
             <span>{data.email}</span>
 
-            <span className="font-medium flex items-center gap-1">
-              <Instagram size={14} /> Instagram
+            <span className="font-medium flex items-center gap-2">
+              <Instagram size={14} className="text-gray-400" /> Instagram
             </span>
             <span>
               {data.instagram ? (
@@ -139,13 +140,13 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               )}
             </span>
 
-            <span className="font-medium flex items-center gap-1">
-              <Phone size={14} /> Телефон
+            <span className="font-medium flex items-center gap-2">
+              <Phone size={14} className="text-gray-400" /> Телефон
             </span>
             <span>{data.phone}</span>
 
-            <span className="font-medium flex items-center gap-1">
-              <BadgeCheck size={14} /> Тип
+            <span className="font-medium flex items-center gap-2">
+              <BadgeCheck size={14} className="text-gray-400" /> Тип
             </span>
             <span>
               <Badge className={getTicketTypeClasses(data.grade)}>
@@ -153,12 +154,15 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               </Badge>
             </span>
 
-            <span className="font-medium flex items-center gap-1">
-              <CalendarClock size={14} /> Дата
+            <span className="font-medium flex items-center gap-2">
+              <CalendarClock size={14} className="text-gray-400" /> Дата
             </span>
             <span>{new Date(data.date).toLocaleString("uk-UA")}</span>
 
-            <span className="font-medium">Прибув(ла)</span>
+            <span className="font-medium flex items-center gap-2">
+              <ArrowBigDownDashIcon size={14} className="text-gray-400" />
+              Прибув(ла)
+            </span>
             <span>{data.arrived ? "✅" : "❌"}</span>
           </div>
         )}
@@ -172,11 +176,16 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
             onClick={() => mutate(!data.arrived)}
             className="ml-auto"
           >
-            {isPending
-              ? "Оновлення..."
-              : data.arrived
-                ? "Скасувати прибуття"
-                : "Позначити як прибув(ла)"}
+            {isPending ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" />
+                Оновлення...
+              </span>
+            ) : data.arrived ? (
+              "Скасувати прибуття"
+            ) : (
+              "Позначити як прибув(ла)"
+            )}
           </Button>
         </CardFooter>
       )}

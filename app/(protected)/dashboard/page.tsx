@@ -7,7 +7,7 @@ export default function DashboardPage() {
   // No data fetching or state management needed here for the table anymore
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full max-w-screen-lg mx-auto p-4">
       <TicketsTable />
     </div>
   );

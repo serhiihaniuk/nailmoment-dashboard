@@ -111,7 +111,11 @@ export function TicketsTable() {
                   </TableCell>
                   <TableCell>{t.phone}</TableCell>
                   <TableCell>
-                    {new Date(t.date).toLocaleString("uk-UA")}
+                    {new Intl.DateTimeFormat("uk-UA", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    }).format(new Date(t.date))}
                   </TableCell>
                 </TableRow>
               ))}
