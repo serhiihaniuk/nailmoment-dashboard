@@ -139,7 +139,7 @@ export async function POST(req: Request) {
         }
 
         const qrCodeData = `https://dashboard.nailmoment.pl/ticket/${ticketId}`;
-        const qrCodePath = `moment-qr/test/qr-code-${ticketId}.png`;
+        const qrCodePath = `moment-qr/festival/qr-code-${ticketId}.png`;
 
         logtail.info("Generating and storing QR code", {
           event_id: event.id,
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
           name: name,
           email: email,
           phone: phone,
-          instagram: instagram || "not_found",
+          instagram: instagram || "",
           qr_code: qrCodeUrl,
           grade: ticketGrade,
         };

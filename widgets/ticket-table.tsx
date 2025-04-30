@@ -1,9 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Ticket } from "@/shared/db/schema";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,18 +57,42 @@ export function TicketsTable() {
     queryFn: fetchTickets,
   });
 
+  /** ---------- local client-side filters ---------- */
+  const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!tickets) return [];
+    return tickets
+      .filter((t) =>
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
+      )
+      .filter((t) => {
+        if (!query.trim()) return true;
+        const q = query.toLowerCase();
+        return (
+          t.name?.toLowerCase().includes(q) ||
+          t.email?.toLowerCase().includes(q) ||
+          t.phone?.toLowerCase().includes(q) ||
+          t.instagram?.toLowerCase().includes(q)
+        );
+      });
+  }, [tickets, arrived, query]);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Квитки</CardTitle>
       </CardHeader>
+
       <CardContent className="overflow-x-auto min-h-20">
-        {!tickets?.length && !isError && !isLoading && (
+        {!filtered.length && !isError && !isLoading && (
           <p>Квитків не знайдено.</p>
         )}
         {isError && <p>Помилка завантаження квитків</p>}
         {isLoading && <Skeleton className="h-36 w-full" />}
-        {tickets?.length && (
+
+        {filtered.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -75,7 +107,7 @@ export function TicketsTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tickets.map((t, i) => (
+              {filtered.map((t, i) => (
                 <TableRow key={t.id}>
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>
@@ -87,7 +119,7 @@ export function TicketsTable() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span>{t.arrived ? "✅" : "❌"}</span>
+                    {t.arrived ? "✅" : "❌"}
                   </TableCell>
                   <TableCell>
                     <Badge className={getTicketTypeClasses(t.grade)}>
@@ -123,6 +155,31 @@ export function TicketsTable() {
           </Table>
         )}
       </CardContent>
+
+      {/* ---------- filters at the bottom ---------- */}
+      <CardFooter className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <Input
+          placeholder="Пошук: імʼя, email, insta, телефон"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="sm:max-w-xs"
+        />
+
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={arrived}
+          onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+        >
+          <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+          <ToggleGroupItem className="px-2" value="yes">
+            ✅
+          </ToggleGroupItem>
+          <ToggleGroupItem className="px-2" value="no">
+            ❌
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </CardFooter>
     </Card>
   );
 }
