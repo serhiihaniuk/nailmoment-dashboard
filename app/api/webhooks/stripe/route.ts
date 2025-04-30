@@ -36,7 +36,6 @@ export async function POST(req: Request) {
   let stripeSessionId = "";
 
   try {
-    // 2. Verify signature
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
 
@@ -54,7 +53,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Bad signature" }, { status: 400 });
     }
 
-    // 3. Early duplicate bailout
     if (inFlight.has(event.id)) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
@@ -66,6 +64,20 @@ export async function POST(req: Request) {
 
         if (session.payment_status !== "paid") {
           logtail.warn("Ignoring unpaid session", { stripeSessionId });
+          break;
+        }
+
+        const eventData = session.metadata?.event;
+        if (eventData !== "nailmoment") {
+          logtail.error(
+            "Invalid 'event' metadata in Stripe session, ticket not processed",
+            {
+              stripeSessionId,
+              expected_event_metadata: "nailmoment",
+              received_event_metadata: eventData,
+              metadata: session.metadata,
+            }
+          );
           break;
         }
 
@@ -132,6 +144,7 @@ export async function POST(req: Request) {
             logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
           }
         }
+        logtail.info("Ticket successfully processed", { stripeSessionId });
         break;
       }
       default:
