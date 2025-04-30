@@ -103,8 +103,10 @@ export const EmailTemplate = ({
               </Link>
             </Text>
           </Section>
-          <Hr style={hr} />
-          {ticketType.toLocaleLowerCase() !== "guest" && (
+          {(ticketType.toLocaleLowerCase() === "vip" ||
+            ticketType.toLocaleLowerCase() === "standard") && <Hr style={hr} />}
+          {(ticketType.toLocaleLowerCase() === "vip" ||
+            ticketType.toLocaleLowerCase() === "standard") && (
             <Section style={competitionSection}>
               <Heading style={h2}>🔥 Бонус: Битва Майстрів!</Heading>
               <Text style={text}>
