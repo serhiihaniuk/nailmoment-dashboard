@@ -74,7 +74,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
   });
 
   return (
-    <Card className="max-w-md mx-auto shadow-xl">
+    <Card className="max-w-md mx-auto shadow-md">
       <CardHeader
         className={cn("py-6 transition-colors duration-300", {
           "bg-teal-100": data?.arrived,
@@ -111,14 +111,15 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
         )}
 
         {data && (
-          <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+          <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
             <span className="font-medium flex items-center gap-2">
               <User size={14} className="text-gray-400" /> Імʼя
             </span>
             <span>{data.name}</span>
 
             <span className="font-medium flex items-center gap-2">
-              <Mail size={14} className="text-gray-400" /> Email
+              <Mail size={14} className="text-gray-400" />
+              Електронна пошта
             </span>
             <span>{data.email}</span>
 

@@ -1,31 +1,14 @@
 import { cn } from "@/shared/utils";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export const Header = () => {
-  const pathname = usePathname();
-  const notDashboard = pathname !== "/dashboard";
-
   return (
     <header className="sticky top-0 z-50 w-full border-b h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center h-full w-full max-w-screen-lg px-2 mx-auto">
-        {/* logo – always */}
         <Link href="/dashboard" className="mr-6 flex items-center space-x-2">
           <NailIcon className="w-20" />
           <span className="font-black text-lg">MOMENT</span>
         </Link>
-
-        {/* “Back” button – only outside /dashboard */}
-        {notDashboard && (
-          <Button variant="secondary" size="sm" asChild>
-            <Link href="/dashboard" className="flex items-center gap-1">
-              <ArrowLeft className="h-4 w-4" />
-              Назад
-            </Link>
-          </Button>
-        )}
       </div>
     </header>
   );

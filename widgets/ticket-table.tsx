@@ -3,13 +3,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -92,6 +86,30 @@ export function TicketsTable() {
         {isError && <p>Помилка завантаження квитків</p>}
         {isLoading && <Skeleton className="h-36 w-full" />}
 
+        <div className="flex gap-4 mb-4">
+          <Input
+            placeholder="Пошук: імʼя, email, insta, телефон"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="sm:max-w-xs text-[18px]"
+          />
+
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={arrived}
+            onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+          >
+            <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+            <ToggleGroupItem className="px-2" value="yes">
+              ✅
+            </ToggleGroupItem>
+            <ToggleGroupItem className="px-2" value="no">
+              ❌
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
         {filtered.length > 0 && (
           <Table>
             <TableHeader>
@@ -157,29 +175,6 @@ export function TicketsTable() {
       </CardContent>
 
       {/* ---------- filters at the bottom ---------- */}
-      <CardFooter className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <Input
-          placeholder="Пошук: імʼя, email, insta, телефон"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="sm:max-w-xs text-[18px]"
-        />
-
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={arrived}
-          onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
-        >
-          <ToggleGroupItem value="all">Всі</ToggleGroupItem>
-          <ToggleGroupItem className="px-2" value="yes">
-            ✅
-          </ToggleGroupItem>
-          <ToggleGroupItem className="px-2" value="no">
-            ❌
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </CardFooter>
     </Card>
   );
 }
