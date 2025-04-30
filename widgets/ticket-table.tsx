@@ -80,9 +80,6 @@ export function TicketsTable() {
       </CardHeader>
 
       <CardContent className="overflow-x-auto min-h-20">
-        {!filtered.length && !isError && !isLoading && (
-          <p>Квитків не знайдено.</p>
-        )}
         {isError && <p>Помилка завантаження квитків</p>}
 
         <div className="flex gap-4 mb-4">
@@ -110,6 +107,9 @@ export function TicketsTable() {
         </div>
 
         {isLoading && <Skeleton className="h-36 w-full" />}
+        {!filtered.length && !isError && !isLoading && (
+          <p>Квитків не знайдено.</p>
+        )}
 
         {filtered.length > 0 && (
           <Table>
