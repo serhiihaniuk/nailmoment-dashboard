@@ -67,6 +67,7 @@ export const ticketTable = pgTable("ticket", {
     .notNull()
     .defaultNow(),
   archived: boolean("archived").notNull().default(false),
+  mail_sent: boolean("mail_sent").notNull().default(false),
 });
 
 export type Ticket = typeof ticketTable.$inferSelect;
