@@ -36,6 +36,7 @@ export async function POST(req: Request) {
   let stripeSessionId = "";
 
   try {
+    // 2. Verify signature
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
 
@@ -53,13 +54,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Bad signature" }, { status: 400 });
     }
 
+    // 3. Early duplicate bailout
     if (inFlight.has(event.id)) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         stripeSessionId = session.id;
 
         if (session.payment_status !== "paid") {
@@ -73,23 +75,22 @@ export async function POST(req: Request) {
           .where(eq(ticketTable.stripe_event_id, stripeSessionId));
 
         if (existing.length) {
-          logtail.warn("Ticket already recorded", { stripeSessionId });
+          logtail.info("Ticket already recorded", { stripeSessionId });
           break;
         }
 
         inFlight.add(event.id);
 
         const ticketId = nanoid(10);
-        const email = session.customer_details?.email ?? "";
+        const email = session.customer_details?.email || "";
         if (!email) {
-          logtail.error("Email missing", { stripeSessionId });
-          break;
+          logtail.error("Email missing TICKET NOT SENT", { stripeSessionId });
         }
 
         const phone = session.customer_details?.phone ?? "";
         const name =
           session.custom_fields?.find((f) => f.key === "name")?.text?.value ??
-          "failed to find name";
+          "not found";
         const instagramInput =
           session.custom_fields?.find(
             (f) => f.key.toLowerCase() === "instagram"
@@ -101,34 +102,35 @@ export async function POST(req: Request) {
           session.metadata?.ticket_grade ?? "guest"
         ).toLowerCase();
 
-        await db.transaction(async (trx) => {
-          const qrCodeUrl = await generateAndStoreQRCode(
-            `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
-            `moment-qr/festival/qr-code-${ticketId}.png`
-          );
+        // 4. Generate QR, insert ticket (mail_sent=false), then try to send email & flip flag
+        const qrCodeUrl = await generateAndStoreQRCode(
+          `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
+          `moment-qr/festival/qr-code-${ticketId}.png`
+        );
 
-          await trx.insert(ticketTable).values({
-            id: ticketId,
-            stripe_event_id: stripeSessionId,
-            name,
-            email,
-            phone,
-            instagram,
-            qr_code: qrCodeUrl,
-            grade: ticketGrade,
-          });
-
-          try {
-            await sendEmail(email, name, qrCodeUrl, ticketGrade);
-
-            await trx
-              .update(ticketTable)
-              .set({ mail_sent: true })
-              .where(eq(ticketTable.id, ticketId));
-          } catch (mailErr) {
-            logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
-          }
+        await db.insert(ticketTable).values({
+          id: ticketId,
+          stripe_event_id: stripeSessionId,
+          name,
+          email,
+          phone,
+          instagram,
+          qr_code: qrCodeUrl,
+          grade: ticketGrade,
         });
+
+        try {
+          if (email) {
+            await sendEmail(email, name, qrCodeUrl, ticketGrade);
+          }
+
+          await db
+            .update(ticketTable)
+            .set({ mail_sent: true })
+            .where(eq(ticketTable.id, ticketId));
+        } catch (mailErr) {
+          logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+        }
         break;
       }
       default:

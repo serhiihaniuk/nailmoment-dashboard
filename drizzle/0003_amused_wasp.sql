@@ -1,0 +1,1 @@
+ALTER TABLE "ticket" ADD COLUMN "mail_sent" boolean DEFAULT false NOT NULL;
