@@ -8,6 +8,21 @@ import { ticketTable } from "@/shared/db/schema";
 import { eq } from "drizzle-orm";
 import { logtail } from "@/shared/logtail";
 
+(["info", "warn", "error"] as const).forEach((lvl) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orig = (logtail as any)[lvl].bind(logtail);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (logtail as any)[lvl] = (
+    msg: string,
+    fields: Record<string, unknown> = {}
+  ) => {
+    if (typeof fields.stripeSessionId === "string") {
+      msg = `${fields.stripeSessionId.slice(-4)} ${msg}`;
+    }
+    return orig(msg, fields);
+  };
+});
+
 /** Stripe client pinned to a fixed version */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2025-03-31.basil",
@@ -61,6 +76,8 @@ export async function POST(req: Request) {
       case "checkout.session.completed": {
         const session = event.data.object;
         stripeSessionId = session.id;
+
+        logtail.info("Processing Stripe event", { stripeSessionId });
 
         if (session.payment_status !== "paid") {
           logtail.warn("Ignoring unpaid session", { stripeSessionId });
