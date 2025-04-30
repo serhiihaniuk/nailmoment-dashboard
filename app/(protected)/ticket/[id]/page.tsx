@@ -1,7 +1,7 @@
 import { TicketCard } from "@/widgets/ticket-card";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export const dynamic = "force-dynamic";

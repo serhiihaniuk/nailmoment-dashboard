@@ -8,7 +8,7 @@ const ticketService = createTicketService(db);
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -31,7 +31,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -53,5 +53,4 @@ export async function PATCH(
   }
 }
 
-// (optional) mark as dynamic to bypass cache like the list endpoint
 export const dynamic = "force-dynamic";
