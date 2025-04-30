@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         stripeSessionId = session.id;
 
         if (session.payment_status !== "paid") {
-          logtail.info("Ignoring unpaid session", { stripeSessionId });
+          logtail.warn("Ignoring unpaid session", { stripeSessionId });
           break;
         }
 
@@ -102,7 +102,6 @@ export async function POST(req: Request) {
           session.metadata?.ticket_grade ?? "guest"
         ).toLowerCase();
 
-        // 4. Generate QR, insert ticket (mail_sent=false), then try to send email & flip flag
         const qrCodeUrl = await generateAndStoreQRCode(
           `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
           `moment-qr/festival/qr-code-${ticketId}.png`
@@ -119,22 +118,24 @@ export async function POST(req: Request) {
           grade: ticketGrade,
         });
 
-        try {
-          if (email) {
+        if (email) {
+          try {
             await sendEmail(email, name, qrCodeUrl, ticketGrade);
-          }
+            logtail.info("E‑mail sent successfully", { stripeSessionId });
 
-          await db
-            .update(ticketTable)
-            .set({ mail_sent: true })
-            .where(eq(ticketTable.id, ticketId));
-        } catch (mailErr) {
-          logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+            await db
+              .update(ticketTable)
+              .set({ mail_sent: true })
+              .where(eq(ticketTable.id, ticketId));
+            logtail.info("Ticket marked as sent", { stripeSessionId });
+          } catch (mailErr) {
+            logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+          }
         }
         break;
       }
       default:
-        logtail.info("Unhandled Stripe event", { type: event.type });
+        logtail.warn("Unhandled Stripe event", { type: event.type });
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
