@@ -129,7 +129,14 @@ export function TicketsTable() {
                     <TableCell>
                       <TicketTypeBadge type={t.updated_grade ?? t.grade} />
                     </TableCell>
-                    <TableCell>{t.email}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`mailto:${t.email}`}
+                        className="text-blue-500"
+                      >
+                        {t.email}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       {t.instagram ? (
                         <a
@@ -144,7 +151,14 @@ export function TicketsTable() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell>{t.phone}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`tel:${t.phone.replace(/\s+/g, "")}`}
+                        className="text-blue-500"
+                      >
+                        {t.phone.replace(/\s+/g, "")}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       {new Intl.DateTimeFormat("uk-UA", {
                         day: "2-digit",
@@ -159,8 +173,6 @@ export function TicketsTable() {
           </div>
         )}
       </CardContent>
-
-      {/* ---------- filters at the bottom ---------- */}
     </Card>
   );
 }

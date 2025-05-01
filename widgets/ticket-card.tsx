@@ -43,7 +43,7 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 
 async function patchTicket(
   id: string,
-  patch: UpdateTicketInput,
+  patch: UpdateTicketInput
 ): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
@@ -125,7 +125,9 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               <Mail size={14} className="text-gray-400" />
               Електронна пошта
             </span>
-            <span>{data.email}</span>
+            <Link href={`mailto:${data.email}`} className="text-blue-500">
+              {data.email}
+            </Link>
 
             <span className="font-medium flex items-center gap-2">
               <Instagram size={14} className="text-gray-400" /> Instagram
@@ -148,7 +150,14 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
             <span className="font-medium flex items-center gap-2">
               <Phone size={14} className="text-gray-400" /> Телефон
             </span>
-            <span>{data.phone}</span>
+            <span>
+              <Link
+                href={`tel:${data.phone.replace(/\s+/g, "")}`}
+                className="text-blue-500"
+              >
+                {data.phone.replace(/\s+/g, "")}
+              </Link>
+            </span>
 
             <span className="font-medium flex items-center gap-2">
               <BadgeCheck size={14} className="text-gray-400" /> Тип
