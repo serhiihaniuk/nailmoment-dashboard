@@ -21,3 +21,16 @@ function Label({
 }
 
 export { Label };
+
+export const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <div className="grid grid-cols-4 items-center gap-4">
+    <Label className="text-left">{label}</Label>
+    <div className="col-span-3">{children}</div>
+  </div>
+);

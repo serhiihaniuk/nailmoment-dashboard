@@ -15,6 +15,18 @@ export const updateTicketSchema = insertTicketSchema
   })
   .partial();
 
+export const insertTicketClientSchema = z.object({
+  name: z.string().trim().min(1, "Ім’я обов’язкове"),
+  email: z
+    .string()
+    .trim()
+    .email("Невалідна адреса")
+    .min(1, "Email обов’язковий"),
+  phone: z.string().min(9, "Телефон обов’язковий"),
+  instagram: z.string().optional(),
+  grade: z.enum(["guest", "standard", "vip"]).default("guest"),
+});
+
 export type SelectTicketInput = z.input<typeof selectTicketSchema>;
 export type Ticket = z.output<typeof selectTicketSchema>;
 

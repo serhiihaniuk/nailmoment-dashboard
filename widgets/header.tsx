@@ -1,5 +1,6 @@
 import { cn } from "@/shared/utils";
 import Link from "next/link";
+import { AddTicketDialog } from "./add-ticket-dialog";
 
 export const Header = () => {
   return (
@@ -9,6 +10,7 @@ export const Header = () => {
           <NailIcon className="w-20" />
           <span className="font-black text-lg">MOMENT</span>
         </Link>
+        <AddTicketDialog />
       </div>
     </header>
   );

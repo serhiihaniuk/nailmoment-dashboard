@@ -31,11 +31,11 @@ export default function ProtectedLayout({
   }
 
   return (
-    <>
+    <QueryProvider>
       <Header />
       {session.isPending && <FancyLoader />}
-      {session.data && <QueryProvider>{children}</QueryProvider>}
-    </>
+      {session.data && children}
+    </QueryProvider>
   );
 }
 

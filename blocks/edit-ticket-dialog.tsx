@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -131,17 +131,3 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
     </Dialog>
   );
 }
-
-/* helper */
-const Field = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <div className="grid grid-cols-4 items-center gap-4">
-    <Label className="text-right">{label}</Label>
-    <div className="col-span-3">{children}</div>
-  </div>
-);
