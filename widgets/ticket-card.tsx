@@ -27,10 +27,12 @@ import {
   ArrowBigDownDashIcon,
   ArrowRight,
   Text,
+  FileText,
 } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/blocks/edit-ticket-dialog";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
+import Link from "next/link";
 
 async function fetchTicket(id: string): Promise<Ticket | null> {
   const r = await fetch(`/api/ticket/${id}`);
@@ -41,7 +43,7 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 
 async function patchTicket(
   id: string,
-  patch: UpdateTicketInput
+  patch: UpdateTicketInput,
 ): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
@@ -178,6 +180,14 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               Коментар
             </span>
             <span>{data.comment || "-"}</span>
+            <Link
+              href={`/pdf/${data.id}`}
+              className="text-blue-600 hover:underline"
+            >
+              <span className="font-medium flex items-center gap-2">
+                <FileText size={14} className="text-gray-400" /> PDF
+              </span>
+            </Link>
           </div>
         )}
       </CardContent>
