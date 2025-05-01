@@ -111,6 +111,7 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
           </Field>
           <Field label="Коментар">
             <Textarea
+              className="h-36"
               value={form.comment ?? ""}
               onChange={(e) => handleChange("comment", e.target.value)}
             />
