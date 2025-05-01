@@ -24,6 +24,7 @@ import { UseMutationResult } from "@tanstack/react-query";
 import { Ticket } from "@/shared/db/schema";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { TicketTypeBadge } from "./ticket-type-badge";
+import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
   ticket: Ticket;
@@ -36,6 +37,7 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
   const [form, setForm] = useState<UpdateTicketInput>({
     instagram: ticket.instagram,
     phone: ticket.phone,
+    comment: ticket.comment ?? "",
     updated_grade: ticket.updated_grade ?? ticket.grade,
   });
 
@@ -79,14 +81,12 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
               onChange={(e) => handleChange("instagram", e.target.value)}
             />
           </Field>
-
           <Field label="Телефон">
             <Input
               value={form.phone ?? ""}
               onChange={(e) => handleChange("phone", e.target.value)}
             />
           </Field>
-
           <Field label="Тип квитка">
             <Select
               value={form.updated_grade ?? "guest"}
@@ -108,6 +108,12 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+          <Field label="Коментар">
+            <Textarea
+              value={form.comment ?? ""}
+              onChange={(e) => handleChange("comment", e.target.value)}
+            />
           </Field>
         </div>
 

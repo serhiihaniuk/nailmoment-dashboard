@@ -26,6 +26,7 @@ import {
   CalendarClock,
   ArrowBigDownDashIcon,
   ArrowRight,
+  Text,
 } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/blocks/edit-ticket-dialog";
@@ -171,6 +172,12 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               Прибув(ла)
             </span>
             <span>{data.arrived ? "✅" : "❌"}</span>
+
+            <span className="font-medium flex items-center gap-2">
+              <Text size={14} className="text-gray-400" />
+              Коментар
+            </span>
+            <span>{data.comment || "-"}</span>
           </div>
         )}
       </CardContent>

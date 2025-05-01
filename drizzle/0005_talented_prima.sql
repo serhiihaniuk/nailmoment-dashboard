@@ -1,0 +1,1 @@
+ALTER TABLE "ticket" ADD COLUMN "comment" text DEFAULT '' NOT NULL;
