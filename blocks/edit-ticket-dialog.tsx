@@ -69,7 +69,7 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[420px] top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
         <DialogHeader>
           <DialogTitle>Редагувати квиток</DialogTitle>
         </DialogHeader>
