@@ -185,7 +185,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
               className="text-blue-600 hover:underline"
             >
               <span className="font-medium flex items-center gap-2">
-                <FileText size={14} className="text-gray-400" /> PDF
+                <FileText size={14} className="text-gray-400" /> Квиток
               </span>
             </Link>
           </div>
