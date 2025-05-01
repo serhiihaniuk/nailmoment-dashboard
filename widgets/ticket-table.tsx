@@ -92,7 +92,7 @@ export function TicketsTable() {
 
           {isLoading && <Skeleton className="h-36 w-full" />}
           {!filtered.length && !isError && !isLoading && (
-            <p>Квитків не знайдено.</p>
+            <p className="px-4">Квитків не знайдено.</p>
           )}
         </div>
 
