@@ -10,7 +10,6 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatInstagramLink } from "@/shared/utils";
@@ -26,23 +25,11 @@ import {
   BadgeCheck,
   CalendarClock,
   ArrowBigDownDashIcon,
+  ArrowRight,
 } from "lucide-react";
-
-const getTicketTypeClasses = (ticketType: string) => {
-  const base =
-    "px-2.5 py-0.5 text-xs font-semibold transition-colors rounded-full";
-  switch (ticketType?.toLowerCase()) {
-    case "vip":
-      return cn(
-        base,
-        "bg-gradient-to-r from-rose-500 to-red-500 text-white hover:from-rose-600 hover:to-red-600"
-      );
-    case "standard":
-      return cn(base, "bg-indigo-600 text-white hover:bg-indigo-500");
-    default:
-      return cn(base, "bg-teal-500 text-white hover:bg-teal-400");
-  }
-};
+import { UpdateTicketInput } from "@/shared/db/schema.zod";
+import { EditTicketDialog } from "@/blocks/edit-ticket-dialog";
+import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 
 async function fetchTicket(id: string): Promise<Ticket | null> {
   const r = await fetch(`/api/ticket/${id}`);
@@ -51,14 +38,21 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   return r.json();
 }
 
-async function patchArrived(id: string, arrived: boolean): Promise<Ticket> {
+async function patchTicket(
+  id: string,
+  patch: UpdateTicketInput
+): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ arrived }),
+    body: JSON.stringify(patch),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
+}
+
+async function patchArrived(id: string, arrived: boolean): Promise<Ticket> {
+  return patchTicket(id, { arrived });
 }
 
 export function TicketCard({ ticketId }: { ticketId: string }) {
@@ -68,9 +62,16 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
     queryFn: () => fetchTicket(ticketId),
   });
 
-  const { mutate, isPending } = useMutation({
+  const arrivedMutation = useMutation({
     mutationFn: (arrived: boolean) => patchArrived(ticketId, arrived),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (patch: UpdateTicketInput) => patchTicket(ticketId, patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+    },
   });
 
   return (
@@ -81,7 +82,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
           "bg-gray-300": !data?.arrived,
         })}
       >
-        <CardTitle className="text-lg">
+        <CardTitle className="text-lg flex items-center gap-2">
           Квиток {data?.name} {data?.arrived && "✅"}
         </CardTitle>
         <CardDescription>#{ticketId}</CardDescription>
@@ -149,14 +150,19 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
             <span className="font-medium flex items-center gap-2">
               <BadgeCheck size={14} className="text-gray-400" /> Тип
             </span>
-            <span>
-              <Badge className={getTicketTypeClasses(data.grade)}>
-                {data.grade}
-              </Badge>
+            <span className="flex items-center gap-2">
+              <TicketTypeBadge type={data.grade} />
+              {data.updated_grade && data.updated_grade && (
+                <>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <TicketTypeBadge type={data.updated_grade} />
+                </>
+              )}
             </span>
 
             <span className="font-medium flex items-center gap-2">
-              <CalendarClock size={14} className="text-gray-400" /> Дата
+              <CalendarClock size={14} className="text-gray-400" />
+              Дата покупки
             </span>
             <span>{new Date(data.date).toLocaleString("uk-UA")}</span>
 
@@ -170,14 +176,16 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
       </CardContent>
 
       {data && (
-        <CardFooter className="pt-0">
+        <CardFooter className="pt-0 flex gap-2">
+          <EditTicketDialog ticket={data} mutation={editMutation} />
+
           <Button
             variant={data.arrived ? "secondary" : "default"}
-            disabled={isPending}
-            onClick={() => mutate(!data.arrived)}
+            disabled={arrivedMutation.isPending}
+            onClick={() => arrivedMutation.mutate(!data.arrived)}
             className="ml-auto"
           >
-            {isPending ? (
+            {arrivedMutation.isPending ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="animate-spin" />
                 Оновлення...

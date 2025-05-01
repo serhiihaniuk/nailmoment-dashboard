@@ -4,7 +4,6 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,30 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Ticket } from "@/shared/db/schema";
-import { cn, formatInstagramLink } from "@/shared/utils";
+import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 
 async function fetchTickets(): Promise<Ticket[]> {
   const res = await fetch("/api/ticket");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-const getTicketTypeClasses = (ticketType: string) => {
-  const base =
-    "px-2.5 py-0.5 text-xs font-semibold transition-colors rounded-full";
-  switch (ticketType?.toLowerCase()) {
-    case "vip":
-      return cn(
-        base,
-        "bg-gradient-to-r from-rose-500 to-red-500 text-white hover:from-rose-600 hover:to-red-600"
-      );
-    case "standard":
-      return cn(base, "bg-indigo-600 text-white hover:bg-indigo-500");
-    default:
-      return cn(base, "bg-teal-500 text-white hover:bg-teal-400");
-  }
-};
 
 export function TicketsTable() {
   const {
@@ -51,7 +35,6 @@ export function TicketsTable() {
     queryFn: fetchTickets,
   });
 
-  /** ---------- local client-side filters ---------- */
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
   const [query, setQuery] = useState("");
 
@@ -79,99 +62,101 @@ export function TicketsTable() {
         <CardTitle>Квитки</CardTitle>
       </CardHeader>
 
-      <CardContent className="overflow-x-auto min-h-20">
-        {isError && <p>Помилка завантаження квитків</p>}
+      <CardContent className="px-0 min-h-20">
+        <div>
+          {isError && <p className="px-4">Помилка завантаження квитків</p>}
 
-        <div className="flex gap-4 mb-4">
-          <Input
-            placeholder="Пошук: імʼя, email, insta, телефон"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs text-[16px]"
-          />
+          <div className="flex gap-4 mb-4 px-4">
+            <Input
+              placeholder="Пошук: імʼя, email, insta, телефон"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="sm:max-w-xs text-[16px]"
+            />
 
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={arrived}
-            onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
-          >
-            <ToggleGroupItem value="all">Всі</ToggleGroupItem>
-            <ToggleGroupItem className="px-2" value="yes">
-              ✅
-            </ToggleGroupItem>
-            <ToggleGroupItem className="px-2" value="no">
-              ❌
-            </ToggleGroupItem>
-          </ToggleGroup>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={arrived}
+              onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+            >
+              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+              <ToggleGroupItem className="px-2" value="yes">
+                ✅
+              </ToggleGroupItem>
+              <ToggleGroupItem className="px-2" value="no">
+                ❌
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {isLoading && <Skeleton className="h-36 w-full" />}
+          {!filtered.length && !isError && !isLoading && (
+            <p>Квитків не знайдено.</p>
+          )}
         </div>
 
-        {isLoading && <Skeleton className="h-36 w-full" />}
-        {!filtered.length && !isError && !isLoading && (
-          <p>Квитків не знайдено.</p>
-        )}
-
         {filtered.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Ім&apos;я</TableHead>
-                <TableHead>Прибув(ла)</TableHead>
-                <TableHead>Тип</TableHead>
-                <TableHead>Електронна пошта</TableHead>
-                <TableHead>Instagram</TableHead>
-                <TableHead>Телефон</TableHead>
-                <TableHead>Дата</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((t, i) => (
-                <TableRow key={t.id}>
-                  <TableCell>{i + 1}</TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/ticket/${t.id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {t.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {t.arrived ? "✅" : "❌"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getTicketTypeClasses(t.grade)}>
-                      {t.grade}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{t.email}</TableCell>
-                  <TableCell>
-                    {t.instagram ? (
-                      <a
-                        href={formatInstagramLink(t.instagram)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200">
+            <Table>
+              <TableHeader className="bg-muted">
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Ім&apos;я</TableHead>
+                  <TableHead>Прибув(ла)</TableHead>
+                  <TableHead>Тип</TableHead>
+                  <TableHead>Електронна пошта</TableHead>
+                  <TableHead>Instagram</TableHead>
+                  <TableHead>Телефон</TableHead>
+                  <TableHead>Дата покупки</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((t, i) => (
+                  <TableRow key={t.id}>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/ticket/${t.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        {t.instagram}
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>{t.phone}</TableCell>
-                  <TableCell>
-                    {new Intl.DateTimeFormat("uk-UA", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    }).format(new Date(t.date))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        {t.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {t.arrived ? "✅" : "❌"}
+                    </TableCell>
+                    <TableCell>
+                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
+                    </TableCell>
+                    <TableCell>{t.email}</TableCell>
+                    <TableCell>
+                      {t.instagram ? (
+                        <a
+                          href={formatInstagramLink(t.instagram)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {t.instagram}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>{t.phone}</TableCell>
+                    <TableCell>
+                      {new Intl.DateTimeFormat("uk-UA", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      }).format(new Date(t.date))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
 

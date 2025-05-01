@@ -20,7 +20,7 @@ interface EmailTemplateProps {
   ticketType: string;
   logoUrl?: string;
   battleOfMastersLink?: string;
-  instagramLink?: string; // Optional: Add link for "дірект"
+  instagramLink?: string;
 }
 
 const DEFAULT_LOGO_URL =
@@ -34,7 +34,7 @@ export const EmailTemplate = ({
   ticketType,
   logoUrl = DEFAULT_LOGO_URL,
   battleOfMastersLink = DEFAULT_BATTLE_LINK,
-  instagramLink = DEFAULT_INSTAGRAM_LINK, // Use default or pass specific link
+  instagramLink = DEFAULT_INSTAGRAM_LINK,
 }: EmailTemplateProps) => {
   const eventDetails = {
     date: "27 липня 2025",
@@ -111,7 +111,6 @@ export const EmailTemplate = ({
             </Text>
           </Section>
 
-          {/* Conditional Section: Battle for VIP/Standard, Upgrade for Others */}
           <Hr style={hr} />
 
           {isVipOrStandard && (
@@ -190,8 +189,6 @@ export const EmailTemplate = ({
     </Html>
   );
 };
-
-// --- STYLES ---
 
 const main = {
   backgroundColor: "#f6f9fc",
