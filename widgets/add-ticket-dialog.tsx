@@ -73,6 +73,8 @@ export function AddTicketDialog() {
     message: string;
   } | null>(null);
 
+  const [isSuccess, setIsSuccess] = useState(false);
+
   const handle = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
 
@@ -89,6 +91,7 @@ export function AddTicketDialog() {
               message: "Квиток створено, але e-mail не надіслано",
             }
       );
+      setIsSuccess(true);
       qc.invalidateQueries({ queryKey: ["tickets"] });
       setForm(defaultForm);
       setErrors({});
@@ -108,6 +111,12 @@ export function AddTicketDialog() {
   });
 
   const submit = () => {
+    if (isSuccess) {
+      setIsSuccess(false);
+      setOpen(false);
+      return;
+    }
+
     const parsed = insertTicketClientSchema.safeParse(form);
     if (!parsed.success) {
       const fieldErrors: Partial<Record<keyof FormState, string>> = {};
@@ -224,15 +233,17 @@ export function AddTicketDialog() {
         <StatusBanner />
 
         <DialogFooter>
-          <Button onClick={submit} disabled={mutation.isPending}>
-            {mutation.isPending ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : serverStatus?.type === "success" ? (
-              "Закрити"
-            ) : (
-              "Створити"
-            )}
-          </Button>
+          {
+            <Button onClick={submit} disabled={mutation.isPending}>
+              {mutation.isPending ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : serverStatus?.type === "success" ? (
+                "Закрити"
+              ) : (
+                "Створити"
+              )}
+            </Button>
+          }
         </DialogFooter>
       </DialogContent>
     </Dialog>

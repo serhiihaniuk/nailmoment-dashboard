@@ -41,6 +41,7 @@ export async function POST(req: Request) {
         !process.env.STRIPE_WEBHOOK_SECRET && "STRIPE_WEBHOOK_SECRET",
       ].filter(Boolean),
     });
+    await logtail.flush();
     return NextResponse.json(
       { error: "Server mis‑configuration" },
       { status: 500 }
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
       logtail.error("Webhook without signature", {
         headers: Object.fromEntries(req.headers.entries()),
       });
+      await logtail.flush();
       return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
@@ -65,10 +67,12 @@ export async function POST(req: Request) {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
     } catch (err) {
       logtail.error("Signature verification failed", { err });
+      await logtail.flush();
       return NextResponse.json({ error: "Bad signature" }, { status: 400 });
     }
 
     if (inFlight.has(event.id)) {
+      await logtail.flush();
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
@@ -168,9 +172,11 @@ export async function POST(req: Request) {
         logtail.warn("Unhandled Stripe event", { type: event.type });
     }
 
+    await logtail.flush();
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     logtail.error("Webhook processing failed", { err, stripeSessionId });
+    await logtail.flush();
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   } finally {
     // @ts-expect-error: Variable 'event' is used before being assigned
