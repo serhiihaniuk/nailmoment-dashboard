@@ -27,6 +27,9 @@ const DEFAULT_LOGO_URL =
   "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/assets/logo-sYFHGN18H1zPtjucntQDiZXrYdpXQB.png";
 const DEFAULT_BATTLE_LINK = "https://www.nailmoment.pl/battle";
 const DEFAULT_INSTAGRAM_LINK = "https://www.instagram.com/nail_moment_pl";
+// --- Add the Telegram Link Constant ---
+const TELEGRAM_CHANNEL_LINK = "https://t.me/+eNoGeJrBIzMyOWQ8";
+// ------------------------------------
 
 export const EmailTemplate = ({
   name,
@@ -53,7 +56,10 @@ export const EmailTemplate = ({
   return (
     <Html>
       <Head />
-      <Preview>Ваш квиток на фестиваль Nail Moment у Вроцлаві!</Preview>
+      <Preview>
+        Ваш квиток на фестиваль Nail Moment + Доступ до Telegram!
+      </Preview>{" "}
+      {/* Updated Preview */}
       <Body style={main}>
         <Container style={container}>
           <Section style={logoContainer}>
@@ -110,6 +116,23 @@ export const EmailTemplate = ({
               </Link>
             </Text>
           </Section>
+
+          <Hr style={hr} />
+
+          {/* --- New Telegram Channel Section --- */}
+          <Section style={telegramSection}>
+            <Heading style={h2}>🎁 Ваш Бонус: Закритий Telegram Канал</Heading>
+            <Text style={text}>
+              Як власник квитка, ви отримуєте ексклюзивний доступ до нашого
+              закритого Telegram-каналу! Приєднуйтесь, щоб отримувати останні
+              оновлення, спеціальні анонси та спілкуватися з іншими учасниками
+              фестивалю.
+            </Text>
+            <Button style={button} href={TELEGRAM_CHANNEL_LINK}>
+              Приєднатися до Каналу в Telegram
+            </Button>
+          </Section>
+          {/* ------------------------------------ */}
 
           <Hr style={hr} />
 
@@ -189,6 +212,17 @@ export const EmailTemplate = ({
     </Html>
   );
 };
+
+// --- Add Style for the Telegram Section ---
+const telegramSection = {
+  textAlign: "center" as const,
+  margin: "30px 0",
+  padding: "20px",
+  backgroundColor: "#f0f8ff", // AliceBlue, a soft light blue
+  borderRadius: "5px",
+  border: "1px solid #d6ebff",
+};
+// ---------------------------------------
 
 const main = {
   backgroundColor: "#f6f9fc",
@@ -318,10 +352,10 @@ const button = {
   fontWeight: "bold" as const,
   textDecoration: "none",
   textAlign: "center" as const,
-  display: "inline-block",
+  display: "inline-block", // Changed from block to inline-block for better centering within textAlign:center sections
   lineHeight: "100%",
   padding: "12px 20px",
-  marginTop: "10px",
+  marginTop: "10px", // Ensures some space above the button if text is short
 };
 
 const footerSection = {
