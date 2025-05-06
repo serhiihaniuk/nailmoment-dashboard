@@ -97,5 +97,8 @@ export const battleTicketTable = pgTable("battle_ticket", {
   comment: text("comment").notNull().default(""),
 });
 
+export type BattleTicket = typeof battleTicketTable.$inferSelect;
+export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
+
 export type Ticket = typeof ticketTable.$inferSelect;
 export type InsertTicket = typeof ticketTable.$inferInsert;
