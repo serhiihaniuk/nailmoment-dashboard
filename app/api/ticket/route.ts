@@ -13,7 +13,10 @@ import {
   insertTicketClientSchema, // allowed client fields
 } from "@/shared/db/schema.zod";
 import { extractInstagramUsername } from "@/shared/utils";
-import { generateAndStoreQRCode, sendEmail } from "@/shared/email/send-email";
+import {
+  generateAndStoreQRCode,
+  sendTicketEmail,
+} from "@/shared/email/send-email";
 
 const ticketService = createTicketService(db);
 
@@ -94,7 +97,12 @@ export async function POST(req: NextRequest) {
     let mailError: string | null = null;
 
     try {
-      await sendEmail(ticket.email, ticket.name, ticket.qr_code, ticket.grade);
+      await sendTicketEmail(
+        ticket.email,
+        ticket.name,
+        ticket.qr_code,
+        ticket.grade
+      );
       await db
         .update(ticketTable)
         .set({ mail_sent: true })

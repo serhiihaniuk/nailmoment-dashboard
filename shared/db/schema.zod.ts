@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { ticketTable } from "./schema";
+import { battleTicketTable, ticketTable } from "./schema";
 
 export const selectTicketSchema = createSelectSchema(ticketTable);
 
@@ -35,3 +35,26 @@ export type InsertTicketOutput = z.output<typeof insertTicketSchema>;
 
 export type UpdateTicketInput = z.input<typeof updateTicketSchema>;
 export type UpdateTicketOutput = z.output<typeof updateTicketSchema>;
+
+export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);
+
+export const insertBattleTicketSchema = createInsertSchema(battleTicketTable, {
+  id: z.string().min(1, "ID is required"), // Assuming ID is provided at creation
+  stripe_event_id: z.string().min(1, "Stripe Event ID is required"),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  instagram: z.string().min(1, "Instagram handle is required"),
+  phone: z.string().min(1, "Phone number is required"),
+  // nomination_quantity has a DB default, so it can be optional here if not provided
+  nomination_quantity: z.number().int().min(0).optional(),
+  // date, archived, mail_sent, comment have DB defaults, so they are optional for insert
+  date: z.date().optional(),
+  archived: z.boolean().optional(),
+  mail_sent: z.boolean().optional(),
+  comment: z.string().optional(),
+});
+
+export const updateBattleTicketSchema = insertBattleTicketSchema.partial();
+
+export type InsertBattleTicketInput = z.infer<typeof insertBattleTicketSchema>;
+export type UpdateBattleTicketInput = z.infer<typeof updateBattleTicketSchema>;

@@ -1,4 +1,10 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  integer,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -61,6 +67,25 @@ export const ticketTable = pgTable("ticket", {
   arrived: boolean("arrived").notNull().default(false),
   grade: text("grade").notNull().default("unknown"),
   updated_grade: text("updated_grade"),
+  date: timestamp("date", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow(),
+  archived: boolean("archived").notNull().default(false),
+  mail_sent: boolean("mail_sent").notNull().default(false),
+  comment: text("comment").notNull().default(""),
+});
+
+export const battleTicketTable = pgTable("battle_ticket", {
+  id: text("id").primaryKey(),
+  stripe_event_id: text("stripe_event_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  instagram: text("instagram").notNull(),
+  phone: text("phone").notNull(),
+  nomination_quantity: integer("nomination_quantity").notNull().default(0),
   date: timestamp("date", {
     withTimezone: true,
     mode: "date",

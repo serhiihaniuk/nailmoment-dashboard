@@ -22,7 +22,7 @@ export async function getTicketHtml(id: string): Promise<string | null> {
         name: ticket.name,
         qrCodeUrl: ticket.qr_code,
         ticketType: ticket.updated_grade || ticket.grade,
-      }),
-    ),
+      })
+    )
   );
 }

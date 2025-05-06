@@ -3,10 +3,14 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/shared/db";
-import { ticketTable } from "@/shared/db/schema";
+import { battleTicketTable, ticketTable } from "@/shared/db/schema";
 import { eq } from "drizzle-orm";
 import { logtail } from "@/shared/logtail";
-import { generateAndStoreQRCode, sendEmail } from "@/shared/email/send-email";
+import {
+  generateAndStoreQRCode,
+  sendBattleEmail,
+  sendTicketEmail,
+} from "@/shared/email/send-email";
 
 (["info", "warn", "error"] as const).forEach((lvl) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,72 +106,162 @@ export async function POST(req: Request) {
           break;
         }
 
-        const existing = await db
-          .select()
-          .from(ticketTable)
-          .where(eq(ticketTable.stripe_event_id, stripeSessionId));
+        const ticketGrade = (
+          session.metadata?.ticket_grade || ""
+        ).toLowerCase();
 
-        if (existing.length) {
-          logtail.info("Ticket already recorded", { stripeSessionId });
+        const isBattleTicket = session.metadata?.type === "battle";
+
+        if (isBattleTicket) {
+          logtail.info("Processing Stripe event, battle ticket", {
+            stripeSessionId,
+          });
+
+          const existing = await db
+            .select()
+            .from(battleTicketTable)
+            .where(eq(battleTicketTable.stripe_event_id, stripeSessionId));
+
+          if (existing.length) {
+            logtail.info("Battle ticket already recorded", { stripeSessionId });
+            break;
+          }
+
+          inFlight.add(event.id);
+
+          const battleTicketId = nanoid(10);
+          const email = session.customer_details?.email || "";
+          if (!email) {
+            logtail.error("Email missing TICKET NOT SENT", { stripeSessionId });
+          }
+
+          const phone = session.customer_details?.phone ?? "";
+          const name =
+            session.custom_fields?.find(
+              (f) => f.key === "name" || f.key.toLowerCase() === "full name"
+            )?.text?.value ?? "not found";
+          const instagramInput =
+            session.custom_fields?.find(
+              (f) => f.key.toLowerCase() === "instagram"
+            )?.text?.value ?? null;
+          const instagram = instagramInput
+            ? extractInstagramUsername(instagramInput)
+            : "";
+
+          await db.insert(battleTicketTable).values({
+            id: battleTicketId,
+            stripe_event_id: stripeSessionId,
+            name,
+            email,
+            phone,
+            instagram,
+            nomination_quantity: 1,
+            date: new Date(),
+            archived: false,
+            mail_sent: false,
+            comment: "",
+          });
+
+          if (email) {
+            try {
+              await sendBattleEmail(email, name, battleTicketId);
+              logtail.info("E‑mail sent successfully", { stripeSessionId });
+
+              await db
+                .update(battleTicketTable)
+                .set({ mail_sent: true })
+                .where(eq(battleTicketTable.id, battleTicketId));
+              logtail.info("Battle ticket marked as sent", { stripeSessionId });
+            } catch (mailErr) {
+              logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+            }
+          }
+
+          logtail.info("Battle ticket successfully processed", {
+            stripeSessionId,
+          });
           break;
         }
 
-        inFlight.add(event.id);
-
-        const ticketId = nanoid(10);
-        const email = session.customer_details?.email || "";
-        if (!email) {
-          logtail.error("Email missing TICKET NOT SENT", { stripeSessionId });
+        // PROCESS TICKET
+        if (!["guest", "standard", "vip"].includes(ticketGrade)) {
+          logtail.error(
+            "Invalid 'ticketGrade' metadata in Stripe session, ticket not processed",
+            {
+              stripeSessionId,
+              expected_event_metadata: "nailmoment",
+              received_event_metadata: ticketGrade,
+              metadata: session.metadata,
+            }
+          );
+          break;
         }
 
-        const phone = session.customer_details?.phone ?? "";
-        const name =
-          session.custom_fields?.find(
-            (f) => f.key === "name" || f.key.toLocaleLowerCase() === "full name"
-          )?.text?.value ?? "not found";
-        const instagramInput =
-          session.custom_fields?.find(
-            (f) => f.key.toLowerCase() === "instagram"
-          )?.text?.value ?? null;
-        const instagram = instagramInput
-          ? extractInstagramUsername(instagramInput)
-          : "";
-        const ticketGrade = (
-          session.metadata?.ticket_grade ?? "guest"
-        ).toLowerCase();
+        if (["guest", "standard", "vip"].includes(ticketGrade)) {
+          const existing = await db
+            .select()
+            .from(ticketTable)
+            .where(eq(ticketTable.stripe_event_id, stripeSessionId));
 
-        const qrCodeUrl = await generateAndStoreQRCode(
-          `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
-          `moment-qr/festival/qr-code-${ticketId}.png`
-        );
-
-        await db.insert(ticketTable).values({
-          id: ticketId,
-          stripe_event_id: stripeSessionId,
-          name,
-          email,
-          phone,
-          instagram,
-          qr_code: qrCodeUrl,
-          grade: ticketGrade,
-        });
-
-        if (email) {
-          try {
-            await sendEmail(email, name, qrCodeUrl, ticketGrade);
-            logtail.info("E‑mail sent successfully", { stripeSessionId });
-
-            await db
-              .update(ticketTable)
-              .set({ mail_sent: true })
-              .where(eq(ticketTable.id, ticketId));
-            logtail.info("Ticket marked as sent", { stripeSessionId });
-          } catch (mailErr) {
-            logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+          if (existing.length) {
+            logtail.info("Ticket already recorded", { stripeSessionId });
+            break;
           }
+
+          inFlight.add(event.id);
+
+          const ticketId = nanoid(10);
+          const email = session.customer_details?.email || "";
+          if (!email) {
+            logtail.error("Email missing TICKET NOT SENT", { stripeSessionId });
+          }
+
+          const phone = session.customer_details?.phone ?? "";
+          const name =
+            session.custom_fields?.find(
+              (f) => f.key === "name" || f.key.toLowerCase() === "full name"
+            )?.text?.value ?? "not found";
+          const instagramInput =
+            session.custom_fields?.find(
+              (f) => f.key.toLowerCase() === "instagram"
+            )?.text?.value ?? null;
+          const instagram = instagramInput
+            ? extractInstagramUsername(instagramInput)
+            : "";
+
+          const qrCodeUrl = await generateAndStoreQRCode(
+            `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
+            `moment-qr/festival/qr-code-${ticketId}.png`
+          );
+
+          await db.insert(ticketTable).values({
+            id: ticketId,
+            stripe_event_id: stripeSessionId,
+            name,
+            email,
+            phone,
+            instagram,
+            qr_code: qrCodeUrl,
+            grade: ticketGrade,
+          });
+
+          if (email) {
+            try {
+              await sendTicketEmail(email, name, qrCodeUrl, ticketGrade);
+              logtail.info("E‑mail sent successfully", { stripeSessionId });
+
+              await db
+                .update(ticketTable)
+                .set({ mail_sent: true })
+                .where(eq(ticketTable.id, ticketId));
+              logtail.info("Ticket marked as sent", { stripeSessionId });
+            } catch (mailErr) {
+              logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
+            }
+          }
+          logtail.info("Ticket successfully processed", { stripeSessionId });
+          break;
         }
-        logtail.info("Ticket successfully processed", { stripeSessionId });
-        break;
       }
       default:
         logtail.warn("Unhandled Stripe event", { type: event.type });
