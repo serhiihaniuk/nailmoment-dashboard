@@ -122,8 +122,9 @@ export async function POST(req: Request) {
 
         const phone = session.customer_details?.phone ?? "";
         const name =
-          session.custom_fields?.find((f) => f.key === "name")?.text?.value ??
-          "not found";
+          session.custom_fields?.find(
+            (f) => f.key === "name" || f.key.toLocaleLowerCase() === "full name"
+          )?.text?.value ?? "not found";
         const instagramInput =
           session.custom_fields?.find(
             (f) => f.key.toLowerCase() === "instagram"

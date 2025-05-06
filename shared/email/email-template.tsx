@@ -27,9 +27,7 @@ const DEFAULT_LOGO_URL =
   "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/assets/logo-sYFHGN18H1zPtjucntQDiZXrYdpXQB.png";
 const DEFAULT_BATTLE_LINK = "https://www.nailmoment.pl/battle";
 const DEFAULT_INSTAGRAM_LINK = "https://www.instagram.com/nail_moment_pl";
-// --- Add the Telegram Link Constant ---
 const TELEGRAM_CHANNEL_LINK = "https://t.me/+eNoGeJrBIzMyOWQ8";
-// ------------------------------------
 
 export const EmailTemplate = ({
   name,
@@ -172,7 +170,6 @@ export const EmailTemplate = ({
 
           <Hr style={hr} />
 
-          {/* Footer Section Remains the Same */}
           <Section style={footerSection}>
             <Text style={footerText}>
               З нетерпінням чекаємо на зустріч з вами у Вроцлаві!
@@ -213,12 +210,11 @@ export const EmailTemplate = ({
   );
 };
 
-// --- Add Style for the Telegram Section ---
 const telegramSection = {
   textAlign: "center" as const,
   margin: "30px 0",
   padding: "20px",
-  backgroundColor: "#f0f8ff", // AliceBlue, a soft light blue
+  backgroundColor: "#f0f8ff",
   borderRadius: "5px",
   border: "1px solid #d6ebff",
 };
