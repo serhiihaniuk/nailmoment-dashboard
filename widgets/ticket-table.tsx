@@ -18,6 +18,7 @@ import { Ticket } from "@/shared/db/schema";
 import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
+import { Check } from "lucide-react"; // Import icons
 
 async function fetchTickets(): Promise<Ticket[]> {
   const res = await fetch("/api/ticket");
@@ -67,12 +68,12 @@ export function TicketsTable() {
         <div>
           {isError && <p className="px-4">Помилка завантаження квитків</p>}
 
-          <div className="flex gap-4 mb-4 px-4">
+          <div className="flex flex-wrap gap-4 mb-4 px-4">
             <Input
-              placeholder="Пошук: імʼя, email, insta, телефон"
+              placeholder="Пошук: ім'я, email, insta, телефон"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="sm:max-w-xs text-[16px]"
+              className="sm:max-w-xs text-[16px] flex-grow"
             />
 
             <ToggleGroup
@@ -98,12 +99,13 @@ export function TicketsTable() {
         </div>
 
         {filtered.length > 0 && (
-          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200">
+          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
             <Table>
-              <TableHeader className="bg-muted">
+              <TableHeader className="bg-muted dark:bg-muted/50">
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
+                  <TableHead>Stripe</TableHead>
                   <TableHead>Прибув(ла)</TableHead>
                   <TableHead>Тип</TableHead>
                   <TableHead>Електронна пошта</TableHead>
@@ -119,10 +121,18 @@ export function TicketsTable() {
                     <TableCell>
                       <Link
                         href={`/ticket/${t.id}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:underline dark:text-blue-400"
                       >
                         {t.name}
                       </Link>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {!t.stripe_event_id.startsWith("manual") && (
+                        <Check
+                          size={18}
+                          className="text-emerald-900 inline-block"
+                        />
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       {t.arrived ? "✅" : "❌"}
@@ -131,12 +141,16 @@ export function TicketsTable() {
                       <TicketTypeBadge type={t.updated_grade ?? t.grade} />
                     </TableCell>
                     <TableCell>
-                      <Link
-                        href={`mailto:${t.email}`}
-                        className="text-blue-500"
-                      >
-                        {t.email}
-                      </Link>
+                      {t.email ? (
+                        <Link
+                          href={`mailto:${t.email}`}
+                          className="text-blue-500 hover:underline dark:text-blue-400"
+                        >
+                          {t.email}
+                        </Link>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                     <TableCell>
                       {t.instagram ? (
@@ -144,7 +158,7 @@ export function TicketsTable() {
                           href={formatInstagramLink(t.instagram)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
+                          className="text-blue-600 hover:underline dark:text-blue-400"
                         >
                           {t.instagram}
                         </a>
@@ -153,12 +167,16 @@ export function TicketsTable() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Link
-                        href={`tel:${t.phone.replace(/\s+/g, "")}`}
-                        className="text-blue-500"
-                      >
-                        {t.phone.replace(/\s+/g, "")}
-                      </Link>
+                      {t.phone ? (
+                        <Link
+                          href={`tel:${t.phone.replace(/\s+/g, "")}`}
+                          className="text-blue-500 hover:underline dark:text-blue-400"
+                        >
+                          {t.phone.replace(/\s+/g, "")}
+                        </Link>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Intl.DateTimeFormat("uk-UA", {
