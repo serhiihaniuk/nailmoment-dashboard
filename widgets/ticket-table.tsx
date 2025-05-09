@@ -19,6 +19,7 @@ import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import { Check } from "lucide-react"; // Import icons
+import { AddTicketDialog } from "./add-ticket-dialog";
 
 async function fetchTickets(): Promise<Ticket[]> {
   const res = await fetch("/api/ticket");
@@ -44,7 +45,7 @@ export function TicketsTable() {
     if (!tickets) return [];
     return tickets
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -61,12 +62,17 @@ export function TicketsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Квитки</CardTitle>
+        <CardTitle className="flex items-center justify-between gap-2">
+          Квитки
+          <AddTicketDialog />
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="px-0 min-h-20">
         <div>
-          {isError && <p className="px-4">Помилка завантаження квитків</p>}
+          {isError && (
+            <p className="p-4 text-red-500">Помилка завантаження квитків</p>
+          )}
 
           <div className="flex flex-wrap gap-4 mb-4 px-4">
             <Input
@@ -105,9 +111,9 @@ export function TicketsTable() {
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
-                  <TableHead>Stripe</TableHead>
                   <TableHead>Прибув(ла)</TableHead>
                   <TableHead>Тип</TableHead>
+                  <TableHead>Stripe</TableHead>
                   <TableHead>Електронна пошта</TableHead>
                   <TableHead>Instagram</TableHead>
                   <TableHead>Телефон</TableHead>
@@ -127,18 +133,18 @@ export function TicketsTable() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-center">
+                      {t.arrived ? "✅" : "❌"}
+                    </TableCell>
+                    <TableCell>
+                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
+                    </TableCell>
+                    <TableCell className="text-center">
                       {!t.stripe_event_id.startsWith("manual") && (
                         <Check
                           size={18}
                           className="text-emerald-900 inline-block"
                         />
                       )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {t.arrived ? "✅" : "❌"}
-                    </TableCell>
-                    <TableCell>
-                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
                     </TableCell>
                     <TableCell>
                       {t.email ? (

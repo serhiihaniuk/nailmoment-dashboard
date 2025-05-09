@@ -18,6 +18,7 @@ import { BattleTicket } from "@/shared/db/schema";
 import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Camera, CameraOff } from "lucide-react";
+import { AddBattleTicketDialog } from "./add-battle-ticket-dialog";
 
 async function fetchBattleTickets(): Promise<BattleTicket[]> {
   const res = await fetch("/api/battle-ticket");
@@ -73,7 +74,9 @@ export function BattleTicketsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Учасники Батлу</CardTitle>
+        <CardTitle className="flex items-center justify-between gap-2">
+          Учасники Батлу <AddBattleTicketDialog />
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="px-0 min-h-20">
