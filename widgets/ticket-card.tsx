@@ -67,13 +67,17 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
 
   const arrivedMutation = useMutation({
     mutationFn: (arrived: boolean) => patchArrived(ticketId, arrived),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 
   const editMutation = useMutation({
     mutationFn: (patch: UpdateTicketInput) => patchTicket(ticketId, patch),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
     },
   });
 

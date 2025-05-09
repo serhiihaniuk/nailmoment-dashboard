@@ -58,3 +58,24 @@ export const updateBattleTicketSchema = insertBattleTicketSchema.partial();
 
 export type InsertBattleTicketInput = z.infer<typeof insertBattleTicketSchema>;
 export type UpdateBattleTicketInput = z.infer<typeof updateBattleTicketSchema>;
+
+export const insertBattleTicketClientSchema = z.object({
+  name: z.string().trim().min(1, "Ім’я обов’язкове"),
+  email: z
+    .string()
+    .trim()
+    .email("Невалідна адреса")
+    .min(1, "Email обов’язковий"),
+  phone: z.string().min(9, "Телефон обов’язковий"),
+  instagram: z.string().trim().min(1, "Instagram обов’язковий"),
+  nomination_quantity: z
+    .number()
+    .int()
+    .min(1, "Кількість номінацій має бути принаймні 1")
+    .default(1),
+  comment: z.string().optional(),
+});
+
+export type InsertBattleTicketClientInput = z.infer<
+  typeof insertBattleTicketClientSchema
+>;

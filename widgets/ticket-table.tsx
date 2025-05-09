@@ -33,6 +33,7 @@ export function TicketsTable() {
   } = useQuery<Ticket[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
+    staleTime: 1500,
   });
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
