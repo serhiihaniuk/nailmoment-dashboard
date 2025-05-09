@@ -94,6 +94,7 @@ export const battleTicketTable = pgTable("battle_ticket", {
     .defaultNow(),
   archived: boolean("archived").notNull().default(false),
   mail_sent: boolean("mail_sent").notNull().default(false),
+  photos_sent: boolean("photos_sent").notNull().default(false),
   comment: text("comment").notNull().default(""),
 });
 

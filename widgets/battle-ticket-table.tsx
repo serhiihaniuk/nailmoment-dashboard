@@ -14,12 +14,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { BattleTicket } from "@/shared/db/schema"; // Make sure BattleTicket is exported from your schema.ts
+import { BattleTicket } from "@/shared/db/schema";
 import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Camera, CameraOff } from "lucide-react";
 
 async function fetchBattleTickets(): Promise<BattleTicket[]> {
-  const res = await fetch("/api/battle-ticket"); // Changed API endpoint
+  const res = await fetch("/api/battle-ticket");
   if (!res.ok) {
     const errorText = await res.text();
     console.error("Failed to fetch battle tickets:", errorText);
@@ -35,26 +36,23 @@ export function BattleTicketsTable() {
     isError,
     error,
   } = useQuery<BattleTicket[], Error>({
-    queryKey: ["battleTickets"], // Changed query key
+    queryKey: ["battleTickets"],
     queryFn: fetchBattleTickets,
-    staleTime: 1500, // 1.5 seconds
+    staleTime: 1500,
   });
 
-  const [mailSentFilter, setMailSentFilter] = useState<"all" | "yes" | "no">(
-    "all"
-  );
+  const [photosSentFilter, setPhotosSentFilter] = useState<
+    "all" | "yes" | "no"
+  >("all");
   const [query, setQuery] = useState("");
 
   const filteredBattleTickets = useMemo(() => {
     if (!battleTickets) return [];
     return battleTickets
-      .filter((bt) =>
-        mailSentFilter === "all"
-          ? true
-          : mailSentFilter === "yes"
-            ? bt.mail_sent
-            : !bt.mail_sent
-      )
+      .filter((bt) => {
+        if (photosSentFilter === "all") return true;
+        return photosSentFilter === "yes" ? bt.photos_sent : !bt.photos_sent;
+      })
       .filter((bt) => {
         if (!query.trim()) return true;
         const q = query.toLowerCase();
@@ -66,7 +64,7 @@ export function BattleTicketsTable() {
           bt.comment?.toLowerCase().includes(q)
         );
       });
-  }, [battleTickets, mailSentFilter, query]);
+  }, [battleTickets, photosSentFilter, query]);
 
   if (isError) {
     console.error("Error in BattleTicketsTable query:", error);
@@ -75,7 +73,7 @@ export function BattleTicketsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Учасники Батлу</CardTitle> {/* Changed title */}
+        <CardTitle>Учасники Батлу</CardTitle>
       </CardHeader>
 
       <CardContent className="px-0 min-h-20">
@@ -97,26 +95,26 @@ export function BattleTicketsTable() {
             <ToggleGroup
               type="single"
               variant="outline"
-              value={mailSentFilter}
+              value={photosSentFilter}
               onValueChange={(v) =>
-                setMailSentFilter((v as typeof mailSentFilter) || "all")
+                setPhotosSentFilter((v as typeof photosSentFilter) || "all")
               }
-              aria-label="Фільтр по статусу відправки email"
+              aria-label="Фільтр по статусу відправки фото"
             >
-              <ToggleGroupItem value="all">Всі Email</ToggleGroupItem>
+              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
               <ToggleGroupItem
                 className="px-2"
                 value="yes"
-                aria-label="Email надіслано"
+                aria-label="Фото надіслано"
               >
-                Надіслано ✅
+                <Camera size={16} className="mr-1 text-green-600" />
               </ToggleGroupItem>
               <ToggleGroupItem
                 className="px-2"
                 value="no"
-                aria-label="Email не надіслано"
+                aria-label="Фото не надіслано"
               >
-                Не Надіслано ❌
+                <CameraOff size={16} className="mr-1 text-red-600" />
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
@@ -135,7 +133,7 @@ export function BattleTicketsTable() {
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
                   <TableHead>Номінації</TableHead>
-                  <TableHead>Email Надіслано</TableHead>
+                  <TableHead>Фото Надіслано</TableHead>
                   <TableHead>Електронна пошта</TableHead>
                   <TableHead>Instagram</TableHead>
                   <TableHead>Телефон</TableHead>
@@ -158,7 +156,17 @@ export function BattleTicketsTable() {
                       {bt.nomination_quantity}
                     </TableCell>
                     <TableCell className="text-center">
-                      {bt.mail_sent ? "✅" : "❌"}
+                      {bt.photos_sent ? (
+                        <Camera
+                          size={18}
+                          className="text-green-600 inline-block"
+                        />
+                      ) : (
+                        <CameraOff
+                          size={18}
+                          className="text-red-600 inline-block"
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
                       {bt.email ? (

@@ -21,7 +21,7 @@ export default async function TicketPage({ params }: PageProps) {
         size="sm"
         asChild
       >
-        <Link href="/dashboard" className="flex items-center gap-1">
+        <Link href="/battle" className="flex items-center gap-1">
           <ArrowLeft className="h-4 w-4" />
           Назад
         </Link>

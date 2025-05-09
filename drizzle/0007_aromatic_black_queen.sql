@@ -1,0 +1,1 @@
+ALTER TABLE "battle_ticket" ADD COLUMN "photos_sent" boolean DEFAULT false NOT NULL;

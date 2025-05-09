@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-// Import useMutation and useQueryClient
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -14,7 +13,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { BattleTicket } from "@/shared/db/schema";
-// Import UpdateBattleTicketInput for the mutation
 import { UpdateBattleTicketInput } from "@/shared/db/schema.zod";
 import {
   Loader2,
@@ -29,9 +27,11 @@ import {
   MailCheck,
   MailX,
   ListChecks,
+  Camera,
+  CameraOff,
 } from "lucide-react";
 import Link from "next/link";
-import { EditBattleTicketDialog } from "@/blocks/edit-battle-ticket-dialog"; // Ensure this path is correct
+import { EditBattleTicketDialog } from "@/blocks/edit-battle-ticket-dialog";
 
 async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
   const r = await fetch(`/api/battle-ticket/${id}`);
@@ -44,7 +44,6 @@ async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
   return r.json();
 }
 
-// Function to patch battle ticket data
 async function patchBattleTicket(
   id: string,
   patch: UpdateBattleTicketInput
@@ -55,7 +54,6 @@ async function patchBattleTicket(
     body: JSON.stringify(patch),
   });
   if (!r.ok) {
-    // Try to parse error message from response, otherwise use statusText
     let errorMessage = `Failed to update battle ticket: ${r.statusText}`;
     try {
       const errorResponse = await r.json();
@@ -72,8 +70,7 @@ async function patchBattleTicket(
         }
       }
     } catch (e) {
-      console.error("Error parsing error response:", e);
-      // Could not parse JSON, stick with statusText or original error
+      console.error("Error parsing error response for patchBattleTicket:", e);
     }
     console.error("Patch battle ticket error:", r.status, errorMessage);
     throw new Error(errorMessage);
@@ -86,7 +83,7 @@ interface BattleTicketCardProps {
 }
 
 export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
-  const queryClient = useQueryClient(); // For invalidating queries
+  const queryClient = useQueryClient();
 
   const {
     data: battleTicket,
@@ -98,18 +95,21 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
     queryFn: () => fetchBattleTicket(battleTicketId),
   });
 
-  // Mutation for editing the battle ticket
   const editMutation = useMutation<
-    BattleTicket, // Type of data returned on success
-    Error, // Type of error
-    UpdateBattleTicketInput // Type of variables passed to mutationFn
+    BattleTicket,
+    Error,
+    UpdateBattleTicketInput
   >({
     mutationFn: (patchData) => patchBattleTicket(battleTicketId, patchData),
-    onSuccess: () => {
+    onSuccess: (updatedData) => {
       queryClient.invalidateQueries({
         queryKey: ["battleTicket", battleTicketId],
       });
       queryClient.invalidateQueries({ queryKey: ["battleTickets"] });
+      console.log(`Battle ticket "${updatedData.name}" updated successfully.`);
+    },
+    onError: (error) => {
+      console.error("Failed to update battle ticket:", error.message);
     },
   });
 
@@ -121,22 +121,19 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
     <Card className="max-w-md mx-auto shadow-md dark:border-gray-700">
       <CardHeader
         className={cn("py-6 transition-colors duration-300", {
-          "bg-green-100 dark:bg-green-900/30": battleTicket?.mail_sent === true,
+          "bg-green-100 dark:bg-green-900/30":
+            battleTicket?.photos_sent === true,
           "bg-yellow-100 dark:bg-yellow-800/30":
-            battleTicket?.mail_sent === false,
+            battleTicket?.photos_sent === false,
           "bg-gray-200 dark:bg-gray-700": battleTicket === undefined,
         })}
       >
         <CardTitle className="text-lg flex items-center gap-2">
           Учасник Батлу: {battleTicket?.name || "Завантаження..."}
-          {battleTicket?.mail_sent === true && (
-            <MailCheck
-              size={20}
-              className="text-green-600 dark:text-green-400"
-            />
-          )}
-          {battleTicket?.mail_sent === false && (
-            <MailX size={20} className="text-yellow-600 dark:text-yellow-400" />
+          {battleTicket?.photos_sent ? (
+            <Camera size={14} className="text-green-500" />
+          ) : (
+            <CameraOff size={14} className="text-red-500" />
           )}
         </CardTitle>
         <CardDescription className="dark:text-gray-400">
@@ -173,7 +170,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
         {battleTicket && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4 text-sm">
             <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <User size={14} className="text-gray-400 dark:text-gray-500" />{" "}
+              <User size={14} className="text-gray-400 dark:text-gray-500" />
               Імʼя
             </div>
             <span className="dark:text-gray-50">{battleTicket.name}</span>
@@ -197,7 +194,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
               <Instagram
                 size={14}
                 className="text-gray-400 dark:text-gray-500"
-              />{" "}
+              />
               Instagram
             </div>
             <span>
@@ -216,7 +213,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
             </span>
 
             <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Phone size={14} className="text-gray-400 dark:text-gray-500" />{" "}
+              <Phone size={14} className="text-gray-400 dark:text-gray-500" />
               Телефон
             </div>
             {battleTicket.phone ? (
@@ -234,7 +231,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
               <ListChecks
                 size={14}
                 className="text-gray-400 dark:text-gray-500"
-              />{" "}
+              />
               Кількість номінацій
             </div>
             <span className="dark:text-gray-50">
@@ -264,6 +261,18 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
               {battleTicket.mail_sent ? "Так ✅" : "Ні ❌"}
             </span>
 
+            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              {battleTicket.photos_sent ? (
+                <Camera size={14} className="text-green-500" />
+              ) : (
+                <CameraOff size={14} className="text-red-500" />
+              )}
+              Фото Надіслано
+            </div>
+            <span className="dark:text-gray-50">
+              {battleTicket.photos_sent ? "Так ✅" : "Ні ❌"}
+            </span>
+
             <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300 sm:col-span-2">
               <Text size={14} className="text-gray-400 dark:text-gray-500" />
               Коментар
@@ -274,12 +283,11 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
           </div>
         )}
       </CardContent>
-      {/* Footer now includes the EditBattleTicketDialog and passes the editMutation */}
       {battleTicket && (
         <CardFooter className="pt-4 flex justify-start">
           <EditBattleTicketDialog
             battleTicket={battleTicket}
-            mutation={editMutation} // Pass the mutation here
+            mutation={editMutation}
           />
         </CardFooter>
       )}
