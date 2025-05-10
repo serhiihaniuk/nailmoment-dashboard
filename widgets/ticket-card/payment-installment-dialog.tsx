@@ -20,12 +20,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Loader2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PaymentInstallment } from "@/shared/db/schema";
-import { patchPaymentInstallmentSchema } from "@/shared/db/schema.zod";
+import { patchPaymentInstallmentSchema as patchServerSchema } from "@/shared/db/schema.zod";
+
+const patchPaymentInstallmentSchema = patchServerSchema.refine(
+  (data) => !(data.is_paid && !data.paid_date),
+  {
+    message: "Дата платежу обов'язкова, якщо позначено «Оплачено».",
+    path: ["paid_date"],
+  }
+);
 
 interface EditPaymentInstallmentDialogProps {
   payment: PaymentInstallment;
@@ -67,8 +75,8 @@ export const EditPaymentInstallmentDialog: React.FC<
     await onSave(payment.id, {
       ...values,
       amount: values.amount ?? undefined,
-      due_date: values.due_date || undefined,
-      paid_date: values.paid_date || undefined,
+      due_date: values.due_date,
+      paid_date: values.paid_date,
       nip: values.nip?.trim(),
       comment: values.comment?.trim(),
     });
@@ -144,16 +152,30 @@ export const EditPaymentInstallmentDialog: React.FC<
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Дата платежу</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(e.target.value || undefined)
-                        }
-                      />
-                    </FormControl>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(e.target.value || undefined)
+                          }
+                        />
+                      </FormControl>
+
+                      {field.value && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground"
+                          onClick={() => field.onChange(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

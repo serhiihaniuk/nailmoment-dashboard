@@ -144,7 +144,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
 
       <ul className="space-y-4">
         {payments.map((p, i) => {
-          const dateLabel = p.paid_date
+          const dateLabel = p.is_paid
             ? "Сплачено:"
             : p.due_date
               ? "Очікується до:"

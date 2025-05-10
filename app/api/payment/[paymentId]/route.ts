@@ -36,6 +36,7 @@ export async function PATCH(
 
   try {
     patchData = patchPaymentInstallmentSchema.parse(body);
+    console.log(patchData);
   } catch (e) {
     return NextResponse.json(
       { message: "Validation failed", issues: (e as z.ZodError).issues },
