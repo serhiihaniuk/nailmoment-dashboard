@@ -265,7 +265,7 @@ export async function POST(req: Request) {
           }
 
           const paymentInstallmentId = nanoid(10);
-          const currentDate = new Date();
+          const currentDate = new Date().toISOString();
 
           const amountPaid = (session.amount_total || 0) / 100;
 
