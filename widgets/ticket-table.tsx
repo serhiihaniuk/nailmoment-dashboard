@@ -148,6 +148,7 @@ export function TicketsTable() {
                     </React.Fragment>
                   ))}
 
+                  <TableHead className="text-center">Разом</TableHead>
                   <TableHead className="text-center">Разом сплачено</TableHead>
                 </TableRow>
               </TableHeader>
@@ -156,6 +157,11 @@ export function TicketsTable() {
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
                     (s, p) => (p.is_paid ? s + Number(p.amount) : s),
+                    0
+                  );
+
+                  const total = t.paymentInstallments.reduce(
+                    (s, p) => s + Number(p.amount),
                     0
                   );
 
@@ -306,6 +312,9 @@ export function TicketsTable() {
                         );
                       })}
 
+                      <TableCell className="text-center font-semibold">
+                        {amountFmt.format(total)} zł
+                      </TableCell>
                       <TableCell className="text-center font-semibold">
                         {amountFmt.format(totalPaid)} zł
                       </TableCell>
