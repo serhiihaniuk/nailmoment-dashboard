@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { FC, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -20,6 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import { Check, X } from "lucide-react";
 import { AddTicketDialog } from "./add-ticket-dialog";
+import { Label } from "@radix-ui/react-label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface TicketWithPayments extends Ticket {
   paymentInstallments: PaymentInstallment[];
@@ -88,7 +91,6 @@ export function TicketsTable() {
           <p className="p-4 text-red-500">Помилка завантаження квитків</p>
         )}
 
-        {/* filters */}
         <div className="flex flex-wrap gap-4 mb-4 px-4">
           <Input
             placeholder="Пошук: ім'я, email, insta, телефон"
@@ -96,20 +98,23 @@ export function TicketsTable() {
             onChange={(e) => setQuery(e.target.value)}
             className="sm:max-w-xs text-[16px] flex-grow"
           />
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={arrived}
-            onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
-          >
-            <ToggleGroupItem value="all">Всі</ToggleGroupItem>
-            <ToggleGroupItem className="px-2" value="yes">
-              <Check size={14} />
-            </ToggleGroupItem>
-            <ToggleGroupItem className="px-2" value="no">
-              <X size={14} />
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <Label className="flex gap-2 items-center text-sm">
+            Прибув(ла)
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={arrived}
+              onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+            >
+              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+              <ToggleGroupItem className="px-2" value="yes">
+                <Check size={16} className="text-green-600" />
+              </ToggleGroupItem>
+              <ToggleGroupItem className="px-2" value="no">
+                <X size={14} className="text-red-600" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </Label>
         </div>
 
         {isLoading && <Skeleton className="h-36 w-full" />}
@@ -120,7 +125,7 @@ export function TicketsTable() {
         {filtered.length > 0 && (
           <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
             <Table>
-              <TableHeader className="bg-muted dark:bg-muted/50">
+              <TableHeader className="bg-muted/70 dark:bg-muted/20">
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
@@ -133,16 +138,16 @@ export function TicketsTable() {
                   <TableHead>Дата покупки</TableHead>
                   {Array.from({ length: maxPayments }).map((_, idx) => (
                     <React.Fragment key={idx}>
-                      <TableHead className="text-center bg-gray-100 border-l border-gray-500 dark:bg-gray-800/40">
+                      <TableHead className="text-center bg-muted border-dashed border-l border-border dark:bg-gray-800/40">
                         Сума {idx + 1}
                       </TableHead>
-                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40">
+                      <TableHead className="text-center bg-muted dark:bg-gray-800/40">
                         Оплачено {idx + 1}
                       </TableHead>
-                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40">
+                      <TableHead className="text-center bg-muted dark:bg-gray-800/40">
                         Фактура (запит) {idx + 1}
                       </TableHead>
-                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40 border-r border-gray-500">
+                      <TableHead className="text-center bg-muted dark:bg-gray-800/40 border-dashed border-r border-border">
                         Фактура (відпр.) {idx + 1}
                       </TableHead>
                     </React.Fragment>
@@ -152,7 +157,6 @@ export function TicketsTable() {
                   <TableHead className="text-center">Разом сплачено</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
@@ -168,20 +172,13 @@ export function TicketsTable() {
                   return (
                     <TableRow
                       key={t.id}
-                      className={cn(
-                        i % 2 === 0 && "bg-gray-100 dark:bg-gray-800/20"
-                      )}
+                      className={cn(i % 2 === 0 && "bg-muted/25")}
                     >
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
-                        <Link
-                          href={`/ticket/${t.id}`}
-                          className="text-blue-600 hover:underline dark:text-blue-400"
-                        >
-                          {t.name}
-                        </Link>
+                        <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center border-r border-dashed border-border">
                         {t.arrived ? (
                           <Check size={16} className="text-green-600 mx-auto" />
                         ) : (
@@ -201,38 +198,32 @@ export function TicketsTable() {
                       </TableCell>
                       <TableCell>
                         {t.email ? (
-                          <Link
-                            href={`mailto:${t.email}`}
-                            className="text-blue-500 hover:underline dark:text-blue-400"
-                          >
+                          <TableLink href={`mailto:${t.email}`}>
                             {t.email}
-                          </Link>
+                          </TableLink>
                         ) : (
                           "-"
                         )}
                       </TableCell>
                       <TableCell>
                         {t.instagram ? (
-                          <a
-                            href={formatInstagramLink(t.instagram)}
+                          <TableLink
                             target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline dark:text-blue-400"
+                            href={formatInstagramLink(t.instagram)}
                           >
                             {t.instagram}
-                          </a>
+                          </TableLink>
                         ) : (
                           "-"
                         )}
                       </TableCell>
                       <TableCell>
                         {t.phone ? (
-                          <Link
+                          <TableLink
                             href={`tel:${t.phone.replace(/\s+/g, "")}`}
-                            className="text-blue-500 hover:underline dark:text-blue-400"
                           >
                             {t.phone.replace(/\s+/g, "")}
-                          </Link>
+                          </TableLink>
                         ) : (
                           "-"
                         )}
@@ -252,13 +243,20 @@ export function TicketsTable() {
                         return (
                           <React.Fragment key={idx}>
                             <TableCell
-                              className={`border-l border-gray-500 dark:border-gray-700 text-center`}
+                              className={`border-l border-dashed border-border text-center bg-muted/20`}
                             >
-                              {p
-                                ? `${amountFmt.format(Number(p.amount))} zł`
-                                : "-"}
+                              {p ? (
+                                <Badge
+                                  variant="outline"
+                                  className="font-medium"
+                                >
+                                  {`${amountFmt.format(Number(p.amount))} zł`}
+                                </Badge>
+                              ) : (
+                                "-"
+                              )}
                             </TableCell>
-                            <TableCell className={`text-center`}>
+                            <TableCell className={`text-center bg-muted/20`}>
                               {p ? (
                                 p.is_paid ? (
                                   <Check
@@ -275,7 +273,7 @@ export function TicketsTable() {
                                 "-"
                               )}
                             </TableCell>
-                            <TableCell className={`text-center`}>
+                            <TableCell className={`text-center bg-muted/20`}>
                               {p ? (
                                 p.invoice_requested ? (
                                   <Check
@@ -290,7 +288,7 @@ export function TicketsTable() {
                               )}
                             </TableCell>
                             <TableCell
-                              className={`text-center border-r border-gray-500 dark:border-gray-700`}
+                              className={`text-center border-dashed border-r border-border bg-muted/20`}
                             >
                               {p?.invoice_requested ? (
                                 p.invoice_sent ? (
@@ -313,10 +311,14 @@ export function TicketsTable() {
                       })}
 
                       <TableCell className="text-center font-semibold">
-                        {amountFmt.format(total)} zł
+                        <Badge variant="outline">
+                          {amountFmt.format(total)} zł
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-center font-semibold">
-                        {amountFmt.format(totalPaid)} zł
+                        <Badge variant="secondary">
+                          {amountFmt.format(totalPaid)} zł
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   );
@@ -329,3 +331,15 @@ export function TicketsTable() {
     </Card>
   );
 }
+
+const TableLink: FC<{
+  href: string;
+  children: React.ReactNode;
+  target?: string;
+}> = ({ href, children, target }) => (
+  <Button asChild size="sm" className="p-0" variant="link">
+    <Link target={target} href={href}>
+      {children}
+    </Link>
+  </Button>
+);
