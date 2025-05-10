@@ -88,7 +88,7 @@ export function TicketsTable() {
 
       <CardContent className="px-0 min-h-20">
         {isError && (
-          <p className="p-4 text-red-500">Помилка завантаження квитків</p>
+          <p className="p-4 text-red-600">Помилка завантаження квитків</p>
         )}
 
         <div className="flex flex-wrap gap-4 mb-4 px-4">
