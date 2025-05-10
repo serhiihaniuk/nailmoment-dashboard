@@ -92,12 +92,6 @@ export const selectPaymentInstallmentSchema = createSelectSchema(
   paymentInstallmentTable
 );
 
-const dateStringCoercion = z
-  .string()
-  .nullable()
-  .optional()
-  .transform((val) => (val ? new Date(val) : null));
-
 export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
   paymentInstallmentTable,
   {
@@ -113,8 +107,6 @@ export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
             "Сума повинна бути додатнім числом з максимум двома знаками після коми.",
         }
       ),
-    due_date: dateStringCoercion,
-    paid_date: dateStringCoercion,
   }
 )
   .omit({ id: true, created_at: true, updated_at: true })
@@ -123,29 +115,14 @@ export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
     ticket_id: z.string().min(1, "ID квитка є обов'язковим"),
   });
 
-export const updatePaymentInstallmentSchema = createUpdateSchema(
-  paymentInstallmentTable,
-  {
-    due_date: dateStringCoercion,
-    paid_date: dateStringCoercion,
-  }
-);
-
-export const updatePaymentInstallmentClientSchema = createUpdateSchema(
-  paymentInstallmentTable,
-  {
-    due_date: z.string().optional(),
-    paid_date: z.string().optional(),
-  }
+export const patchPaymentInstallmentSchema = createUpdateSchema(
+  paymentInstallmentTable
 );
 
 export type InsertPaymentInstallmentInput = z.infer<
   typeof insertPaymentInstallmentApiInputSchema
 >;
-export type UpdatePaymentInstallmentInput = z.infer<
-  typeof updatePaymentInstallmentClientSchema
->;
 
 export type PatchPaymentInstallment = z.infer<
-  typeof updatePaymentInstallmentSchema
+  typeof patchPaymentInstallmentSchema
 >;

@@ -116,12 +116,14 @@ export const paymentInstallmentTable = pgTable("payment_installment", {
     .notNull()
     .references(() => ticketTable.id, { onDelete: "cascade" }),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  due_date: timestamp("due_date", { withTimezone: true, mode: "date" }),
+  due_date: timestamp("due_date", { withTimezone: true, mode: "string" }),
   is_paid: boolean("is_paid").notNull().default(false),
-  paid_date: timestamp("paid_date", { withTimezone: true, mode: "date" }),
+  paid_date: timestamp("paid_date", { withTimezone: true, mode: "string" }),
   invoice_requested: boolean("invoice_requested").notNull().default(false),
   invoice_sent: boolean("invoice_sent").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true })
+  nip: text("nip").default(""),
+  comment: text("comment").default(""),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" })
     .notNull()
     .defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true })

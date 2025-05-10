@@ -6,7 +6,7 @@ import { auth } from "@/shared/better-auth/auth";
 import { headers } from "next/headers";
 import {
   PatchPaymentInstallment,
-  updatePaymentInstallmentSchema,
+  patchPaymentInstallmentSchema,
 } from "@/shared/db/schema.zod";
 import { z } from "zod";
 
@@ -35,7 +35,7 @@ export async function PATCH(
   let patchData: PatchPaymentInstallment;
 
   try {
-    patchData = updatePaymentInstallmentSchema.parse(body);
+    patchData = patchPaymentInstallmentSchema.parse(body);
   } catch (e) {
     return NextResponse.json(
       { message: "Validation failed", issues: (e as z.ZodError).issues },

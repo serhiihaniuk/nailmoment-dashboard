@@ -4,7 +4,6 @@ import { paymentInstallmentTable, type PaymentInstallment } from "../schema";
 import {
   insertPaymentInstallmentApiInputSchema,
   PatchPaymentInstallment,
-  updatePaymentInstallmentSchema,
   type InsertPaymentInstallmentInput,
 } from "../schema.zod";
 import { nanoid } from "nanoid";

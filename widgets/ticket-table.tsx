@@ -14,15 +14,19 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Ticket } from "@/shared/db/schema";
-import { formatInstagramLink } from "@/shared/utils";
+import { Ticket, PaymentInstallment } from "@/shared/db/schema";
+import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
-import { Check } from "lucide-react"; // Import icons
+import { Check, X } from "lucide-react";
 import { AddTicketDialog } from "./add-ticket-dialog";
 
-async function fetchTickets(): Promise<Ticket[]> {
-  const res = await fetch("/api/ticket");
+interface TicketWithPayments extends Ticket {
+  paymentInstallments: PaymentInstallment[];
+}
+
+async function fetchTickets(): Promise<TicketWithPayments[]> {
+  const res = await fetch("/api/ticket?withPayments=1");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -32,7 +36,7 @@ export function TicketsTable() {
     data: tickets,
     isLoading,
     isError,
-  } = useQuery<Ticket[], Error>({
+  } = useQuery<TicketWithPayments[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
     staleTime: 1500,
@@ -45,7 +49,7 @@ export function TicketsTable() {
     if (!tickets) return [];
     return tickets
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -59,6 +63,17 @@ export function TicketsTable() {
       });
   }, [tickets, arrived, query]);
 
+  const maxPayments = useMemo(
+    () =>
+      filtered.reduce((m, t) => Math.max(m, t.paymentInstallments.length), 0),
+    [filtered]
+  );
+
+  const amountFmt = new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -69,40 +84,38 @@ export function TicketsTable() {
       </CardHeader>
 
       <CardContent className="px-0 min-h-20">
-        <div>
-          {isError && (
-            <p className="p-4 text-red-500">Помилка завантаження квитків</p>
-          )}
+        {isError && (
+          <p className="p-4 text-red-500">Помилка завантаження квитків</p>
+        )}
 
-          <div className="flex flex-wrap gap-4 mb-4 px-4">
-            <Input
-              placeholder="Пошук: ім'я, email, insta, телефон"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="sm:max-w-xs text-[16px] flex-grow"
-            />
-
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={arrived}
-              onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
-            >
-              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
-              <ToggleGroupItem className="px-2" value="yes">
-                ✅
-              </ToggleGroupItem>
-              <ToggleGroupItem className="px-2" value="no">
-                ❌
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          {isLoading && <Skeleton className="h-36 w-full" />}
-          {!filtered.length && !isError && !isLoading && (
-            <p className="px-4">Квитків не знайдено.</p>
-          )}
+        {/* filters */}
+        <div className="flex flex-wrap gap-4 mb-4 px-4">
+          <Input
+            placeholder="Пошук: ім'я, email, insta, телефон"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="sm:max-w-xs text-[16px] flex-grow"
+          />
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={arrived}
+            onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+          >
+            <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+            <ToggleGroupItem className="px-2" value="yes">
+              <Check size={14} />
+            </ToggleGroupItem>
+            <ToggleGroupItem className="px-2" value="no">
+              <X size={14} />
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
+
+        {isLoading && <Skeleton className="h-36 w-full" />}
+        {!filtered.length && !isError && !isLoading && (
+          <p className="px-4">Квитків не знайдено.</p>
+        )}
 
         {filtered.length > 0 && (
           <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
@@ -114,85 +127,191 @@ export function TicketsTable() {
                   <TableHead>Прибув(ла)</TableHead>
                   <TableHead>Тип</TableHead>
                   <TableHead>Stripe</TableHead>
-                  <TableHead>Електронна пошта</TableHead>
+                  <TableHead>E-mail</TableHead>
                   <TableHead>Instagram</TableHead>
                   <TableHead>Телефон</TableHead>
                   <TableHead>Дата покупки</TableHead>
+                  {Array.from({ length: maxPayments }).map((_, idx) => (
+                    <React.Fragment key={idx}>
+                      <TableHead className="text-center bg-gray-100 border-l border-gray-500 dark:bg-gray-800/40">
+                        Сума {idx + 1}
+                      </TableHead>
+                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40">
+                        Оплачено {idx + 1}
+                      </TableHead>
+                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40">
+                        Фактура (запит) {idx + 1}
+                      </TableHead>
+                      <TableHead className="text-center bg-gray-100 dark:bg-gray-800/40 border-r border-gray-500">
+                        Фактура (відпр.) {idx + 1}
+                      </TableHead>
+                    </React.Fragment>
+                  ))}
+
+                  <TableHead className="text-center">Разом сплачено</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {filtered.map((t, i) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/ticket/${t.id}`}
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        {t.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {t.arrived ? "✅" : "❌"}
-                    </TableCell>
-                    <TableCell>
-                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {!t.stripe_event_id.startsWith("manual") && (
-                        <Check
-                          size={18}
-                          className="text-emerald-900 inline-block"
-                        />
+                {filtered.map((t, i) => {
+                  const totalPaid = t.paymentInstallments.reduce(
+                    (s, p) => (p.is_paid ? s + Number(p.amount) : s),
+                    0
+                  );
+
+                  return (
+                    <TableRow
+                      key={t.id}
+                      className={cn(
+                        i % 2 === 0 && "bg-gray-100 dark:bg-gray-800/20"
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {t.email ? (
+                    >
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>
                         <Link
-                          href={`mailto:${t.email}`}
-                          className="text-blue-500 hover:underline dark:text-blue-400"
-                        >
-                          {t.email}
-                        </Link>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.instagram ? (
-                        <a
-                          href={formatInstagramLink(t.instagram)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={`/ticket/${t.id}`}
                           className="text-blue-600 hover:underline dark:text-blue-400"
                         >
-                          {t.instagram}
-                        </a>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.phone ? (
-                        <Link
-                          href={`tel:${t.phone.replace(/\s+/g, "")}`}
-                          className="text-blue-500 hover:underline dark:text-blue-400"
-                        >
-                          {t.phone.replace(/\s+/g, "")}
+                          {t.name}
                         </Link>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Intl.DateTimeFormat("uk-UA", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      }).format(new Date(t.date))}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {t.arrived ? (
+                          <Check size={16} className="text-green-600 mx-auto" />
+                        ) : (
+                          <X size={16} className="text-red-600 mx-auto" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <TicketTypeBadge type={t.updated_grade ?? t.grade} />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {!t.stripe_event_id.startsWith("manual") && (
+                          <Check
+                            size={18}
+                            className="text-emerald-900 inline-block"
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {t.email ? (
+                          <Link
+                            href={`mailto:${t.email}`}
+                            className="text-blue-500 hover:underline dark:text-blue-400"
+                          >
+                            {t.email}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {t.instagram ? (
+                          <a
+                            href={formatInstagramLink(t.instagram)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline dark:text-blue-400"
+                          >
+                            {t.instagram}
+                          </a>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {t.phone ? (
+                          <Link
+                            href={`tel:${t.phone.replace(/\s+/g, "")}`}
+                            className="text-blue-500 hover:underline dark:text-blue-400"
+                          >
+                            {t.phone.replace(/\s+/g, "")}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Intl.DateTimeFormat("uk-UA", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        }).format(new Date(t.date))}
+                      </TableCell>
+
+                      {/* payment cells */}
+                      {Array.from({ length: maxPayments }).map((_, idx) => {
+                        const p = t.paymentInstallments[idx];
+
+                        return (
+                          <React.Fragment key={idx}>
+                            <TableCell
+                              className={`border-l border-gray-500 dark:border-gray-700 text-center`}
+                            >
+                              {p
+                                ? `${amountFmt.format(Number(p.amount))} zł`
+                                : "-"}
+                            </TableCell>
+                            <TableCell className={`text-center`}>
+                              {p ? (
+                                p.is_paid ? (
+                                  <Check
+                                    size={16}
+                                    className="text-green-600 mx-auto"
+                                  />
+                                ) : (
+                                  <X
+                                    size={16}
+                                    className="text-orange-600 mx-auto"
+                                  />
+                                )
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell className={`text-center`}>
+                              {p ? (
+                                p.invoice_requested ? (
+                                  <Check
+                                    size={16}
+                                    className="text-green-600 mx-auto"
+                                  />
+                                ) : (
+                                  "-"
+                                )
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell
+                              className={`text-center border-r border-gray-500 dark:border-gray-700`}
+                            >
+                              {p?.invoice_requested ? (
+                                p.invoice_sent ? (
+                                  <Check
+                                    size={16}
+                                    className="text-green-600 mx-auto"
+                                  />
+                                ) : (
+                                  <X
+                                    size={16}
+                                    className="text-orange-600 mx-auto"
+                                  />
+                                )
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                          </React.Fragment>
+                        );
+                      })}
+
+                      <TableCell className="text-center font-semibold">
+                        {amountFmt.format(totalPaid)} zł
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

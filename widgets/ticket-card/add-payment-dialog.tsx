@@ -20,73 +20,68 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Pencil, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PaymentInstallment } from "@/shared/db/schema";
-import { patchPaymentInstallmentSchema } from "@/shared/db/schema.zod";
+import {
+  insertPaymentInstallmentApiInputSchema,
+  InsertPaymentInstallmentInput,
+} from "@/shared/db/schema.zod";
 
-interface EditPaymentInstallmentDialogProps {
-  payment: PaymentInstallment;
+/* UI collects everything except ticket_id (added on submit) */
+const paymentInstallmentFormSchema =
+  insertPaymentInstallmentApiInputSchema.omit({
+    ticket_id: true,
+  });
+
+type PaymentInstallmentFormValues = Omit<
+  InsertPaymentInstallmentInput,
+  "ticket_id"
+>;
+
+interface AddPaymentInstallmentDialogProps {
+  ticketId: string;
   isLoading?: boolean;
-  onSave: (
-    paymentId: string,
-    data: z.infer<typeof patchPaymentInstallmentSchema>
-  ) => Promise<void>;
+  onSave: (data: InsertPaymentInstallmentInput) => Promise<void>;
 }
 
-/**
- * Dialog for editing a payment installment.
- *
- * - `amount` kept as **string** for precision.
- * - nullable dates, nip, comment converted to string/undefined for TS.
- */
-export const EditPaymentInstallmentDialog: React.FC<
-  EditPaymentInstallmentDialogProps
-> = ({ payment, isLoading = false, onSave }) => {
+export const AddPaymentInstallmentDialog: React.FC<
+  AddPaymentInstallmentDialogProps
+> = ({ ticketId, isLoading = false, onSave }) => {
   const [open, setOpen] = React.useState(false);
 
-  const form = useForm<z.infer<typeof patchPaymentInstallmentSchema>>({
-    resolver: zodResolver(patchPaymentInstallmentSchema),
+  const form = useForm<PaymentInstallmentFormValues>({
+    resolver: zodResolver(paymentInstallmentFormSchema),
     defaultValues: {
-      amount: payment.amount?.toString() ?? "",
-      due_date: payment.due_date ? payment.due_date.slice(0, 10) : undefined,
-      paid_date: payment.paid_date ? payment.paid_date.slice(0, 10) : undefined,
-      is_paid: payment.is_paid,
-      invoice_requested: payment.invoice_requested,
-      invoice_sent: payment.invoice_sent,
-      nip: payment.nip ?? "",
-      comment: payment.comment ?? "",
+      amount: "",
+      due_date: undefined,
+      paid_date: undefined,
+      is_paid: false,
+      invoice_requested: false,
+      invoice_sent: false,
+      nip: "",
+      comment: "",
     },
   });
 
-  const handleSubmit = async (
-    values: z.infer<typeof patchPaymentInstallmentSchema>
-  ) => {
-    await onSave(payment.id, {
-      ...values,
-      amount: values.amount ?? undefined,
-      due_date: values.due_date || undefined,
-      paid_date: values.paid_date || undefined,
-      nip: values.nip?.trim(),
-      comment: values.comment?.trim(),
-    });
+  const handleSubmit = async (values: PaymentInstallmentFormValues) => {
+    await onSave({ ...values, ticket_id: ticketId });
     setOpen(false);
+    form.reset();
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6 p-1">
-          <Pencil className="h-4 w-4" />
+        <Button variant="secondary" size="sm" className="gap-1">
+          <Plus className="h-4 w-4" /> Додати платіж
         </Button>
       </DialogTrigger>
       <DialogContent className="top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
         <DialogHeader>
-          <DialogTitle>Редагування платежу</DialogTitle>
+          <DialogTitle>Новий платіж</DialogTitle>
           <DialogDescription>
-            Змініть дані платежу та натисніть «Зберегти».
+            Заповніть дані платежу та натисніть «Створити».
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +138,7 @@ export const EditPaymentInstallmentDialog: React.FC<
                 name="paid_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Дата платежу</FormLabel>
+                    <FormLabel>Дата платежу (якщо вже сплачено)</FormLabel>
                     <FormControl>
                       <Input
                         type="date"
@@ -219,7 +214,7 @@ export const EditPaymentInstallmentDialog: React.FC<
               name="nip"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>NIP</FormLabel>
+                  <FormLabel>NIP (для рахунку)</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="1234567890"
@@ -262,7 +257,7 @@ export const EditPaymentInstallmentDialog: React.FC<
                 {isLoading || form.formState.isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Зберегти
+                Створити
               </Button>
             </DialogFooter>
           </form>
