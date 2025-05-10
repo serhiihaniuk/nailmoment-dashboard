@@ -3,7 +3,11 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/shared/db";
-import { battleTicketTable, ticketTable } from "@/shared/db/schema";
+import {
+  battleTicketTable,
+  paymentInstallmentTable,
+  ticketTable,
+} from "@/shared/db/schema";
 import { eq } from "drizzle-orm";
 import { logtail } from "@/shared/logtail";
 import {
@@ -259,6 +263,22 @@ export async function POST(req: Request) {
               logtail.error("E‑mail send failed", { stripeSessionId, mailErr });
             }
           }
+
+          const paymentInstallmentId = nanoid(10);
+          const currentDate = new Date();
+
+          const amountPaid = (session.amount_total || 0) / 100;
+
+          await db.insert(paymentInstallmentTable).values({
+            id: paymentInstallmentId,
+            ticket_id: ticketId,
+            amount: String(amountPaid),
+            due_date: currentDate,
+            is_paid: true,
+            paid_date: currentDate,
+            invoice_requested: false,
+            invoice_sent: false,
+          });
           logtail.info("Ticket successfully processed", { stripeSessionId });
           break;
         }
