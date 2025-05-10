@@ -46,7 +46,7 @@ async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
 
 async function patchBattleTicket(
   id: string,
-  patch: UpdateBattleTicketInput
+  patch: UpdateBattleTicketInput,
 ): Promise<BattleTicket> {
   const r = await fetch(`/api/battle-ticket/${id}`, {
     method: "PATCH",
@@ -63,7 +63,7 @@ async function patchBattleTicket(
           const fieldErrors = Object.entries(errorResponse.errors)
             .map(
               ([field, errors]) =>
-                `${field}: ${(errors as string[]).join(", ")}`
+                `${field}: ${(errors as string[]).join(", ")}`,
             )
             .join("; ");
           errorMessage += ` (${fieldErrors})`;
@@ -168,7 +168,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
           </div>
         )}
         {battleTicket && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4 text-sm">
+          <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
             <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <User size={14} className="text-gray-400 dark:text-gray-500" />
               Імʼя

@@ -40,7 +40,7 @@ type ApiError = {
 };
 
 async function addBattleTicket(
-  body: BattleTicketFormState
+  body: BattleTicketFormState,
 ): Promise<ApiBattleTicketSuccess> {
   const r = await fetch("/api/battle-ticket", {
     // Updated API endpoint
@@ -70,7 +70,7 @@ export function AddBattleTicketDialog() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<BattleTicketFormState>(
-    defaultBattleTicketForm
+    defaultBattleTicketForm,
   );
   const [errors, setErrors] = useState<
     Partial<Record<keyof BattleTicketFormState, string>>
@@ -81,7 +81,7 @@ export function AddBattleTicketDialog() {
 
   const handleInputChange = <K extends keyof BattleTicketFormState>(
     key: K,
-    value: BattleTicketFormState[K]
+    value: BattleTicketFormState[K],
   ) => {
     setForm((prevForm) => ({ ...prevForm, [key]: value }));
     // Clear specific field error on change
@@ -169,7 +169,7 @@ export function AddBattleTicketDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="default" className="gap-1">
-          <Plus size={14} /> Додати Учасника Батлу
+          <Plus size={14} /> Додати Учасника
         </Button>
       </DialogTrigger>
 
@@ -236,7 +236,7 @@ export function AddBattleTicketDialog() {
               onChange={(e) =>
                 handleInputChange(
                   "nomination_quantity",
-                  parseInt(e.target.value, 10) || 1
+                  parseInt(e.target.value, 10) || 1,
                 )
               }
               disabled={mutation.isPending || mutationSuccessful}

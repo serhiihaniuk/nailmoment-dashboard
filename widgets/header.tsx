@@ -1,21 +1,21 @@
+import { NavLink } from "@/blocks/nav-link";
 import { cn } from "@/shared/utils";
 import Link from "next/link";
 
 export const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-2 h-full w-full max-w-screen-lg px-2 mx-auto">
+      <div className="flex items-center gap-4 h-full w-full max-w-screen-lg px-2 mx-auto">
         <Link href="/dashboard" className="mr-6 flex items-center space-x-2">
           <NailIcon className="w-20" />
           <span className="font-black text-lg">MOMENT</span>
         </Link>
-
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          Dashboard
-        </Link>
-        <Link href="/battle" className="flex items-center space-x-2">
-          Battle
-        </Link>
+        <NavLink href="/dashboard" className="flex items-center space-x-2">
+          Квитки
+        </NavLink>
+        <NavLink href="/battle" className="flex items-center space-x-2">
+          Батл
+        </NavLink>
       </div>
     </header>
   );
