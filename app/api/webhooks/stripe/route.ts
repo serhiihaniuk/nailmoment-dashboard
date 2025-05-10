@@ -269,6 +269,8 @@ export async function POST(req: Request) {
 
           const amountPaid = (session.amount_total || 0) / 100;
 
+          logtail.info("Processing payment", { stripeSessionId });
+
           await db.insert(paymentInstallmentTable).values({
             id: paymentInstallmentId,
             ticket_id: ticketId,
