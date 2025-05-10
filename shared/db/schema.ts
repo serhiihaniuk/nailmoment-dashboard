@@ -144,8 +144,11 @@ export const paymentInstallmentTableRelations = relations(
   })
 );
 
+export type PaymentInstallment = typeof paymentInstallmentTable.$inferSelect;
+
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 
 export type Ticket = typeof ticketTable.$inferSelect;
+
 export type InsertTicket = typeof ticketTable.$inferInsert;

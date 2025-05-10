@@ -1,6 +1,14 @@
 import { z } from "zod";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { battleTicketTable, ticketTable } from "./schema";
+import {
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from "drizzle-zod";
+import {
+  battleTicketTable,
+  paymentInstallmentTable,
+  ticketTable,
+} from "./schema";
 
 export const selectTicketSchema = createSelectSchema(ticketTable);
 
@@ -78,4 +86,66 @@ export const insertBattleTicketClientSchema = z.object({
 
 export type InsertBattleTicketClientInput = z.infer<
   typeof insertBattleTicketClientSchema
+>;
+
+export const selectPaymentInstallmentSchema = createSelectSchema(
+  paymentInstallmentTable
+);
+
+const dateStringCoercion = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((val) => (val ? new Date(val) : null));
+
+export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
+  paymentInstallmentTable,
+  {
+    amount: z
+      .string()
+      .refine(
+        (val) =>
+          /^\d+(\.\d{1,2})?$/.test(val) &&
+          !isNaN(parseFloat(val)) &&
+          parseFloat(val) >= 0,
+        {
+          message:
+            "Сума повинна бути додатнім числом з максимум двома знаками після коми.",
+        }
+      ),
+    due_date: dateStringCoercion,
+    paid_date: dateStringCoercion,
+  }
+)
+  .omit({ id: true, created_at: true, updated_at: true })
+  .extend({
+    // Ensure ticket_id is required for the API input when creating
+    ticket_id: z.string().min(1, "ID квитка є обов'язковим"),
+  });
+
+export const updatePaymentInstallmentSchema = createUpdateSchema(
+  paymentInstallmentTable,
+  {
+    due_date: dateStringCoercion,
+    paid_date: dateStringCoercion,
+  }
+);
+
+export const updatePaymentInstallmentClientSchema = createUpdateSchema(
+  paymentInstallmentTable,
+  {
+    due_date: z.string().optional(),
+    paid_date: z.string().optional(),
+  }
+);
+
+export type InsertPaymentInstallmentInput = z.infer<
+  typeof insertPaymentInstallmentApiInputSchema
+>;
+export type UpdatePaymentInstallmentInput = z.infer<
+  typeof updatePaymentInstallmentClientSchema
+>;
+
+export type PatchPaymentInstallment = z.infer<
+  typeof updatePaymentInstallmentSchema
 >;
