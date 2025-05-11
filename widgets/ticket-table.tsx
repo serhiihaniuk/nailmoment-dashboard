@@ -42,6 +42,7 @@ export function TicketsTable() {
   } = useQuery<TicketWithPayments[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
+    refetchInterval: 1500,
     staleTime: 1500,
   });
 
@@ -52,7 +53,7 @@ export function TicketsTable() {
     if (!tickets) return [];
     return tickets
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -69,7 +70,7 @@ export function TicketsTable() {
   const maxPayments = useMemo(
     () =>
       filtered.reduce((m, t) => Math.max(m, t.paymentInstallments.length), 0),
-    [filtered]
+    [filtered],
   );
 
   const amountFmt = new Intl.NumberFormat("pl-PL", {
@@ -161,12 +162,12 @@ export function TicketsTable() {
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
                     (s, p) => (p.is_paid ? s + Number(p.amount) : s),
-                    0
+                    0,
                   );
 
                   const total = t.paymentInstallments.reduce(
                     (s, p) => s + Number(p.amount),
-                    0
+                    0,
                   );
 
                   return (

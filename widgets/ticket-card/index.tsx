@@ -45,7 +45,7 @@ async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
 
 async function patchTicket(
   id: string,
-  patch: UpdateTicketInput
+  patch: UpdateTicketInput,
 ): Promise<TicketWithPayments> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
@@ -58,7 +58,7 @@ async function patchTicket(
 
 async function patchArrived(
   id: string,
-  arrived: boolean
+  arrived: boolean,
 ): Promise<TicketWithPayments> {
   return patchTicket(id, { arrived });
 }
@@ -192,7 +192,7 @@ const ErrorState: React.FC<{ message: string; height?: string }> = ({
   <div
     className={cn(
       "flex items-center gap-2 text-red-600 justify-center",
-      height
+      height,
     )}
   >
     <AlertTriangle size={20} />
@@ -207,7 +207,7 @@ const EmptyState: React.FC<{ message: string; height?: string }> = ({
   <div
     className={cn(
       "flex items-center gap-2 text-muted-foreground justify-center",
-      height
+      height,
     )}
   >
     <Ghost size={20} />
@@ -217,7 +217,7 @@ const EmptyState: React.FC<{ message: string; height?: string }> = ({
 
 export function TicketCard({ ticketId }: { ticketId: string }) {
   const qc = useQueryClient();
-  const { data, isLoading, isError, error } = useQuery<
+  const { data, isLoading, isFetching, isError, error } = useQuery<
     TicketWithPayments | null,
     Error
   >({
@@ -284,11 +284,11 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
           <EditTicketDialog ticket={data} mutation={editMutation} />
           <Button
             variant={data.arrived ? "outline" : "default"}
-            disabled={arrivedMutation.isPending}
+            disabled={isFetching || arrivedMutation.isPending}
             onClick={() => arrivedMutation.mutate(!data.arrived)}
             className="ml-auto"
           >
-            {arrivedMutation.isPending ? (
+            {arrivedMutation.isPending || isFetching ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="animate-spin h-4 w-4" />
                 Оновлення...
