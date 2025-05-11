@@ -53,7 +53,7 @@ export function TicketsTable() {
     if (!tickets) return [];
     return tickets
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -70,8 +70,23 @@ export function TicketsTable() {
   const maxPayments = useMemo(
     () =>
       filtered.reduce((m, t) => Math.max(m, t.paymentInstallments.length), 0),
-    [filtered],
+    [filtered]
   );
+
+  // ↓ inside component, after maxPayments
+  const totals = useMemo(() => {
+    let total = 0,
+      paid = 0;
+    filtered.forEach((t) =>
+      t.paymentInstallments.forEach((p) => {
+        total += +p.amount;
+        if (p.is_paid) paid += +p.amount;
+      })
+    );
+    return { total, paid };
+  }, [filtered]);
+
+  const totalRowColspan = 9 + maxPayments * 4; // cells before the 2 “grand-total” columns
 
   const amountFmt = new Intl.NumberFormat("pl-PL", {
     minimumFractionDigits: 2,
@@ -162,12 +177,12 @@ export function TicketsTable() {
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
                     (s, p) => (p.is_paid ? s + Number(p.amount) : s),
-                    0,
+                    0
                   );
 
                   const total = t.paymentInstallments.reduce(
                     (s, p) => s + Number(p.amount),
-                    0,
+                    0
                   );
 
                   return (
@@ -324,6 +339,22 @@ export function TicketsTable() {
                     </TableRow>
                   );
                 })}
+
+                <TableRow className="bg-muted font-semibold">
+                  <TableCell colSpan={totalRowColspan} className="text-right">
+                    Разом
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">
+                      {amountFmt.format(totals.total)} zł
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="secondary">
+                      {amountFmt.format(totals.paid)} zł
+                    </Badge>
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </div>

@@ -44,29 +44,25 @@ interface EditPaymentInstallmentDialogProps {
   ) => Promise<void>;
 }
 
-/**
- * Dialog for editing a payment installment.
- *
- * - `amount` kept as **string** for precision.
- * - nullable dates, nip, comment converted to string/undefined for TS.
- */
 export const EditPaymentInstallmentDialog: React.FC<
   EditPaymentInstallmentDialogProps
 > = ({ payment, isLoading = false, onSave }) => {
   const [open, setOpen] = React.useState(false);
 
+  const values = {
+    amount: payment.amount?.toString() ?? "",
+    due_date: payment.due_date ? payment.due_date.slice(0, 10) : undefined,
+    paid_date: payment.paid_date ? payment.paid_date.slice(0, 10) : undefined,
+    is_paid: payment.is_paid,
+    invoice_requested: payment.invoice_requested,
+    invoice_sent: payment.invoice_sent,
+    nip: payment.nip ?? "",
+    comment: payment.comment ?? "",
+  };
+
   const form = useForm<z.infer<typeof patchPaymentInstallmentSchema>>({
     resolver: zodResolver(patchPaymentInstallmentSchema),
-    defaultValues: {
-      amount: payment.amount?.toString() ?? "",
-      due_date: payment.due_date ? payment.due_date.slice(0, 10) : undefined,
-      paid_date: payment.paid_date ? payment.paid_date.slice(0, 10) : undefined,
-      is_paid: payment.is_paid,
-      invoice_requested: payment.invoice_requested,
-      invoice_sent: payment.invoice_sent,
-      nip: payment.nip ?? "",
-      comment: payment.comment ?? "",
-    },
+    defaultValues: values,
   });
 
   const handleSubmit = async (
@@ -83,8 +79,13 @@ export const EditPaymentInstallmentDialog: React.FC<
     setOpen(false);
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (open) form.reset(values);
+    setOpen(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-6 w-6 p-1">
           <Pencil className="h-4 w-4" />
@@ -235,7 +236,6 @@ export const EditPaymentInstallmentDialog: React.FC<
               />
             </div>
 
-            {/* nip */}
             <FormField
               control={form.control}
               name="nip"
