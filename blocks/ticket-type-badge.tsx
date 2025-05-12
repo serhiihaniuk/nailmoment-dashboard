@@ -7,14 +7,18 @@ import { cn } from "@/shared/utils";
 const getClasses = (type: string) => {
   switch (type?.toLowerCase()) {
     case "vip":
-      return cn("bg-purple-700");
+      return cn(
+        "border-purple-700 text-purple-800 bg-gradient-to-r from-orange-100 to-fuchsia-100"
+      );
     case "standard":
-      return cn("bg-indigo-600 text-white hover:bg-indigo-500");
+      return cn("border-indigo-600 text-indigo-800 bg-indigo-50");
     default:
-      return cn("bg-teal-500 text-white hover:bg-teal-400");
+      return cn("border-teal-500 text-teal-800 bg-teal-50");
   }
 };
 
 export const TicketTypeBadge = ({ type }: { type: string }) => (
-  <Badge className={cn("py-0.5 px-2", getClasses(type))}>{type}</Badge>
+  <Badge variant="outline" className={cn("py-0.5 px-2 w-16", getClasses(type))}>
+    {type}
+  </Badge>
 );
