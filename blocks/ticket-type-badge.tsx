@@ -11,9 +11,9 @@ const getClasses = (type: string) => {
         "border-purple-700 text-purple-800 bg-gradient-to-r from-orange-100 to-fuchsia-100"
       );
     case "standard":
-      return cn("border-indigo-600 text-indigo-800 bg-indigo-50");
+      return cn("border-indigo-600 text-indigo-800 bg-indigo-50/20");
     default:
-      return cn("border-teal-500 text-teal-800 bg-teal-50");
+      return cn("border-teal-500 text-teal-800 bg-teal-50/20");
   }
 };
 

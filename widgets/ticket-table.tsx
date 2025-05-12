@@ -18,7 +18,7 @@ import { Ticket, PaymentInstallment } from "@/shared/db/schema";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
-import { Check, X } from "lucide-react";
+import { Check, Instagram, Mail, Phone, X } from "lucide-react";
 import { AddTicketDialog } from "./add-ticket-dialog";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
@@ -133,9 +133,9 @@ export function TicketsTable() {
           </Label>
         </div>
 
-        {isLoading && <Skeleton className="h-36 w-full" />}
+        {isLoading && <Skeleton className="max-h-96 w-full rounded-md" />}
         {!filtered.length && !isError && !isLoading && (
-          <p className="px-4">Квитків не знайдено.</p>
+          <p className="px-4 rounded-md">Квитків не знайдено.</p>
         )}
 
         {filtered.length > 0 && (
@@ -148,11 +148,29 @@ export function TicketsTable() {
                   <TableHead className="border-r border-dashed border-border">
                     Прибув(ла)
                   </TableHead>
-                  <TableHead>Тип</TableHead>
+                  <TableHead className="text-center">Тип</TableHead>
                   <TableHead>Stripe</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Instagram</TableHead>
-                  <TableHead>Телефон</TableHead>
+                  <TableHead>
+                    <div className="flex gap-1 items-center">
+                      <Mail
+                        size={14}
+                        className="text-muted-foreground mt-[2px]"
+                      />
+                      E-mail
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex gap-1 items-center">
+                      <Instagram size={14} className="text-muted-foreground" />
+                      Instagram
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex gap-1 items-center">
+                      <Phone size={14} className="text-muted-foreground" />
+                      Телефон
+                    </div>
+                  </TableHead>
                   <TableHead>Дата покупки</TableHead>
                   {Array.from({ length: maxPayments }).map((_, idx) => (
                     <React.Fragment key={idx}>

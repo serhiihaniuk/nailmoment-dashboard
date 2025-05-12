@@ -15,6 +15,8 @@ export const DetailItem: React.FC<DetailItemProps> = ({
     <span className="font-medium flex items-center gap-2">
       {icon} {label}
     </span>
-    <span className="col-span-1 break-words">{value}</span>
+    <span className="col-span-1 break-words flex items-center text-ellipsis overflow-hidden">
+      {value}
+    </span>
   </>
 );
