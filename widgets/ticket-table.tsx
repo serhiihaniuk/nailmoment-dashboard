@@ -145,7 +145,9 @@ export function TicketsTable() {
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
-                  <TableHead>Прибув(ла)</TableHead>
+                  <TableHead className="border-r border-dashed border-border">
+                    Прибув(ла)
+                  </TableHead>
                   <TableHead>Тип</TableHead>
                   <TableHead>Stripe</TableHead>
                   <TableHead>E-mail</TableHead>
