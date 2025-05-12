@@ -18,7 +18,7 @@ import { Ticket, PaymentInstallment } from "@/shared/db/schema";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
-import { Check, Instagram, Mail, Phone, X } from "lucide-react";
+import { Check, Instagram, Loader, Mail, Phone, X } from "lucide-react";
 import { AddTicketDialog } from "./add-ticket-dialog";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,13 @@ export function TicketsTable() {
   const {
     data: tickets,
     isLoading,
+    isFetching,
     isError,
   } = useQuery<TicketWithPayments[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 1500,
-    staleTime: 1500,
+    refetchInterval: 6500,
+    staleTime: 6500,
   });
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
@@ -86,7 +87,7 @@ export function TicketsTable() {
     return { total, paid };
   }, [filtered]);
 
-  const totalRowColspan = 9 + maxPayments * 4; // cells before the 2 “grand-total” columns
+  const totalRowColspan = 9 + maxPayments * 4 - 2; // cells before the 2 “grand-total” columns
 
   const amountFmt = new Intl.NumberFormat("pl-PL", {
     minimumFractionDigits: 2,
@@ -361,6 +362,14 @@ export function TicketsTable() {
                 })}
 
                 <TableRow className="bg-muted font-semibold">
+                  <TableCell colSpan={2}>
+                    {isFetching && (
+                      <Loader
+                        size={16}
+                        className="animate-spin text-gray-500"
+                      />
+                    )}
+                  </TableCell>
                   <TableCell colSpan={totalRowColspan} className="text-right">
                     Разом
                   </TableCell>

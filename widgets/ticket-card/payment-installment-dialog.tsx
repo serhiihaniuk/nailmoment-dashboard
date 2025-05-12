@@ -135,6 +135,7 @@ export const EditPaymentInstallmentDialog: React.FC<
                     <FormControl>
                       <Input
                         type="date"
+                        className="w-min"
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
@@ -157,6 +158,7 @@ export const EditPaymentInstallmentDialog: React.FC<
                       <FormControl>
                         <Input
                           type="date"
+                          className="w-min"
                           {...field}
                           value={field.value ?? ""}
                           onChange={(e) =>

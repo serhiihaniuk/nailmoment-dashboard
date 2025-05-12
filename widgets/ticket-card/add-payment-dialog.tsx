@@ -77,7 +77,7 @@ export const AddPaymentInstallmentDialog: React.FC<
           <Plus className="h-4 w-4" /> Додати платіж
         </Button>
       </DialogTrigger>
-      <DialogContent className="top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
+      <DialogContent className="top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2 max-h-full overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Новий платіж</DialogTitle>
           <DialogDescription>
@@ -121,6 +121,7 @@ export const AddPaymentInstallmentDialog: React.FC<
                     <FormControl>
                       <Input
                         type="date"
+                        className="w-min"
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
@@ -142,6 +143,7 @@ export const AddPaymentInstallmentDialog: React.FC<
                     <FormControl>
                       <Input
                         type="date"
+                        className="w-min"
                         {...field}
                         value={field.value ?? ""}
                         onChange={(e) =>
