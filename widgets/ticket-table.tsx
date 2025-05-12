@@ -43,7 +43,7 @@ export function TicketsTable() {
   } = useQuery<TicketWithPayments[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 15000,
+    refetchInterval: 1000 * 60 * 2,
     staleTime: Infinity,
   });
 
