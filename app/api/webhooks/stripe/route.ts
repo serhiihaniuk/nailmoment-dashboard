@@ -15,6 +15,7 @@ import {
   sendBattleEmail,
   sendTicketEmail,
 } from "@/shared/email/send-email";
+import { waitUntil } from "@vercel/functions";
 
 (["info", "warn", "error"] as const).forEach((lvl) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -290,7 +291,7 @@ export async function POST(req: Request) {
     logtail.error("Webhook processing failed", { err, stripeSessionId });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   } finally {
-    await logtail.flush();
+    waitUntil(logtail.flush());
     // @ts-expect-error: Variable 'event' is used before being assigned
     if (event?.id) inFlight.delete(event.id);
   }
