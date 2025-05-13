@@ -43,7 +43,6 @@ export function TicketsTable() {
   } = useQuery<TicketWithPayments[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
-    refetchInterval: 1000 * 60 * 2,
     staleTime: Infinity,
   });
 
@@ -54,7 +53,7 @@ export function TicketsTable() {
     if (!tickets) return [];
     return tickets
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -71,7 +70,7 @@ export function TicketsTable() {
   const maxPayments = useMemo(
     () =>
       filtered.reduce((m, t) => Math.max(m, t.paymentInstallments.length), 0),
-    [filtered],
+    [filtered]
   );
 
   // ↓ inside component, after maxPayments
@@ -82,7 +81,7 @@ export function TicketsTable() {
       t.paymentInstallments.forEach((p) => {
         total += +p.amount;
         if (p.is_paid) paid += +p.amount;
-      }),
+      })
     );
     return { total, paid };
   }, [filtered]);
@@ -198,12 +197,12 @@ export function TicketsTable() {
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
                     (s, p) => (p.is_paid ? s + Number(p.amount) : s),
-                    0,
+                    0
                   );
 
                   const total = t.paymentInstallments.reduce(
                     (s, p) => s + Number(p.amount),
-                    0,
+                    0
                   );
 
                   return (
@@ -399,7 +398,7 @@ const TableLink: FC<{
   target?: string;
 }> = ({ href, children, target }) => (
   <Button asChild size="sm" className="p-0" variant="link">
-    <Link target={target} href={href}>
+    <Link prefetch={false} target={target} href={href}>
       {children}
     </Link>
   </Button>
