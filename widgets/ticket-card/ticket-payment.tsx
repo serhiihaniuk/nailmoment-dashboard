@@ -44,7 +44,7 @@ interface TicketPaymentsProps {
 /* ---------------- API helpers ---------------- */
 async function addPaymentApi(
   _ticketId: string,
-  data: InsertPaymentInstallmentInput
+  data: InsertPaymentInstallmentInput,
 ): Promise<PaymentInstallment> {
   const r = await fetch(`/api/payment`, {
     method: "POST",
@@ -57,7 +57,7 @@ async function addPaymentApi(
 
 async function updatePaymentApi(
   paymentId: string,
-  data: PatchPaymentInstallment
+  data: PatchPaymentInstallment,
 ): Promise<PaymentInstallment> {
   const r = await fetch(`/api/payment/${paymentId}`, {
     method: "PATCH",
@@ -87,7 +87,10 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
   const addPaymentMutation = useMutation({
     mutationFn: (data: InsertPaymentInstallmentInput) =>
       addPaymentApi(ticketId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 
   const updatePaymentMutation = useMutation({
@@ -98,12 +101,18 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
       paymentId: string;
       data: PatchPaymentInstallment;
     }) => updatePaymentApi(paymentId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 
   const deletePaymentMutation = useMutation({
     mutationFn: (paymentId: string) => deletePaymentApi(paymentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 
   /* ---------------- HANDLERS ---------------- */
@@ -113,7 +122,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
 
   const handleUpdatePayment = async (
     paymentId: string,
-    data: PatchPaymentInstallment
+    data: PatchPaymentInstallment,
   ) => {
     await updatePaymentMutation.mutateAsync({ paymentId, data });
   };
@@ -187,7 +196,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                     <span className="font-medium">Статус:</span>
                     <span
                       className={cn(
-                        p.is_paid ? "text-green-600" : "text-orange-600"
+                        p.is_paid ? "text-green-600" : "text-orange-600",
                       )}
                     >
                       {p.is_paid ? "Оплачено" : "Не оплачено"}
