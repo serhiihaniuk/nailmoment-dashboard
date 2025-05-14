@@ -139,7 +139,7 @@ export async function POST(req: Request) {
           const phone = session.customer_details?.phone ?? "";
           const name =
             session.custom_fields?.find(
-              (f) => f.key === "name" || f.key.toLowerCase() === "full name"
+              (f) => f.key === "name" || f.key.toLowerCase().includes("name")
             )?.text?.value ?? "not found";
           const instagramInput =
             session.custom_fields?.find(
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
           const phone = session.customer_details?.phone ?? "";
           const name =
             session.custom_fields?.find(
-              (f) => f.key === "name" || f.key.toLowerCase() === "full name"
+              (f) => f.key === "name" || f.key.toLowerCase().includes("name")
             )?.text?.value ?? "not found";
           const instagramInput =
             session.custom_fields?.find(
