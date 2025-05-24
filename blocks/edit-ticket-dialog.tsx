@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch"; // ➜ NEW
 import { UseMutationResult } from "@tanstack/react-query";
 import { Ticket } from "@/shared/db/schema";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
@@ -39,6 +40,7 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
     phone: ticket.phone,
     comment: ticket.comment ?? "",
     updated_grade: ticket.updated_grade ?? ticket.grade,
+    archived: ticket.archived ?? false, // ➜ NEW
   });
 
   useEffect(() => {
@@ -114,6 +116,13 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
               className="h-36"
               value={form.comment ?? ""}
               onChange={(e) => handleChange("comment", e.target.value)}
+            />
+          </Field>
+
+          <Field label="Видалено">
+            <Switch
+              checked={form.archived}
+              onCheckedChange={(v) => handleChange("archived", v)}
             />
           </Field>
         </div>

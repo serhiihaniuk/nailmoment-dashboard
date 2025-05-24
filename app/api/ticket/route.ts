@@ -71,7 +71,7 @@ export async function GET() {
         { status: 401 }
       );
     }
-    const tickets = await ticketService.getTickets();
+    const tickets = await ticketService.getTickets({ archived: true });
     return NextResponse.json(tickets, { status: 200 });
   } catch (error) {
     console.error("API Error fetching tickets:", error);

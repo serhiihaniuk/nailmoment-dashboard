@@ -37,6 +37,7 @@ import Link from "next/link";
 import { TicketWithPayments } from "@/shared/db/service/ticket-service";
 import { DetailItem } from "./detail-item";
 import { TicketPayments } from "./ticket-payment";
+import { Badge } from "@/components/ui/badge";
 
 async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
   const r = await fetch(`/api/ticket/${id}`);
@@ -47,7 +48,7 @@ async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
 
 async function patchTicket(
   id: string,
-  patch: UpdateTicketInput,
+  patch: UpdateTicketInput
 ): Promise<TicketWithPayments> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
@@ -60,7 +61,7 @@ async function patchTicket(
 
 async function patchArrived(
   id: string,
-  arrived: boolean,
+  arrived: boolean
 ): Promise<TicketWithPayments> {
   return patchTicket(id, { arrived });
 }
@@ -202,7 +203,7 @@ const ErrorState: React.FC<{ message: string; height?: string }> = ({
   <div
     className={cn(
       "flex items-center gap-2 text-red-600 justify-center",
-      height,
+      height
     )}
   >
     <AlertTriangle size={20} />
@@ -217,7 +218,7 @@ const EmptyState: React.FC<{ message: string; height?: string }> = ({
   <div
     className={cn(
       "flex items-center gap-2 text-muted-foreground justify-center",
-      height,
+      height
     )}
   >
     <Ghost size={20} />
@@ -279,11 +280,13 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
           "bg-teal-100": data?.arrived,
           "bg-gray-200": !data?.arrived && data !== null,
           "bg-gray-100": data === null || isLoading || isError,
+          "!bg-destructive/10": data?.archived,
         })}
       >
         <CardTitle className="text-lg flex items-center gap-2">
           Квиток {data?.name || "..."}{" "}
           {data?.arrived && <Check size={16} className="text-green-600" />}
+          {data?.archived && <Badge className="bg-destructive">DELETED</Badge>}
         </CardTitle>
         <CardDescription>#{ticketId.slice(-6)}</CardDescription>
       </CardHeader>
@@ -293,23 +296,25 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
       {data && (
         <CardFooter className="pt-4 flex gap-2 border-t flex-col md:flex-row items-stretch">
           <EditTicketDialog ticket={data} mutation={editMutation} />
-          <Button
-            variant={data.arrived ? "outline" : "default"}
-            disabled={isFetching || arrivedMutation.isPending}
-            onClick={() => arrivedMutation.mutate(!data.arrived)}
-            className="md:ml-auto"
-          >
-            {arrivedMutation.isPending || isFetching ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin h-4 w-4" />
-                Оновлення...
-              </span>
-            ) : data.arrived ? (
-              "Скасувати прибуття"
-            ) : (
-              "Позначити як прибув(ла)"
-            )}
-          </Button>
+          {!data.archived && (
+            <Button
+              variant={data.arrived ? "outline" : "default"}
+              disabled={isFetching || arrivedMutation.isPending}
+              onClick={() => arrivedMutation.mutate(!data.arrived)}
+              className="md:ml-auto"
+            >
+              {arrivedMutation.isPending || isFetching ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="animate-spin h-4 w-4" />
+                  Оновлення...
+                </span>
+              ) : data.arrived ? (
+                "Скасувати прибуття"
+              ) : (
+                "Позначити як прибув(ла)"
+              )}
+            </Button>
+          )}
         </CardFooter>
       )}
     </Card>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Ticket, PaymentInstallment } from "@/shared/db/schema";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,13 +24,14 @@ import { AddTicketDialog } from "./add-ticket-dialog";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CheckedState } from "@radix-ui/react-checkbox";
 
 interface TicketWithPayments extends Ticket {
   paymentInstallments: PaymentInstallment[];
 }
 
 async function fetchTickets(): Promise<TicketWithPayments[]> {
-  const res = await fetch("/api/ticket?withPayments=1");
+  const res = await fetch("/api/ticket");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -48,10 +50,13 @@ export function TicketsTable() {
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
   const [query, setQuery] = useState("");
+  const [showDeleted, setShowDeleted] = useState<CheckedState>(false);
 
+  /* ---------- filtering ---------- */
   const filtered = useMemo(() => {
     if (!tickets) return [];
     return tickets
+      .filter((t) => (showDeleted ? true : !t.archived)) // hide archived unless toggled
       .filter((t) =>
         arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
       )
@@ -65,7 +70,7 @@ export function TicketsTable() {
           t.instagram?.toLowerCase().includes(q)
         );
       });
-  }, [tickets, arrived, query]);
+  }, [tickets, arrived, query, showDeleted]);
 
   const maxPayments = useMemo(
     () =>
@@ -73,7 +78,6 @@ export function TicketsTable() {
     [filtered]
   );
 
-  // ↓ inside component, after maxPayments
   const totals = useMemo(() => {
     let total = 0,
       paid = 0;
@@ -107,6 +111,7 @@ export function TicketsTable() {
           <p className="p-4 text-red-600">Помилка завантаження квитків</p>
         )}
 
+        {/* ---------- controls ---------- */}
         <div className="flex flex-wrap gap-4 mb-4 px-4">
           <Input
             placeholder="Пошук: ім'я, email, insta, телефон"
@@ -114,6 +119,7 @@ export function TicketsTable() {
             onChange={(e) => setQuery(e.target.value)}
             className="sm:max-w-xs text-[16px] flex-grow"
           />
+
           <Label className="flex gap-2 items-center text-sm">
             Прибув(ла)
             <ToggleGroup
@@ -131,8 +137,18 @@ export function TicketsTable() {
               </ToggleGroupItem>
             </ToggleGroup>
           </Label>
+
+          <Label className="flex gap-2 items-center text-sm">
+            Показати видалені
+            <Checkbox
+              checked={showDeleted}
+              onCheckedChange={setShowDeleted}
+              id="chkDeleted"
+            />
+          </Label>
         </div>
 
+        {/* ---------- table ---------- */}
         {isLoading && <Skeleton className="max-h-96 w-full rounded-md" />}
         {!filtered.length && !isError && !isLoading && (
           <p className="px-4 rounded-md">Квитків не знайдено.</p>
@@ -141,11 +157,12 @@ export function TicketsTable() {
         {filtered.length > 0 && (
           <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
             <Table>
+              {/* -------- header -------- */}
               <TableHeader className="bg-muted/70 dark:bg-muted/20">
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
-                  <TableHead className="border-r border-dashed border-border">
+                  <TableHead className="border-r border-dashed border-border text-center">
                     Прибув(ла)
                   </TableHead>
                   <TableHead className="text-center">Тип</TableHead>
@@ -181,25 +198,25 @@ export function TicketsTable() {
                         Оплачено {idx + 1}
                       </TableHead>
                       <TableHead className="text-center bg-muted dark:bg-gray-800/40">
-                        Фактура (запит) {idx + 1}
+                        Фактура (запит) {idx + 1}
                       </TableHead>
                       <TableHead className="text-center bg-muted dark:bg-gray-800/40 border-dashed border-r border-border">
-                        Фактура (відпр.) {idx + 1}
+                        Фактура (відпр.) {idx + 1}
                       </TableHead>
                     </React.Fragment>
                   ))}
-
                   <TableHead className="text-center">Разом</TableHead>
                   <TableHead className="text-center">Разом сплачено</TableHead>
                 </TableRow>
               </TableHeader>
+
+              {/* -------- body -------- */}
               <TableBody>
                 {filtered.map((t, i) => {
                   const totalPaid = t.paymentInstallments.reduce(
                     (s, p) => (p.is_paid ? s + Number(p.amount) : s),
                     0
                   );
-
                   const total = t.paymentInstallments.reduce(
                     (s, p) => s + Number(p.amount),
                     0
@@ -208,7 +225,10 @@ export function TicketsTable() {
                   return (
                     <TableRow
                       key={t.id}
-                      className={cn(i % 2 === 0 && "bg-muted/25")}
+                      className={cn(
+                        i % 2 === 0 && "bg-muted/25",
+                        t.archived && "bg-destructive/10"
+                      )}
                     >
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
@@ -275,12 +295,9 @@ export function TicketsTable() {
                       {/* payment cells */}
                       {Array.from({ length: maxPayments }).map((_, idx) => {
                         const p = t.paymentInstallments[idx];
-
                         return (
                           <React.Fragment key={idx}>
-                            <TableCell
-                              className={`border-l border-dashed border-border text-center bg-muted/20`}
-                            >
+                            <TableCell className="border-l border-dashed border-border text-center bg-muted/20">
                               {p ? (
                                 <Badge
                                   variant="outline"
@@ -292,7 +309,7 @@ export function TicketsTable() {
                                 "-"
                               )}
                             </TableCell>
-                            <TableCell className={`text-center bg-muted/20`}>
+                            <TableCell className="text-center bg-muted/20">
                               {p ? (
                                 p.is_paid ? (
                                   <Check
@@ -309,7 +326,7 @@ export function TicketsTable() {
                                 "-"
                               )}
                             </TableCell>
-                            <TableCell className={`text-center bg-muted/20`}>
+                            <TableCell className="text-center bg-muted/20">
                               {p ? (
                                 p.invoice_requested ? (
                                   <Check
@@ -323,9 +340,7 @@ export function TicketsTable() {
                                 "-"
                               )}
                             </TableCell>
-                            <TableCell
-                              className={`text-center border-dashed border-r border-border bg-muted/20`}
-                            >
+                            <TableCell className="text-center border-dashed border-r border-border bg-muted/20">
                               {p?.invoice_requested ? (
                                 p.invoice_sent ? (
                                   <Check
@@ -360,6 +375,7 @@ export function TicketsTable() {
                   );
                 })}
 
+                {/* totals row */}
                 <TableRow className="bg-muted font-semibold">
                   <TableCell colSpan={2}>
                     {isFetching && (
@@ -392,6 +408,7 @@ export function TicketsTable() {
   );
 }
 
+/* tiny link-button used inside cells */
 const TableLink: FC<{
   href: string;
   children: React.ReactNode;

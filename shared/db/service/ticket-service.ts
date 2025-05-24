@@ -74,7 +74,7 @@ export function createTicketService(db: DrizzleDB): ITicketService {
     const showArchived = filters?.archived === true;
     const conditions: SQL[] = [];
 
-    conditions.push(eq(ticketTable.archived, showArchived));
+    if (!showArchived) conditions.push(eq(ticketTable.archived, false));
 
     // Perform a LEFT JOIN and select columns from both tables
     // Drizzle will return an array of objects, each with a 'ticket' and 'payment_installment' property

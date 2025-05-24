@@ -38,9 +38,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
-/** In‑memory lock (swap to Redis for distributed) */
-const inFlight = new Set<string>();
-
 export async function POST(req: Request) {
   // 1. Guard env vars each cold‑start
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -75,10 +72,6 @@ export async function POST(req: Request) {
     } catch (err) {
       logtail.error("Signature verification failed", { err });
       return NextResponse.json({ error: "Bad signature" }, { status: 400 });
-    }
-
-    if (inFlight.has(event.id)) {
-      return NextResponse.json({ received: true }, { status: 200 });
     }
 
     switch (event.type) {
@@ -127,8 +120,6 @@ export async function POST(req: Request) {
             logtail.info("Battle ticket already recorded", { stripeSessionId });
             break;
           }
-
-          inFlight.add(event.id);
 
           const battleTicketId = nanoid(10);
           const email = session.customer_details?.email || "";
@@ -208,8 +199,6 @@ export async function POST(req: Request) {
             logtail.info("Ticket already recorded", { stripeSessionId });
             break;
           }
-
-          inFlight.add(event.id);
 
           const ticketId = nanoid(10);
           const email = session.customer_details?.email || "";
