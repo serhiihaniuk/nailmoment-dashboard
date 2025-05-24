@@ -160,7 +160,7 @@ export function TicketsTable() {
               {/* -------- header -------- */}
               <TableHeader className="bg-muted/70 dark:bg-muted/20">
                 <TableRow>
-                  <TableHead>#</TableHead>
+                  <TableHead className="sticky left-0 bg-muted">#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
                   <TableHead className="border-r border-dashed border-border text-center">
                     Прибув(ла)
@@ -227,10 +227,18 @@ export function TicketsTable() {
                       key={t.id}
                       className={cn(
                         i % 2 === 0 && "bg-muted/25",
-                        t.archived && "bg-destructive/10"
+                        t.archived && "bg-destructive/5"
                       )}
                     >
-                      <TableCell>{i + 1}</TableCell>
+                      <TableCell
+                        className={cn(
+                          "sticky left-0 bg-white z-10 border-r border-dashed border-border",
+                          i % 2 === 0 && "bg-gray-50",
+                          t.archived && "bg-red-300"
+                        )}
+                      >
+                        {i + 1}
+                      </TableCell>
                       <TableCell>
                         <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
                       </TableCell>
