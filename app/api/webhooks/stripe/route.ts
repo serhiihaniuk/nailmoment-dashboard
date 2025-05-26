@@ -117,7 +117,7 @@ export async function POST(req: Request) {
             .where(eq(battleTicketTable.stripe_event_id, stripeSessionId));
 
           if (existing.length) {
-            logtail.info("Battle ticket already recorded", { stripeSessionId });
+            logtail.warn("Battle ticket already recorded", { stripeSessionId });
             break;
           }
 
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
             .where(eq(ticketTable.stripe_event_id, stripeSessionId));
 
           if (existing.length) {
-            logtail.info("Ticket already recorded", { stripeSessionId });
+            logtail.warn("Ticket already recorded", { stripeSessionId });
             break;
           }
 
@@ -287,7 +287,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   } finally {
     waitUntil(logtail.flush());
-    // @ts-expect-error: Variable 'event' is used before being assigned
-    if (event?.id) inFlight.delete(event.id);
   }
 }
