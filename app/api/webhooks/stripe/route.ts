@@ -275,9 +275,15 @@ export async function POST(req: Request) {
         logtail.warn("Unhandled Stripe event", { type: event.type });
     }
 
+    logtail.info("Webhook processing complete, returning 200", {
+      stripeSessionId,
+    });
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
-    logtail.error("Webhook processing failed", { err, stripeSessionId });
+    logtail.error("Webhook processing failed, returning 500", {
+      err,
+      stripeSessionId,
+    });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   } finally {
     waitUntil(logtail.flush());
