@@ -44,7 +44,6 @@ export async function PATCH(
 
   const { id } = await params;
 
-  // 1. validate + strip unknown keys in one shot
   const body = (await req.json()) ?? {};
   let patch: Patch;
   try {

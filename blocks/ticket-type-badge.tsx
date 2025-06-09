@@ -3,6 +3,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/shared/utils";
+import { TICKET_TYPE } from "@/shared/const";
 
 const getClasses = (type: string) => {
   switch (type?.toLowerCase()) {
@@ -12,6 +13,8 @@ const getClasses = (type: string) => {
       );
     case "standard":
       return cn("border-indigo-600 text-indigo-800 bg-indigo-50/20");
+    case TICKET_TYPE.MAXI:
+      return cn("border-orange-600 text-orange-800 bg-orange-50/20");
     default:
       return cn("border-teal-500 text-teal-800 bg-teal-50/20");
   }

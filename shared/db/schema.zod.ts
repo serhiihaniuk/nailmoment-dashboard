@@ -9,6 +9,7 @@ import {
   paymentInstallmentTable,
   ticketTable,
 } from "./schema";
+import { TICKET_TYPE_LIST } from "../const";
 
 export const selectTicketSchema = createSelectSchema(ticketTable);
 
@@ -32,7 +33,7 @@ export const insertTicketClientSchema = z.object({
     .min(1, "Email обов’язковий"),
   phone: z.string().min(9, "Телефон обов’язковий"),
   instagram: z.string().optional(),
-  grade: z.enum(["guest", "standard", "vip"]).default("guest"),
+  grade: z.enum(TICKET_TYPE_LIST as [string, ...string[]]).default("guest"),
 });
 
 export type SelectTicketInput = z.input<typeof selectTicketSchema>;

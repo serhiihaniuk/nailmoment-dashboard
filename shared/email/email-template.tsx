@@ -49,7 +49,9 @@ export const EmailTemplate = ({
   // Normalize ticket type for comparison
   const normalizedTicketType = ticketType.toLocaleLowerCase();
   const isVipOrStandard =
-    normalizedTicketType === "vip" || normalizedTicketType === "standard";
+    normalizedTicketType === "vip" ||
+    normalizedTicketType === "standard" ||
+    normalizedTicketType === "maxi";
 
   return (
     <Html>

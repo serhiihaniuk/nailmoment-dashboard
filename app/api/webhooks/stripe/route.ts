@@ -16,6 +16,7 @@ import {
   sendTicketEmail,
 } from "@/shared/email/send-email";
 import { waitUntil } from "@vercel/functions";
+import { TICKET_TYPE_LIST, TicketGrade } from "@/shared/const";
 
 (["info", "warn", "error"] as const).forEach((lvl) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
 
         const ticketGrade = (
           session.metadata?.ticket_grade || ""
-        ).toLowerCase();
+        ).toLowerCase() as TicketGrade;
 
         const isBattleTicket = session.metadata?.type === "battle";
 
@@ -176,7 +177,7 @@ export async function POST(req: Request) {
         }
 
         // PROCESS TICKET
-        if (!["guest", "standard", "vip"].includes(ticketGrade)) {
+        if (!TICKET_TYPE_LIST.includes(ticketGrade)) {
           logtail.error(
             "Invalid 'ticketGrade' metadata in Stripe session, ticket not processed",
             {
@@ -189,7 +190,7 @@ export async function POST(req: Request) {
           break;
         }
 
-        if (["guest", "standard", "vip"].includes(ticketGrade)) {
+        if (TICKET_TYPE_LIST.includes(ticketGrade)) {
           const existing = await db
             .select()
             .from(ticketTable)

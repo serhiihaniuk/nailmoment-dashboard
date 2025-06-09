@@ -26,6 +26,7 @@ import { Ticket } from "@/shared/db/schema";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { TicketTypeBadge } from "./ticket-type-badge";
 import { Textarea } from "@/components/ui/textarea";
+import { TICKET_TYPE_LIST } from "@/shared/const";
 
 type Props = {
   ticket: Ticket;
@@ -103,7 +104,7 @@ export function EditTicketDialog({ ticket, mutation }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["guest", "standard", "vip"].map((t) => (
+                {TICKET_TYPE_LIST.map((t) => (
                   <SelectItem key={t} value={t}>
                     <TicketTypeBadge type={t} />
                   </SelectItem>

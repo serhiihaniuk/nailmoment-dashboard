@@ -59,8 +59,6 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
   });
 };
 
-/* ───────────── GET (untouched) ───────────── */
-
 export async function GET() {
   try {
     const session = await auth.api.getSession({ headers: await headers() });

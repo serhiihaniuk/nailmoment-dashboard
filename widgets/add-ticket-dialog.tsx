@@ -31,6 +31,7 @@ import { Ticket } from "@/shared/db/schema";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import { z } from "zod";
 import { insertTicketClientSchema } from "@/shared/db/schema.zod";
+import { TICKET_TYPE_LIST } from "@/shared/const";
 
 type FormState = z.infer<typeof insertTicketClientSchema>;
 
@@ -217,7 +218,7 @@ export function AddTicketDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["guest", "standard", "vip"].map((t) => (
+                {TICKET_TYPE_LIST.map((t) => (
                   <SelectItem key={t} value={t}>
                     <TicketTypeBadge type={t} />
                   </SelectItem>
