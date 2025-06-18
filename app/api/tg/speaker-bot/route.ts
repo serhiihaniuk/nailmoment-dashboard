@@ -14,7 +14,6 @@ const bot = new Bot(token);
 // --- CONSTANTS & HELPERS ---
 const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
 
-// 1. Use the provided file_id for all videos.
 const videoFileId =
   "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA";
 const SPEAKERS = Array.from({ length: 10 }, (_, i) => ({
@@ -29,10 +28,8 @@ function escapeMarkdownV2(text: string): string {
 
 // --- CORE LOGIC ---
 
-// This function is the main entry point for the voting process.
 async function initiateVotingFlow(ctx: Context) {
   const telegramUserId = ctx.from!.id;
-
   try {
     const existingVote = await db
       .select()
@@ -41,7 +38,6 @@ async function initiateVotingFlow(ctx: Context) {
       .limit(1);
 
     if (existingVote.length > 0) {
-      // User has already voted. Show them their choice with a reset button.
       const votedForId = existingVote[0].voted_for_id;
       const videoIndex = SPEAKERS.findIndex((s) => s.id === votedForId);
       const videoNumber = videoIndex + 1;
@@ -62,7 +58,6 @@ async function initiateVotingFlow(ctx: Context) {
         });
       }
     } else {
-      // User has not voted. Send all videos, each with a vote button.
       await ctx.reply(
         escapeMarkdownV2(
           "Будь ласка, перегляньте відео та зробіть свій вибір:"
@@ -106,7 +101,6 @@ bot.command("vote", (ctx) => initiateVotingFlow(ctx));
 
 bot.callbackQuery("show_videos", async (ctx) => {
   await ctx.answerCallbackQuery();
-  // Remove the button from the welcome message for a cleaner look
   await ctx.editMessageReplyMarkup();
   await initiateVotingFlow(ctx);
 });
@@ -136,7 +130,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // Edit the message to show confirmation and a reset button
     const resetKeyboard = new InlineKeyboard().text(
       "Скинути мій голос 🔄",
       `reset_vote:${videoNumber}`
@@ -157,28 +150,31 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   }
 });
 
+// --- THIS IS THE CORRECTED BLOCK ---
 bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
-  const videoNumber = parseInt(ctx.match[1], 10);
 
   try {
+    // 1. Delete the user's vote from the database
     await db
       .delete(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
+
+    // 2. Acknowledge the click with a helpful popup
     await ctx.answerCallbackQuery({
-      text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
+      text: "Ваш голос скинуто! Надсилаю всі варіанти знову...",
     });
 
-    // Edit the message back to its original state
-    const voteKeyboard = new InlineKeyboard().text(
-      "Проголосувати за це 👍",
-      `vote:${videoNumber}`
-    );
+    // 3. Clean up the message where the button was clicked
     await ctx.editMessageCaption({
-      caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
-      reply_markup: voteKeyboard,
+      caption: escapeMarkdownV2("✅ Ваш попередній голос видалено."),
       parse_mode: "MarkdownV2",
+      // The keyboard is removed automatically by not providing a `reply_markup`
     });
+
+    // 4. CRITICAL FIX: Re-run the main voting flow.
+    // Since the user's vote is now deleted, this will show them all 10 videos again.
+    await initiateVotingFlow(ctx);
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
@@ -187,6 +183,8 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
     });
   }
 });
+
+// --- The rest of the file remains the same ---
 
 bot.on("message:video", async (ctx) => {
   const fileId = ctx.message.video.file_id;
