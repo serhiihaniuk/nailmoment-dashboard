@@ -13,31 +13,35 @@ const bot = new Bot(token);
 
 // --- CONSTANTS AND KEYBOARD GENERATORS ---
 
-const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
+const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
 
-🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.
+// --- MODIFICATION #1: Using the Vercel Blob URL ---
+// We've replaced the file_id with a 'url' key.
+const videoUrl =
+  "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/tg/vid1-zldT3VxIgcz0dRSEio7Gqnja74xufb";
 
-📍 Фестиваль Nail Moment відбудеться 27 липня 2025 у місті Вроцлав (Польща). Детальні умови участі та опис фестивалю шукай на нашому сайті.
+const SPEAKERS = [
+  { id: "video_1", url: videoUrl },
+  { id: "video_2", url: videoUrl },
+  { id: "video_3", url: videoUrl },
+  { id: "video_4", url: videoUrl },
+  { id: "video_5", url: videoUrl },
+  { id: "video_6", url: videoUrl },
+  { id: "video_7", url: videoUrl },
+  { id: "video_8", url: videoUrl },
+  { id: "video_9", url: videoUrl },
+  { id: "video_10", url: videoUrl },
+];
 
-📹 Відеопрезентації учасників уже доступні! Їх можна подивитися в нашому Telegram-каналі або Instagram. Перед тим, як голосувати, обов’язково переглянь усі заявки — там стільки натхнення!
-
-Голосування проходитиме в цьому чат-боті 💬
-Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
-
-// Generates the keyboard with all 10 voting buttons
 function generateVotingKeyboard() {
   const keyboard = new InlineKeyboard();
-  for (let i = 1; i <= 10; i++) {
-    keyboard.text(`Проголосувати за Відео #${i}`, `vote:${i}`);
-    // Create a new row every 2 buttons for a cleaner look
-    if (i % 2 === 0) {
-      keyboard.row();
-    }
-  }
+  SPEAKERS.forEach((speaker, index) => {
+    keyboard.text(`Проголосувати за Відео #${index + 1}`, `vote:${index + 1}`);
+    if ((index + 1) % 2 === 0) keyboard.row();
+  });
   return keyboard;
 }
 
-// Generates the keyboard for the main menu
 function generateMainMenuKeyboard() {
   return new InlineKeyboard().text(
     "Показати відео для голосування",
@@ -45,7 +49,6 @@ function generateMainMenuKeyboard() {
   );
 }
 
-// Generates the keyboard shown after a user has successfully voted
 function generatePostVoteKeyboard() {
   return new InlineKeyboard()
     .text("Скинути мій голос 🔄", "reset_vote")
@@ -65,15 +68,23 @@ async function handleShowVotingProcess(ctx: Context) {
       .limit(1);
 
     if (existingVote.length > 0) {
-      // If user has voted, show the confirmation message with reset/menu buttons
       await ctx.editMessageText(
         `Ви вже проголосували за: ${existingVote[0].voted_for_id}.`,
         { reply_markup: generatePostVoteKeyboard() }
       );
     } else {
-      // If user has NOT voted, show the voting dashboard
+      await ctx.reply("Зараз я надішлю відео всіх учасників для перегляду...");
+
+      // --- MODIFICATION #2: Sending video from URL ---
+      for (const speaker of SPEAKERS) {
+        // We now use speaker.url instead of speaker.file_id
+        await ctx.replyWithVideo(speaker.url, {
+          caption: `Це Відео #${speaker.id.split("_")[1]}`,
+        });
+      }
+
       await ctx.editMessageText(
-        "Будь ласка, оберіть відео, за яке бажаєте проголосувати нижче.",
+        "Відео вище. Будь ласка, зробіть свій вибір, використовуючи кнопки нижче:",
         { reply_markup: generateVotingKeyboard() }
       );
     }
@@ -92,9 +103,7 @@ bot.command("start", async (ctx) => {
 });
 
 bot.command("vote", async (ctx) => {
-  // To handle the /vote command, we first send a temporary message
-  // and then immediately edit it using our core logic handler.
-  const tempMessage = await ctx.reply("Завантаження опцій для голосування...");
+  const tempMessage = await ctx.reply("Завантаження...");
   ctx.update.callback_query = {
     id: "",
     from: ctx.from!,
@@ -117,7 +126,17 @@ bot.callbackQuery("reset_vote", async (ctx) => {
       .delete(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
-    // Edit the message back to the voting dashboard
+
+    await ctx.reply("Ви можете проголосувати знову. Надсилаю відео...");
+
+    // --- MODIFICATION #3: Sending video from URL on reset ---
+    for (const speaker of SPEAKERS) {
+      // We also use speaker.url here for consistency
+      await ctx.replyWithVideo(speaker.url, {
+        caption: `Це Відео #${speaker.id.split("_")[1]}`,
+      });
+    }
+
     await ctx.editMessageText(
       "Ваш попередній голос видалено. Будь ласка, оберіть знову:",
       { reply_markup: generateVotingKeyboard() }
@@ -142,10 +161,8 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
       telegram_user_id: telegramUserId,
       voted_for_id: votedForId,
     });
-
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // Edit the message to the confirmation screen
     await ctx.editMessageText(
       `✅ Проголосовано! Ви обрали ${votedForId.replace("_", " ")}.`,
       { reply_markup: generatePostVoteKeyboard() }
@@ -159,7 +176,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   }
 });
 
-// NEW: Handler for returning to the main menu
 bot.callbackQuery("main_menu", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(WELCOME_MESSAGE, {
