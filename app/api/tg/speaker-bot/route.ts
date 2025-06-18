@@ -11,24 +11,52 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 
 const bot = new Bot(token);
 
-async function sendVotingOptions(ctx: Context) {
-  await ctx.reply("Please choose a video to vote for below.");
+// --- CONSTANTS AND KEYBOARD GENERATORS ---
+
+const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
+
+🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.
+
+📍 Фестиваль Nail Moment відбудеться 27 липня 2025 у місті Вроцлав (Польща). Детальні умови участі та опис фестивалю шукай на нашому сайті.
+
+📹 Відеопрезентації учасників уже доступні! Їх можна подивитися в нашому Telegram-каналі або Instagram. Перед тим, як голосувати, обов’язково переглянь усі заявки — там стільки натхнення!
+
+Голосування проходитиме в цьому чат-боті 💬
+Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
+
+// Generates the keyboard with all 10 voting buttons
+function generateVotingKeyboard() {
+  const keyboard = new InlineKeyboard();
   for (let i = 1; i <= 10; i++) {
-    const inlineKeyboard = new InlineKeyboard().text(
-      "Vote for this one 👍",
-      `vote:${i}`
-    );
-    await ctx.reply(`This is Video #${i}`, {
-      reply_markup: inlineKeyboard,
-    });
+    keyboard.text(`Проголосувати за Відео #${i}`, `vote:${i}`);
+    // Create a new row every 2 buttons for a cleaner look
+    if (i % 2 === 0) {
+      keyboard.row();
+    }
   }
+  return keyboard;
 }
 
-bot.command("start", async (ctx) => {
-  if (!ctx?.from) return;
+// Generates the keyboard for the main menu
+function generateMainMenuKeyboard() {
+  return new InlineKeyboard().text(
+    "Показати відео для голосування",
+    "show_videos"
+  );
+}
 
-  const telegramUserId = ctx.from.id;
+// Generates the keyboard shown after a user has successfully voted
+function generatePostVoteKeyboard() {
+  return new InlineKeyboard()
+    .text("Скинути мій голос 🔄", "reset_vote")
+    .row()
+    .text("Повернутися в головне меню", "main_menu");
+}
 
+// --- CORE LOGIC HANDLER ---
+
+async function handleShowVotingProcess(ctx: Context) {
+  const telegramUserId = ctx.from!.id;
   try {
     const existingVote = await db
       .select()
@@ -37,97 +65,110 @@ bot.command("start", async (ctx) => {
       .limit(1);
 
     if (existingVote.length > 0) {
-      // User has voted. Offer them the option to reset their vote.
-      const resetKeyboard = new InlineKeyboard().text(
-        "Reset my Vote 🔄",
-        "reset_vote" // A new, unique callback data string
-      );
-
-      await ctx.reply(
-        `You have already voted for: ${existingVote[0].voted_for_id}. Would you like to change your vote?`,
-        { reply_markup: resetKeyboard }
+      // If user has voted, show the confirmation message with reset/menu buttons
+      await ctx.editMessageText(
+        `Ви вже проголосували за: ${existingVote[0].voted_for_id}.`,
+        { reply_markup: generatePostVoteKeyboard() }
       );
     } else {
-      // This is a new user, show them the voting options directly.
-      await sendVotingOptions(ctx);
+      // If user has NOT voted, show the voting dashboard
+      await ctx.editMessageText(
+        "Будь ласка, оберіть відео, за яке бажаєте проголосувати нижче.",
+        { reply_markup: generateVotingKeyboard() }
+      );
     }
   } catch (error) {
-    console.error("Error in /start command:", error);
-    await ctx.reply(
-      "Sorry, a database error occurred. Please try again later."
-    );
+    console.error("Error in handleShowVotingProcess:", error);
+    await ctx.reply("Вибачте, сталася помилка бази даних. Спробуйте пізніше.");
   }
+}
+
+// --- BOT COMMANDS AND CALLBACKS ---
+
+bot.command("start", async (ctx) => {
+  await ctx.reply(WELCOME_MESSAGE, {
+    reply_markup: generateMainMenuKeyboard(),
+  });
 });
 
-// NEW: Handler for the "Reset Vote" button
-bot.callbackQuery("reset_vote", async (ctx) => {
-  const telegramUserId = ctx.from.id;
+bot.command("vote", async (ctx) => {
+  // To handle the /vote command, we first send a temporary message
+  // and then immediately edit it using our core logic handler.
+  const tempMessage = await ctx.reply("Завантаження опцій для голосування...");
+  ctx.update.callback_query = {
+    id: "",
+    from: ctx.from!,
+    message: tempMessage,
+    chat_instance: "",
+    data: "show_videos",
+  };
+  await handleShowVotingProcess(ctx);
+});
 
+bot.callbackQuery("show_videos", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await handleShowVotingProcess(ctx);
+});
+
+bot.callbackQuery("reset_vote", async (ctx) => {
+  const telegramUserId = ctx.from!.id;
   try {
-    // Delete the user's previous vote from the database.
     await db
       .delete(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
-
-    // Confirm the deletion to the user.
-    await ctx.answerCallbackQuery({ text: "Your vote has been reset!" });
-
-    // Edit the message to remove the "Reset" button and confirm the action.
-    await ctx.editMessageText("Your previous vote has been cleared.");
-
-    // Immediately present the voting options again.
-    await sendVotingOptions(ctx);
+    await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
+    // Edit the message back to the voting dashboard
+    await ctx.editMessageText(
+      "Ваш попередній голос видалено. Будь ласка, оберіть знову:",
+      { reply_markup: generateVotingKeyboard() }
+    );
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
-      text: "An error occurred while resetting your vote.",
+      text: "Помилка під час скидання голосу.",
       show_alert: true,
     });
   }
 });
 
-// Handler for casting a new vote (remains mostly the same)
 bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
-  const telegramUserId = ctx.from.id;
+  const telegramUserId = ctx.from!.id;
   const videoNumber = ctx.match[1];
   const votedForId = `video_${videoNumber}`;
 
   try {
-    // This check is still useful in case the user finds an old voting button.
-    const existingVote = await db
-      .select()
-      .from(speakerVoteTGTable)
-      .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
-      .limit(1);
-
-    if (existingVote.length > 0) {
-      await ctx.answerCallbackQuery({
-        text: "You have already voted. Please use /start to reset your vote.",
-      });
-      return;
-    }
-
     await db.insert(speakerVoteTGTable).values({
       id: nanoid(),
       telegram_user_id: telegramUserId,
       voted_for_id: votedForId,
     });
 
-    await ctx.answerCallbackQuery({ text: "Thank you! Your vote is saved." });
+    await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
+
+    // Edit the message to the confirmation screen
     await ctx.editMessageText(
-      `✅ Voted! You chose ${votedForId.replace("_", " ")}.`
+      `✅ Проголосовано! Ви обрали ${votedForId.replace("_", " ")}.`,
+      { reply_markup: generatePostVoteKeyboard() }
     );
   } catch (error) {
     console.error("Error processing vote:", error);
     await ctx.answerCallbackQuery({
-      text: "An error occurred, or you have already voted.",
+      text: "Сталася помилка, або ви вже проголосували.",
       show_alert: true,
     });
   }
 });
 
+// NEW: Handler for returning to the main menu
+bot.callbackQuery("main_menu", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.editMessageText(WELCOME_MESSAGE, {
+    reply_markup: generateMainMenuKeyboard(),
+  });
+});
+
 bot.on("message:text", async (ctx) => {
-  await ctx.reply("Please use the /start command to begin voting.");
+  await ctx.reply("Будь ласка, використовуйте команду /start, щоб розпочати.");
 });
 
 // --- WEBHOOK SETUP ---
