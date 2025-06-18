@@ -18,10 +18,4 @@ bot.on("message:text", async (ctx) => {
   await ctx.reply(`You said: "${messageText}"`);
 });
 
-/**
- * We are exporting a single function that will handle all incoming requests.
- *
- * We can use the `webhookCallback` function from `grammy` to handle the request
- * and convert it into an update for the bot.
- */
-export const POST = webhookCallback(bot, "next-js");
+export const POST = webhookCallback(bot, "std/http");
