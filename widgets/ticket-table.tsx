@@ -15,7 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Ticket, PaymentInstallment } from "@/shared/db/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Ticket } from "@/shared/db/schema";
+import { TICKET_TYPE_LIST } from "@/shared/const";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
@@ -23,14 +31,9 @@ import { Check, Instagram, Loader, Mail, Phone, X } from "lucide-react";
 import { AddTicketDialog } from "./add-ticket-dialog";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CheckedState } from "@radix-ui/react-checkbox";
 
-interface TicketWithPayments extends Ticket {
-  paymentInstallments: PaymentInstallment[];
-}
-
-async function fetchTickets(): Promise<TicketWithPayments[]> {
+async function fetchTickets(): Promise<Ticket[]> {
   const res = await fetch("/api/ticket");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -42,23 +45,36 @@ export function TicketsTable() {
     isLoading,
     isFetching,
     isError,
-  } = useQuery<TicketWithPayments[], Error>({
+  } = useQuery<Ticket[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
     staleTime: Infinity,
   });
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
+  const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>(
+    "all"
+  );
+  const [buyType, setBuyType] = useState<"all" | "stripe" | "manual">("all");
   const [query, setQuery] = useState("");
   const [showDeleted, setShowDeleted] = useState<CheckedState>(false);
 
-  /* ---------- filtering ---------- */
   const filtered = useMemo(() => {
     if (!tickets) return [];
     return tickets
-      .filter((t) => (showDeleted ? true : !t.archived)) // hide archived unless toggled
+      .filter((t) => (showDeleted ? true : !t.archived))
       .filter((t) =>
         arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
+      )
+      .filter((t) =>
+        grade === "all" ? true : (t.updated_grade ?? t.grade) === grade
+      )
+      .filter((t) =>
+        buyType === "all"
+          ? true
+          : buyType === "manual"
+            ? t.stripe_event_id.startsWith("manual")
+            : !t.stripe_event_id.startsWith("manual")
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -70,32 +86,7 @@ export function TicketsTable() {
           t.instagram?.toLowerCase().includes(q)
         );
       });
-  }, [tickets, arrived, query, showDeleted]);
-
-  const maxPayments = useMemo(
-    () =>
-      filtered.reduce((m, t) => Math.max(m, t.paymentInstallments.length), 0),
-    [filtered]
-  );
-
-  const totals = useMemo(() => {
-    let total = 0,
-      paid = 0;
-    filtered.forEach((t) =>
-      t.paymentInstallments.forEach((p) => {
-        total += +p.amount;
-        if (p.is_paid) paid += +p.amount;
-      })
-    );
-    return { total, paid };
-  }, [filtered]);
-
-  const totalRowColspan = 9 + maxPayments * 4 - 2; // cells before the 2 “grand-total” columns
-
-  const amountFmt = new Intl.NumberFormat("pl-PL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  }, [tickets, arrived, grade, buyType, query, showDeleted]);
 
   return (
     <Card>
@@ -111,7 +102,6 @@ export function TicketsTable() {
           <p className="p-4 text-red-600">Помилка завантаження квитків</p>
         )}
 
-        {/* ---------- controls ---------- */}
         <div className="flex flex-wrap gap-4 mb-4 px-4">
           <Input
             placeholder="Пошук: ім'я, email, insta, телефон"
@@ -139,6 +129,43 @@ export function TicketsTable() {
           </Label>
 
           <Label className="flex gap-2 items-center text-sm">
+            Тип
+            <Select
+              value={grade}
+              onValueChange={(v) => setGrade((v as typeof grade) || "all")}
+            >
+              <SelectTrigger className="h-8 w-32 px-2">
+                <SelectValue placeholder="Всі" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі</SelectItem>
+                {TICKET_TYPE_LIST.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    <TicketTypeBadge type={t} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Label>
+
+          <Label className="flex gap-2 items-center text-sm">
+            Оплата
+            <Select
+              value={buyType}
+              onValueChange={(v) => setBuyType((v as typeof buyType) || "all")}
+            >
+              <SelectTrigger className="h-8 w-28 px-2">
+                <SelectValue placeholder="Всі" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Всі</SelectItem>
+                <SelectItem value="stripe">Stripe</SelectItem>
+                <SelectItem value="manual">Direct</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
+
+          <Label className="flex gap-2 items-center text-sm">
             Показати видалені
             <Checkbox
               checked={showDeleted}
@@ -148,7 +175,6 @@ export function TicketsTable() {
           </Label>
         </div>
 
-        {/* ---------- table ---------- */}
         {isLoading && <Skeleton className="max-h-96 w-full rounded-md" />}
         {!filtered.length && !isError && !isLoading && (
           <p className="px-4 rounded-md">Квитків не знайдено.</p>
@@ -157,7 +183,6 @@ export function TicketsTable() {
         {filtered.length > 0 && (
           <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
             <Table>
-              {/* -------- header -------- */}
               <TableHeader className="bg-muted/70 dark:bg-muted/20">
                 <TableRow>
                   <TableHead className="sticky left-0 bg-muted">#</TableHead>
@@ -189,224 +214,98 @@ export function TicketsTable() {
                     </div>
                   </TableHead>
                   <TableHead>Дата покупки</TableHead>
-                  {Array.from({ length: maxPayments }).map((_, idx) => (
-                    <React.Fragment key={idx}>
-                      <TableHead className="text-center bg-muted border-dashed border-l border-border dark:bg-gray-800/40">
-                        Сума {idx + 1}
-                      </TableHead>
-                      <TableHead className="text-center bg-muted dark:bg-gray-800/40">
-                        Оплачено {idx + 1}
-                      </TableHead>
-                      <TableHead className="text-center bg-muted dark:bg-gray-800/40">
-                        Фактура (запит) {idx + 1}
-                      </TableHead>
-                      <TableHead className="text-center bg-muted dark:bg-gray-800/40 border-dashed border-r border-border">
-                        Фактура (відпр.) {idx + 1}
-                      </TableHead>
-                    </React.Fragment>
-                  ))}
-                  <TableHead className="text-center">Разом</TableHead>
-                  <TableHead className="text-center">Разом сплачено</TableHead>
                 </TableRow>
               </TableHeader>
 
-              {/* -------- body -------- */}
               <TableBody>
-                {filtered.map((t, i) => {
-                  const totalPaid = t.paymentInstallments.reduce(
-                    (s, p) => (p.is_paid ? s + Number(p.amount) : s),
-                    0
-                  );
-                  const total = t.paymentInstallments.reduce(
-                    (s, p) => s + Number(p.amount),
-                    0
-                  );
-
-                  return (
-                    <TableRow
-                      key={t.id}
+                {filtered.map((t, i) => (
+                  <TableRow
+                    key={t.id}
+                    className={cn(
+                      i % 2 === 0 && "bg-muted/25",
+                      t.archived && "bg-destructive/5"
+                    )}
+                  >
+                    <TableCell
                       className={cn(
-                        i % 2 === 0 && "bg-muted/25",
-                        t.archived && "bg-destructive/5"
+                        "sticky left-0 bg-white z-10 border-r border-dashed border-border",
+                        i % 2 === 0 && "bg-gray-50",
+                        t.archived && "bg-red-300"
                       )}
                     >
-                      <TableCell
-                        className={cn(
-                          "sticky left-0 bg-white z-10 border-r border-dashed border-border",
-                          i % 2 === 0 && "bg-gray-50",
-                          t.archived && "bg-red-300"
-                        )}
-                      >
-                        {i + 1}
-                      </TableCell>
-                      <TableCell>
-                        <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
-                      </TableCell>
-                      <TableCell className="text-center border-r border-dashed border-border">
-                        {t.arrived ? (
-                          <Check size={16} className="text-green-600 mx-auto" />
-                        ) : (
-                          <X size={16} className="text-red-600 mx-auto" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <TicketTypeBadge type={t.updated_grade ?? t.grade} />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {!t.stripe_event_id.startsWith("manual") && (
-                          <Check
-                            size={18}
-                            className="text-emerald-900 inline-block"
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {t.email ? (
-                          <TableLink href={`mailto:${t.email}`}>
-                            {t.email}
-                          </TableLink>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {t.instagram ? (
-                          <TableLink
-                            target="_blank"
-                            href={formatInstagramLink(t.instagram)}
-                          >
-                            {t.instagram}
-                          </TableLink>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {t.phone ? (
-                          <TableLink
-                            href={`tel:${t.phone.replace(/\s+/g, "")}`}
-                          >
-                            {t.phone.replace(/\s+/g, "")}
-                          </TableLink>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {new Intl.DateTimeFormat("uk-UA", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        }).format(new Date(t.date))}
-                      </TableCell>
-
-                      {/* payment cells */}
-                      {Array.from({ length: maxPayments }).map((_, idx) => {
-                        const p = t.paymentInstallments[idx];
-                        return (
-                          <React.Fragment key={idx}>
-                            <TableCell className="border-l border-dashed border-border text-center bg-muted/20">
-                              {p ? (
-                                <Badge
-                                  variant="outline"
-                                  className="font-medium"
-                                >
-                                  {`${amountFmt.format(Number(p.amount))} zł`}
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center bg-muted/20">
-                              {p ? (
-                                p.is_paid ? (
-                                  <Check
-                                    size={16}
-                                    className="text-green-600 mx-auto"
-                                  />
-                                ) : (
-                                  <X
-                                    size={16}
-                                    className="text-orange-600 mx-auto"
-                                  />
-                                )
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center bg-muted/20">
-                              {p ? (
-                                p.invoice_requested ? (
-                                  <Check
-                                    size={16}
-                                    className="text-green-600 mx-auto"
-                                  />
-                                ) : (
-                                  "-"
-                                )
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center border-dashed border-r border-border bg-muted/20">
-                              {p?.invoice_requested ? (
-                                p.invoice_sent ? (
-                                  <Check
-                                    size={16}
-                                    className="text-green-600 mx-auto"
-                                  />
-                                ) : (
-                                  <X
-                                    size={16}
-                                    className="text-orange-600 mx-auto"
-                                  />
-                                )
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                          </React.Fragment>
-                        );
-                      })}
-
-                      <TableCell className="text-center font-semibold">
-                        <Badge variant="outline">
-                          {amountFmt.format(total)} zł
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center font-semibold">
-                        <Badge variant="secondary">
-                          {amountFmt.format(totalPaid)} zł
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-
-                {/* totals row */}
-                <TableRow className="bg-muted font-semibold">
-                  <TableCell colSpan={2}>
-                    {isFetching && (
+                      {i + 1}
+                    </TableCell>
+                    <TableCell>
+                      <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
+                    </TableCell>
+                    <TableCell className="text-center border-r border-dashed border-border">
+                      {t.arrived ? (
+                        <Check size={16} className="text-green-600 mx-auto" />
+                      ) : (
+                        <X size={16} className="text-red-600 mx-auto" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {!t.stripe_event_id.startsWith("manual") && (
+                        <Check
+                          size={18}
+                          className="text-emerald-900 inline-block"
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {t.email ? (
+                        <TableLink href={`mailto:${t.email}`}>
+                          {t.email}
+                        </TableLink>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {t.instagram ? (
+                        <TableLink
+                          target="_blank"
+                          href={formatInstagramLink(t.instagram)}
+                        >
+                          {t.instagram}
+                        </TableLink>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {t.phone ? (
+                        <TableLink href={`tel:${t.phone.replace(/\s+/g, "")}`}>
+                          {t.phone.replace(/\s+/g, "")}
+                        </TableLink>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Intl.DateTimeFormat("uk-UA", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      }).format(new Date(t.date))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {isFetching && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center">
                       <Loader
                         size={16}
-                        className="animate-spin text-gray-500"
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell colSpan={totalRowColspan} className="text-right">
-                    Разом
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline">
-                      {amountFmt.format(totals.total)} zł
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary">
-                      {amountFmt.format(totals.paid)} zł
-                    </Badge>
-                  </TableCell>
-                </TableRow>
+                        className="animate-spin text-gray-500 inline-block"
+                      />{" "}
+                      Оновлення…
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -416,7 +315,6 @@ export function TicketsTable() {
   );
 }
 
-/* tiny link-button used inside cells */
 const TableLink: FC<{
   href: string;
   children: React.ReactNode;
