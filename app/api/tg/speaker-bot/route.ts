@@ -11,48 +11,28 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 
 const bot = new Bot(token);
 
-// --- CONSTANTS AND KEYBOARD GENERATORS ---
+// --- CONSTANTS & HELPERS ---
 const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
 
-const SPEAKERS = [
-  {
-    id: "video_1",
-    file_id:
-      "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA",
-  },
-  {
-    id: "video_2",
-    file_id:
-      "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA",
-  },
-];
+// 1. Use the provided file_id for all videos.
+const videoFileId =
+  "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA";
+const SPEAKERS = Array.from({ length: 10 }, (_, i) => ({
+  id: `video_${i + 1}`,
+  file_id: videoFileId,
+}));
 
-function generateVotingKeyboard() {
-  const keyboard = new InlineKeyboard();
-  SPEAKERS.forEach((speaker, index) => {
-    keyboard.text(`Проголосувати за Відео #${index + 1}`, `vote:${index + 1}`);
-    if ((index + 1) % 2 === 0) keyboard.row();
-  });
-  return keyboard;
+function escapeMarkdownV2(text: string): string {
+  const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
+  return text.replace(charsToEscape, (char) => `\\${char}`);
 }
 
-function generateMainMenuKeyboard() {
-  return new InlineKeyboard().text(
-    "Показати відео для голосування",
-    "show_videos"
-  );
-}
+// --- CORE LOGIC ---
 
-function generatePostVoteKeyboard() {
-  return new InlineKeyboard()
-    .text("Скинути мій голос 🔄", "reset_vote")
-    .row()
-    .text("Повернутися в головне меню", "main_menu");
-}
-
-// --- CORE LOGIC HANDLER ---
-async function handleShowVotingProcess(ctx: Context) {
+// This function is the main entry point for the voting process.
+async function initiateVotingFlow(ctx: Context) {
   const telegramUserId = ctx.from!.id;
+
   try {
     const existingVote = await db
       .select()
@@ -61,73 +41,144 @@ async function handleShowVotingProcess(ctx: Context) {
       .limit(1);
 
     if (existingVote.length > 0) {
-      await ctx.editMessageText(
-        `Ви вже проголосували за: ${existingVote[0].voted_for_id}.`,
-        { reply_markup: generatePostVoteKeyboard() }
-      );
-    } else {
-      await ctx.reply("Зараз я надішлю відео всіх учасників для перегляду...");
+      // User has already voted. Show them their choice with a reset button.
+      const votedForId = existingVote[0].voted_for_id;
+      const videoIndex = SPEAKERS.findIndex((s) => s.id === votedForId);
+      const videoNumber = videoIndex + 1;
 
-      for (const speaker of SPEAKERS) {
-        await ctx.replyWithVideo(speaker.file_id, {
-          caption: `Це Відео #${speaker.id.split("_")[1]}`,
+      if (videoIndex !== -1) {
+        await ctx.reply(
+          escapeMarkdownV2("Ви вже проголосували. Ось ваш вибір:"),
+          { parse_mode: "MarkdownV2" }
+        );
+        const resetKeyboard = new InlineKeyboard().text(
+          "Скинути мій голос 🔄",
+          `reset_vote:${videoNumber}`
+        );
+        await ctx.replyWithVideo(SPEAKERS[videoIndex].file_id, {
+          caption: escapeMarkdownV2(`✅ Ви обрали Відео #${videoNumber}`),
+          reply_markup: resetKeyboard,
+          parse_mode: "MarkdownV2",
         });
       }
-
-      await ctx.editMessageText(
-        "Відео вище. Будь ласка, зробіть свій вибір, використовуючи кнопки нижче:",
-        { reply_markup: generateVotingKeyboard() }
+    } else {
+      // User has not voted. Send all videos, each with a vote button.
+      await ctx.reply(
+        escapeMarkdownV2(
+          "Будь ласка, перегляньте відео та зробіть свій вибір:"
+        ),
+        { parse_mode: "MarkdownV2" }
       );
+      for (let i = 0; i < SPEAKERS.length; i++) {
+        const videoNumber = i + 1;
+        const speaker = SPEAKERS[i];
+        const voteKeyboard = new InlineKeyboard().text(
+          "Проголосувати за це 👍",
+          `vote:${videoNumber}`
+        );
+        await ctx.replyWithVideo(speaker.file_id, {
+          caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
+          reply_markup: voteKeyboard,
+          parse_mode: "MarkdownV2",
+        });
+      }
     }
   } catch (error) {
-    console.error("Error in handleShowVotingProcess:", error);
-    await ctx.reply("Вибачте, сталася помилка бази даних. Спробуйте пізніше.");
+    console.error("Error in initiateVotingFlow:", error);
+    await ctx.reply("Вибачте, сталася помилка. Спробуйте пізніше.");
   }
 }
 
 // --- BOT COMMANDS AND CALLBACKS ---
+
 bot.command("start", async (ctx) => {
-  await ctx.reply(WELCOME_MESSAGE, {
-    reply_markup: generateMainMenuKeyboard(),
+  const showVideosKeyboard = new InlineKeyboard().text(
+    "Показати відео для голосування",
+    "show_videos"
+  );
+  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE), {
+    reply_markup: showVideosKeyboard,
+    parse_mode: "MarkdownV2",
   });
 });
 
-bot.command("vote", async (ctx) => {
-  const tempMessage = await ctx.reply("Завантаження...");
-  ctx.update.callback_query = {
-    id: "",
-    from: ctx.from!,
-    message: tempMessage,
-    chat_instance: "",
-    data: "show_videos",
-  };
-  await handleShowVotingProcess(ctx);
-});
+bot.command("vote", (ctx) => initiateVotingFlow(ctx));
 
 bot.callbackQuery("show_videos", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await handleShowVotingProcess(ctx);
+  // Remove the button from the welcome message for a cleaner look
+  await ctx.editMessageReplyMarkup();
+  await initiateVotingFlow(ctx);
 });
 
-bot.callbackQuery("reset_vote", async (ctx) => {
+bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
+  const videoNumber = parseInt(ctx.match[1], 10);
+  const votedForId = `video_${videoNumber}`;
+
+  const existingVote = await db
+    .select()
+    .from(speakerVoteTGTable)
+    .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
+    .limit(1);
+  if (existingVote.length > 0) {
+    await ctx.answerCallbackQuery({
+      text: "Ви вже проголосували. Спочатку скиньте попередній голос.",
+    });
+    return;
+  }
+
+  try {
+    await db.insert(speakerVoteTGTable).values({
+      id: nanoid(),
+      telegram_user_id: telegramUserId,
+      voted_for_id: votedForId,
+    });
+    await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
+
+    // Edit the message to show confirmation and a reset button
+    const resetKeyboard = new InlineKeyboard().text(
+      "Скинути мій голос 🔄",
+      `reset_vote:${videoNumber}`
+    );
+    await ctx.editMessageCaption({
+      caption: escapeMarkdownV2(
+        `✅ Проголосовано! Ви обрали Відео #${videoNumber}`
+      ),
+      reply_markup: resetKeyboard,
+      parse_mode: "MarkdownV2",
+    });
+  } catch (error) {
+    console.error("Error processing vote:", error);
+    await ctx.answerCallbackQuery({
+      text: "Сталася помилка, або ви вже проголосували.",
+      show_alert: true,
+    });
+  }
+});
+
+bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
+  const telegramUserId = ctx.from!.id;
+  const videoNumber = parseInt(ctx.match[1], 10);
+
   try {
     await db
       .delete(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
-    await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
+    await ctx.answerCallbackQuery({
+      text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
+    });
 
-    await ctx.reply("Ви можете проголосувати знову. Надсилаю відео...");
-    for (const speaker of SPEAKERS) {
-      await ctx.replyWithVideo(speaker.file_id, {
-        caption: `Це Відео #${speaker.id.split("_")[1]}`,
-      });
-    }
-
-    await ctx.editMessageText(
-      "Ваш попередній голос видалено. Будь ласка, оберіть знову:",
-      { reply_markup: generateVotingKeyboard() }
+    // Edit the message back to its original state
+    const voteKeyboard = new InlineKeyboard().text(
+      "Проголосувати за це 👍",
+      `vote:${videoNumber}`
     );
+    await ctx.editMessageCaption({
+      caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
+      reply_markup: voteKeyboard,
+      parse_mode: "MarkdownV2",
+    });
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
@@ -137,70 +188,18 @@ bot.callbackQuery("reset_vote", async (ctx) => {
   }
 });
 
-bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
-  const telegramUserId = ctx.from!.id;
-
-  const existingVote = await db
-    .select()
-    .from(speakerVoteTGTable)
-    .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
-    .limit(1);
-  if (existingVote.length > 0) {
-    await ctx.answerCallbackQuery({
-      text: "Ви вже проголосували. Щоб змінити вибір, натисніть 'Скинути мій голос'.",
-    });
-    return;
-  }
-
-  try {
-    const videoNumber = ctx.match[1];
-    const votedForId = `video_${videoNumber}`;
-
-    await db.insert(speakerVoteTGTable).values({
-      id: nanoid(),
-      telegram_user_id: telegramUserId,
-      voted_for_id: votedForId,
-    });
-
-    await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
-
-    await ctx.editMessageText(
-      `✅ Проголосовано! Ви обрали ${votedForId.replace("_", " ")}.`,
-      { reply_markup: generatePostVoteKeyboard() }
-    );
-  } catch (error) {
-    console.error("Error processing vote (likely a race condition):", error);
-    await ctx.answerCallbackQuery({
-      text: "Ви вже проголосували.",
-      show_alert: true,
-    });
-  }
+bot.on("message:video", async (ctx) => {
+  const fileId = ctx.message.video.file_id;
+  const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
+  await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });
 });
 
-bot.callbackQuery("main_menu", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.editMessageText(WELCOME_MESSAGE, {
-    reply_markup: generateMainMenuKeyboard(),
-  });
-});
-
-// // ===================================================================
-// // === NEW: TEMPORARY HANDLER FOR GETTING VIDEO FILE_IDS           ===
-// // ===================================================================
-// // This listener will catch any message that is a video.
-// bot.on("message:video", async (ctx) => {
-//   const fileId = ctx.message.video.file_id;
-
-//   // Reply to the user with the file_id, formatted for easy copying.
-//   await ctx.reply(`Отримано відео. \n\nВаш file_id: \`${fileId}\``, {
-//     parse_mode: "MarkdownV2",
-//   });
-// });
-// // ===================================================================
-
-// This is the fallback for any TEXT message that isn't handled above.
 bot.on("message:text", async (ctx) => {
-  await ctx.reply("Будь ласка, використовуйте команду /start, щоб розпочати.");
+  await ctx.reply(
+    escapeMarkdownV2(
+      "Будь ласка, використовуйте команду /start, щоб розпочати."
+    )
+  );
 });
 
 // --- WEBHOOK SETUP ---
