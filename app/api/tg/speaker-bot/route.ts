@@ -15,9 +15,16 @@ const bot = new Bot(token);
 const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
 
 const SPEAKERS = [
-  { id: "video_1", file_id: "PASTE_YOUR_REAL_FILE_ID_FOR_VIDEO_1" },
-  { id: "video_2", file_id: "PASTE_YOUR_REAL_FILE_ID_FOR_VIDEO_2" },
-  // ... and so on for all 10 videos
+  {
+    id: "video_1",
+    file_id:
+      "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA",
+  },
+  {
+    id: "video_2",
+    file_id:
+      "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA",
+  },
 ];
 
 function generateVotingKeyboard() {
@@ -177,19 +184,19 @@ bot.callbackQuery("main_menu", async (ctx) => {
   });
 });
 
-// ===================================================================
-// === NEW: TEMPORARY HANDLER FOR GETTING VIDEO FILE_IDS           ===
-// ===================================================================
-// This listener will catch any message that is a video.
-bot.on("message:video", async (ctx) => {
-  const fileId = ctx.message.video.file_id;
+// // ===================================================================
+// // === NEW: TEMPORARY HANDLER FOR GETTING VIDEO FILE_IDS           ===
+// // ===================================================================
+// // This listener will catch any message that is a video.
+// bot.on("message:video", async (ctx) => {
+//   const fileId = ctx.message.video.file_id;
 
-  // Reply to the user with the file_id, formatted for easy copying.
-  await ctx.reply(`Отримано відео. \n\nВаш file_id: \`${fileId}\``, {
-    parse_mode: "MarkdownV2",
-  });
-});
-// ===================================================================
+//   // Reply to the user with the file_id, formatted for easy copying.
+//   await ctx.reply(`Отримано відео. \n\nВаш file_id: \`${fileId}\``, {
+//     parse_mode: "MarkdownV2",
+//   });
+// });
+// // ===================================================================
 
 // This is the fallback for any TEXT message that isn't handled above.
 bot.on("message:text", async (ctx) => {
