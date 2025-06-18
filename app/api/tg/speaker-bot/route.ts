@@ -12,13 +12,12 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 const bot = new Bot(token);
 
 // --- CONSTANTS & HELPERS ---
-const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
 
-🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.
+const WELCOME_MESSAGE_PART_1 = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
 
-📍 Фестиваль Nail Moment відбудеться 27 липня 2025 у місті Вроцлав (Польща). Детальні умови участі та опис фестивалю шукай на нашому сайті.
+🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.`;
 
-📹 Відеопрезентації учасників уже доступні! Їх можна подивитися в нашому Telegram-каналі або Instagram. Перед тим, як голосувати, обов’язково переглянь усі заявки — там стільки натхнення!
+const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасників уже доступні! Перед тим, як голосувати, обов’язково переглянь усі заявки — там стільки натхнення!
 
 Голосування проходитиме в цьому чат-боті 💬
 Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
@@ -34,8 +33,6 @@ function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
   return text.replace(charsToEscape, (char) => `\\${char}`);
 }
-
-// --- CORE LOGIC ---
 
 async function initiateVotingFlow(ctx: Context) {
   const telegramUserId = ctx.from!.id;
@@ -88,14 +85,16 @@ async function initiateVotingFlow(ctx: Context) {
   }
 }
 
-// --- BOT COMMANDS AND CALLBACKS ---
-
 bot.command("start", async (ctx) => {
+  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_1), {
+    parse_mode: "MarkdownV2",
+  });
+
   const showVideosKeyboard = new InlineKeyboard().text(
     "Показати відео для голосування",
     "show_videos"
   );
-  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE), {
+  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_2), {
     reply_markup: showVideosKeyboard,
     parse_mode: "MarkdownV2",
   });
@@ -109,7 +108,6 @@ bot.callbackQuery("show_videos", async (ctx) => {
   await initiateVotingFlow(ctx);
 });
 
-// --- THIS IS THE CORRECTED VOTE HANDLER ---
 bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
   const videoNumber = parseInt(ctx.match[1], 10);
@@ -135,7 +133,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // NO SPAM: We only edit the message that was clicked.
     const resetKeyboard = new InlineKeyboard().text(
       "Скинути мій голос 🔄",
       `reset_vote:${videoNumber}`
@@ -156,7 +153,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   }
 });
 
-// --- THIS IS THE CORRECTED RESET HANDLER ---
 bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
   const videoNumber = parseInt(ctx.match[1], 10);
@@ -169,7 +165,6 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
       text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
     });
 
-    // NO SPAM: We only edit the message that was clicked back to its original state.
     const voteKeyboard = new InlineKeyboard().text(
       "Проголосувати за це 👍",
       `vote:${videoNumber}`
@@ -188,7 +183,7 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   }
 });
 
-// --- The rest of the file remains the same ---
+// The rest of the file remains the same
 bot.on("message:video", async (ctx) => {
   const fileId = ctx.message.video.file_id;
   const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
