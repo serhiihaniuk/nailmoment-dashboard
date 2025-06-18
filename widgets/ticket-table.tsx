@@ -175,7 +175,7 @@ export function TicketsTable() {
           </Label>
         </div>
 
-        {isLoading && <Skeleton className="max-h-96 w-full rounded-md" />}
+        {isLoading && <Skeleton className="h-[2000px] mx-2 rounded-md" />}
         {!filtered.length && !isError && !isLoading && (
           <p className="px-4 rounded-md">Квитків не знайдено.</p>
         )}
