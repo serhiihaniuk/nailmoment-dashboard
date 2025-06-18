@@ -34,6 +34,7 @@
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
     "drizzle-zod": "^0.7.1",
+    "grammy": "^1.36.3",
     "lucide-react": "^0.503.0",
     "nanoid": "^5.1.5",
     "next": "15.3.1",
