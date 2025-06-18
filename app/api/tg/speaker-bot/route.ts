@@ -35,12 +35,11 @@ function escapeMarkdownV2(text: string): string {
   return text.replace(charsToEscape, (char) => `\\${char}`);
 }
 
-// --- CORE LOGIC (RE-WRITTEN) ---
+// --- CORE LOGIC ---
 
 async function initiateVotingFlow(ctx: Context) {
   const telegramUserId = ctx.from!.id;
   try {
-    // 1. Check the user's voting status once.
     const existingVote = await db
       .select()
       .from(speakerVoteTGTable)
@@ -55,23 +54,21 @@ async function initiateVotingFlow(ctx: Context) {
       { parse_mode: "MarkdownV2" }
     );
 
-    // 2. Always send all videos.
     for (let i = 0; i < SPEAKERS.length; i++) {
       const videoNumber = i + 1;
       const speaker = SPEAKERS[i];
       let caption: string;
       let keyboard: InlineKeyboard;
 
-      // 3. Dynamically set the caption and button based on voting status.
       if (speaker.id === votedForId) {
-        // This is the video they voted for
-        caption = escapeMarkdownV2(`✅ Ви обрали Відео #${videoNumber}`);
+        caption = escapeMarkdownV2(
+          `✅ Ви вже проголосували за Відео #${videoNumber}`
+        );
         keyboard = new InlineKeyboard().text(
           "Скинути мій голос 🔄",
           `reset_vote:${videoNumber}`
         );
       } else {
-        // This is any other video
         caption = escapeMarkdownV2(`Це Відео #${videoNumber}`);
         keyboard = new InlineKeyboard().text(
           "Проголосувати за це 👍",
@@ -112,6 +109,7 @@ bot.callbackQuery("show_videos", async (ctx) => {
   await initiateVotingFlow(ctx);
 });
 
+// --- THIS IS THE CORRECTED VOTE HANDLER ---
 bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
   const videoNumber = parseInt(ctx.match[1], 10);
@@ -137,8 +135,18 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // After voting, re-run the main flow to show the new "voted" state
-    await initiateVotingFlow(ctx);
+    // NO SPAM: We only edit the message that was clicked.
+    const resetKeyboard = new InlineKeyboard().text(
+      "Скинути мій голос 🔄",
+      `reset_vote:${videoNumber}`
+    );
+    await ctx.editMessageCaption({
+      caption: escapeMarkdownV2(
+        `✅ Проголосовано! Ви обрали Відео #${videoNumber}`
+      ),
+      reply_markup: resetKeyboard,
+      parse_mode: "MarkdownV2",
+    });
   } catch (error) {
     console.error("Error processing vote:", error);
     await ctx.answerCallbackQuery({
@@ -148,8 +156,11 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   }
 });
 
+// --- THIS IS THE CORRECTED RESET HANDLER ---
 bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
+  const videoNumber = parseInt(ctx.match[1], 10);
+
   try {
     await db
       .delete(speakerVoteTGTable)
@@ -158,8 +169,16 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
       text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
     });
 
-    // After resetting, re-run the main flow to show the "new user" state
-    await initiateVotingFlow(ctx);
+    // NO SPAM: We only edit the message that was clicked back to its original state.
+    const voteKeyboard = new InlineKeyboard().text(
+      "Проголосувати за це 👍",
+      `vote:${videoNumber}`
+    );
+    await ctx.editMessageCaption({
+      caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
+      reply_markup: voteKeyboard,
+      parse_mode: "MarkdownV2",
+    });
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
@@ -169,6 +188,7 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   }
 });
 
+// --- The rest of the file remains the same ---
 bot.on("message:video", async (ctx) => {
   const fileId = ctx.message.video.file_id;
   const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
