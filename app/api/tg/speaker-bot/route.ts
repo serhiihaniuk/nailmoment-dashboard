@@ -12,11 +12,20 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 const bot = new Bot(token);
 
 // --- CONSTANTS & HELPERS ---
-const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
+const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
+
+🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.
+
+📍 Фестиваль Nail Moment відбудеться 27 липня 2025 у місті Вроцлав (Польща). Детальні умови участі та опис фестивалю шукай на нашому сайті.
+
+📹 Відеопрезентації учасників уже доступні! Їх можна подивитися в нашому Telegram-каналі або Instagram. Перед тим, як голосувати, обов’язково переглянь усі заявки — там стільки натхнення!
+
+Голосування проходитиме в цьому чат-боті 💬
+Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
 
 const videoFileId =
   "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA";
-const SPEAKERS = Array.from({ length: 10 }, (_, i) => ({
+const SPEAKERS = Array.from({ length: 3 }, (_, i) => ({
   id: `video_${i + 1}`,
   file_id: videoFileId,
 }));
@@ -26,57 +35,55 @@ function escapeMarkdownV2(text: string): string {
   return text.replace(charsToEscape, (char) => `\\${char}`);
 }
 
-// --- CORE LOGIC ---
+// --- CORE LOGIC (RE-WRITTEN) ---
 
 async function initiateVotingFlow(ctx: Context) {
   const telegramUserId = ctx.from!.id;
   try {
+    // 1. Check the user's voting status once.
     const existingVote = await db
       .select()
       .from(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
       .limit(1);
 
-    if (existingVote.length > 0) {
-      const votedForId = existingVote[0].voted_for_id;
-      const videoIndex = SPEAKERS.findIndex((s) => s.id === votedForId);
-      const videoNumber = videoIndex + 1;
+    const votedForId =
+      existingVote.length > 0 ? existingVote[0].voted_for_id : null;
 
-      if (videoIndex !== -1) {
-        await ctx.reply(
-          escapeMarkdownV2("Ви вже проголосували. Ось ваш вибір:"),
-          { parse_mode: "MarkdownV2" }
-        );
-        const resetKeyboard = new InlineKeyboard().text(
+    await ctx.reply(
+      escapeMarkdownV2("Будь ласка, перегляньте відео та зробіть свій вибір:"),
+      { parse_mode: "MarkdownV2" }
+    );
+
+    // 2. Always send all videos.
+    for (let i = 0; i < SPEAKERS.length; i++) {
+      const videoNumber = i + 1;
+      const speaker = SPEAKERS[i];
+      let caption: string;
+      let keyboard: InlineKeyboard;
+
+      // 3. Dynamically set the caption and button based on voting status.
+      if (speaker.id === votedForId) {
+        // This is the video they voted for
+        caption = escapeMarkdownV2(`✅ Ви обрали Відео #${videoNumber}`);
+        keyboard = new InlineKeyboard().text(
           "Скинути мій голос 🔄",
           `reset_vote:${videoNumber}`
         );
-        await ctx.replyWithVideo(SPEAKERS[videoIndex].file_id, {
-          caption: escapeMarkdownV2(`✅ Ви обрали Відео #${videoNumber}`),
-          reply_markup: resetKeyboard,
-          parse_mode: "MarkdownV2",
-        });
-      }
-    } else {
-      await ctx.reply(
-        escapeMarkdownV2(
-          "Будь ласка, перегляньте відео та зробіть свій вибір:"
-        ),
-        { parse_mode: "MarkdownV2" }
-      );
-      for (let i = 0; i < SPEAKERS.length; i++) {
-        const videoNumber = i + 1;
-        const speaker = SPEAKERS[i];
-        const voteKeyboard = new InlineKeyboard().text(
+      } else {
+        // This is any other video
+        caption = escapeMarkdownV2(`Це Відео #${videoNumber}`);
+        keyboard = new InlineKeyboard().text(
           "Проголосувати за це 👍",
           `vote:${videoNumber}`
         );
-        await ctx.replyWithVideo(speaker.file_id, {
-          caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
-          reply_markup: voteKeyboard,
-          parse_mode: "MarkdownV2",
-        });
       }
+
+      await ctx.replyWithVideo(speaker.file_id, {
+        caption: caption,
+        reply_markup: keyboard,
+        parse_mode: "MarkdownV2",
+      });
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
@@ -130,17 +137,8 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    const resetKeyboard = new InlineKeyboard().text(
-      "Скинути мій голос 🔄",
-      `reset_vote:${videoNumber}`
-    );
-    await ctx.editMessageCaption({
-      caption: escapeMarkdownV2(
-        `✅ Проголосовано! Ви обрали Відео #${videoNumber}`
-      ),
-      reply_markup: resetKeyboard,
-      parse_mode: "MarkdownV2",
-    });
+    // After voting, re-run the main flow to show the new "voted" state
+    await initiateVotingFlow(ctx);
   } catch (error) {
     console.error("Error processing vote:", error);
     await ctx.answerCallbackQuery({
@@ -150,30 +148,17 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   }
 });
 
-// --- THIS IS THE CORRECTED BLOCK ---
 bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
-
   try {
-    // 1. Delete the user's vote from the database
     await db
       .delete(speakerVoteTGTable)
       .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
-
-    // 2. Acknowledge the click with a helpful popup
     await ctx.answerCallbackQuery({
-      text: "Ваш голос скинуто! Надсилаю всі варіанти знову...",
+      text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
     });
 
-    // 3. Clean up the message where the button was clicked
-    await ctx.editMessageCaption({
-      caption: escapeMarkdownV2("✅ Ваш попередній голос видалено."),
-      parse_mode: "MarkdownV2",
-      // The keyboard is removed automatically by not providing a `reply_markup`
-    });
-
-    // 4. CRITICAL FIX: Re-run the main voting flow.
-    // Since the user's vote is now deleted, this will show them all 10 videos again.
+    // After resetting, re-run the main flow to show the "new user" state
     await initiateVotingFlow(ctx);
   } catch (error) {
     console.error("Error resetting vote:", error);
@@ -183,8 +168,6 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
     });
   }
 });
-
-// --- The rest of the file remains the same ---
 
 bot.on("message:video", async (ctx) => {
   const fileId = ctx.message.video.file_id;
