@@ -7,6 +7,7 @@ import {
   integer,
   pgEnum,
   decimal,
+  bigint,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -154,3 +155,20 @@ export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 export type Ticket = typeof ticketTable.$inferSelect;
 
 export type InsertTicket = typeof ticketTable.$inferInsert;
+
+export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
+  id: text("id").primaryKey(),
+
+  telegram_user_id: bigint("telegram_user_id", { mode: "number" })
+    .notNull()
+    .unique(),
+
+  voted_for_id: text("voted_for_id").notNull(),
+
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type SpeakerVoteTG = typeof speakerVoteTGTable.$inferSelect;
+export type InsertSpeakerVoteTG = typeof speakerVoteTGTable.$inferInsert;

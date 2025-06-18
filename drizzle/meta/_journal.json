@@ -71,6 +71,13 @@
       "when": 1746888431701,
       "tag": "0009_amusing_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1750246587951,
+      "tag": "0010_cold_shockwave",
+      "breakpoints": true
     }
   ]
 }
