@@ -12,25 +12,12 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 const bot = new Bot(token);
 
 // --- CONSTANTS AND KEYBOARD GENERATORS ---
-
 const WELCOME_MESSAGE = `Привіт! Я — бот Nail Moment... (your full welcome message)`;
 
-// --- MODIFICATION #1: Using the Vercel Blob URL ---
-// We've replaced the file_id with a 'url' key.
-const videoUrl =
-  "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/tg/vid1-zldT3VxIgcz0dRSEio7Gqnja74xufb";
-
 const SPEAKERS = [
-  { id: "video_1", url: videoUrl },
-  { id: "video_2", url: videoUrl },
-  { id: "video_3", url: videoUrl },
-  { id: "video_4", url: videoUrl },
-  { id: "video_5", url: videoUrl },
-  { id: "video_6", url: videoUrl },
-  { id: "video_7", url: videoUrl },
-  { id: "video_8", url: videoUrl },
-  { id: "video_9", url: videoUrl },
-  { id: "video_10", url: videoUrl },
+  { id: "video_1", file_id: "PASTE_YOUR_REAL_FILE_ID_FOR_VIDEO_1" },
+  { id: "video_2", file_id: "PASTE_YOUR_REAL_FILE_ID_FOR_VIDEO_2" },
+  // ... and so on for all 10 videos
 ];
 
 function generateVotingKeyboard() {
@@ -57,7 +44,6 @@ function generatePostVoteKeyboard() {
 }
 
 // --- CORE LOGIC HANDLER ---
-
 async function handleShowVotingProcess(ctx: Context) {
   const telegramUserId = ctx.from!.id;
   try {
@@ -75,10 +61,8 @@ async function handleShowVotingProcess(ctx: Context) {
     } else {
       await ctx.reply("Зараз я надішлю відео всіх учасників для перегляду...");
 
-      // --- MODIFICATION #2: Sending video from URL ---
       for (const speaker of SPEAKERS) {
-        // We now use speaker.url instead of speaker.file_id
-        await ctx.replyWithVideo(speaker.url, {
+        await ctx.replyWithVideo(speaker.file_id, {
           caption: `Це Відео #${speaker.id.split("_")[1]}`,
         });
       }
@@ -95,7 +79,6 @@ async function handleShowVotingProcess(ctx: Context) {
 }
 
 // --- BOT COMMANDS AND CALLBACKS ---
-
 bot.command("start", async (ctx) => {
   await ctx.reply(WELCOME_MESSAGE, {
     reply_markup: generateMainMenuKeyboard(),
@@ -128,11 +111,8 @@ bot.callbackQuery("reset_vote", async (ctx) => {
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
 
     await ctx.reply("Ви можете проголосувати знову. Надсилаю відео...");
-
-    // --- MODIFICATION #3: Sending video from URL on reset ---
     for (const speaker of SPEAKERS) {
-      // We also use speaker.url here for consistency
-      await ctx.replyWithVideo(speaker.url, {
+      await ctx.replyWithVideo(speaker.file_id, {
         caption: `Це Відео #${speaker.id.split("_")[1]}`,
       });
     }
@@ -152,15 +132,29 @@ bot.callbackQuery("reset_vote", async (ctx) => {
 
 bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
-  const videoNumber = ctx.match[1];
-  const votedForId = `video_${videoNumber}`;
+
+  const existingVote = await db
+    .select()
+    .from(speakerVoteTGTable)
+    .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
+    .limit(1);
+  if (existingVote.length > 0) {
+    await ctx.answerCallbackQuery({
+      text: "Ви вже проголосували. Щоб змінити вибір, натисніть 'Скинути мій голос'.",
+    });
+    return;
+  }
 
   try {
+    const videoNumber = ctx.match[1];
+    const votedForId = `video_${videoNumber}`;
+
     await db.insert(speakerVoteTGTable).values({
       id: nanoid(),
       telegram_user_id: telegramUserId,
       voted_for_id: votedForId,
     });
+
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
     await ctx.editMessageText(
@@ -168,9 +162,9 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
       { reply_markup: generatePostVoteKeyboard() }
     );
   } catch (error) {
-    console.error("Error processing vote:", error);
+    console.error("Error processing vote (likely a race condition):", error);
     await ctx.answerCallbackQuery({
-      text: "Сталася помилка, або ви вже проголосували.",
+      text: "Ви вже проголосували.",
       show_alert: true,
     });
   }
@@ -183,6 +177,21 @@ bot.callbackQuery("main_menu", async (ctx) => {
   });
 });
 
+// ===================================================================
+// === NEW: TEMPORARY HANDLER FOR GETTING VIDEO FILE_IDS           ===
+// ===================================================================
+// This listener will catch any message that is a video.
+bot.on("message:video", async (ctx) => {
+  const fileId = ctx.message.video.file_id;
+
+  // Reply to the user with the file_id, formatted for easy copying.
+  await ctx.reply(`Отримано відео. \n\nВаш file_id: \`${fileId}\``, {
+    parse_mode: "MarkdownV2",
+  });
+});
+// ===================================================================
+
+// This is the fallback for any TEXT message that isn't handled above.
 bot.on("message:text", async (ctx) => {
   await ctx.reply("Будь ласка, використовуйте команду /start, щоб розпочати.");
 });
