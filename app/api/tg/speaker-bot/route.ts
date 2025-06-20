@@ -136,6 +136,7 @@ async function initiateVotingFlow(ctx: Context) {
         reply_markup: keyboard,
         parse_mode: "MarkdownV2",
       });
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
