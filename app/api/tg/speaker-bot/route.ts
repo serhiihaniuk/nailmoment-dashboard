@@ -22,7 +22,6 @@ const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасн
 Голосування проходитиме в цьому чат-боті 💬
 Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
 
-// speakers from 1 to 10
 const SPEAKERS = [
   {
     id: "video_1",
@@ -161,6 +160,43 @@ bot.command("start", async (ctx) => {
 
 bot.command("vote", (ctx) => initiateVotingFlow(ctx));
 
+// --- NEW COMMAND HANDLER ---
+bot.command("reset", async (ctx) => {
+  const telegramUserId = ctx.from!.id;
+  try {
+    const existingVote = await db
+      .select()
+      .from(speakerVoteTGTable)
+      .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
+      .limit(1);
+
+    let replyMessage: string;
+
+    if (existingVote.length > 0) {
+      await db
+        .delete(speakerVoteTGTable)
+        .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
+      replyMessage =
+        "Ваш попередній голос видалено. Тепер ви можете голосувати знову.";
+    } else {
+      replyMessage = "У вас немає активного голосу, який можна було б скинути.";
+    }
+
+    const showVideosKeyboard = new InlineKeyboard().text(
+      "Показати відео для голосування",
+      "show_videos"
+    );
+    await ctx.reply(escapeMarkdownV2(replyMessage), {
+      reply_markup: showVideosKeyboard,
+      parse_mode: "MarkdownV2",
+    });
+  } catch (error) {
+    console.error("Error in /reset command:", error);
+    await ctx.reply("Вибачте, сталася помилка під час скидання вашого голосу.");
+  }
+});
+// -------------------------
+
 bot.callbackQuery("show_videos", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageReplyMarkup();
@@ -171,7 +207,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
   const videoNumber = parseInt(ctx.match[1], 10);
   const votedForId = `video_${videoNumber}`;
-
   const existingVote = await db
     .select()
     .from(speakerVoteTGTable)
@@ -183,7 +218,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     });
     return;
   }
-
   try {
     await db.insert(speakerVoteTGTable).values({
       id: nanoid(),
@@ -191,7 +225,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
       voted_for_id: votedForId,
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
-
     const resetKeyboard = new InlineKeyboard().text(
       "Скинути мій голос 🔄",
       `reset_vote:${videoNumber}`
@@ -215,7 +248,6 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
 bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   const telegramUserId = ctx.from!.id;
   const videoNumber = parseInt(ctx.match[1], 10);
-
   try {
     await db
       .delete(speakerVoteTGTable)
@@ -223,7 +255,6 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
     await ctx.answerCallbackQuery({
       text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
     });
-
     const voteKeyboard = new InlineKeyboard().text(
       "Проголосувати за це 👍",
       `vote:${videoNumber}`
@@ -242,7 +273,6 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   }
 });
 
-// The rest of the file remains the same
 bot.on("message:video", async (ctx) => {
   const fileId = ctx.message.video.file_id;
   const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
@@ -257,5 +287,4 @@ bot.on("message:text", async (ctx) => {
   );
 });
 
-// --- WEBHOOK SETUP ---
 export const POST = webhookCallback(bot, "std/http");
