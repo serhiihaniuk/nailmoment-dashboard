@@ -22,12 +22,69 @@ const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасн
 Голосування проходитиме в цьому чат-боті 💬
 Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
 
-const videoFileId =
-  "BAACAgIAAxkBAAM4aFKy9LgXGvquLiQOKW-6yJ-S92MAArR3AAJaF5FKinLH6B9VFCA2BA";
-const SPEAKERS = Array.from({ length: 3 }, (_, i) => ({
-  id: `video_${i + 1}`,
-  file_id: videoFileId,
-}));
+// speakers from 1 to 10
+const SPEAKERS = [
+  {
+    id: "video_1",
+    name: "Відео 1",
+    file_id:
+      "BAACAgIAAxkBAAIBG2hVT71yjORJP9C_6G179cyIh5VuAAIBeQACuEmpSgFPJSaD8w2JNgQ",
+  },
+  {
+    id: "video_2",
+    name: "Відео 2",
+    file_id:
+      "BAACAgIAAxkBAAIBHWhVUIa-YTVvO3fu8NeqCeve30rPAAJqbwACUgioSqdJcE2mrBceNgQ",
+  },
+  {
+    id: "video_3",
+    name: "Відео 3",
+    file_id:
+      "BAACAgIAAxkBAAIBH2hVUIpvPhjvKYDeGCk8xRnx1JMcAAJrbwACUgioSrgQm0GifuhgNgQ",
+  },
+  {
+    id: "video_4",
+    name: "Відео 4",
+    file_id:
+      "BAACAgIAAxkBAAIBIWhVUI4p3ww4znpnAeW1H-mkLut9AAJtbwACUgioSrYaQI-MuyrANgQ",
+  },
+  {
+    id: "video_5",
+    name: "Відео 5",
+    file_id:
+      "BAACAgIAAxkBAAIBI2hVUJLpxgWykIYmLg81yHpQbsBmAAJubwACUgioSoNWibi6PI14NgQ",
+  },
+  {
+    id: "video_6",
+    name: "Відео 6",
+    file_id:
+      "BAACAgIAAxkBAAIBJWhVUJbeTFeqIqVrv2iou5-xd6SXAAJwbwACUgioSog4y_8mDOWjNgQ",
+  },
+  {
+    id: "video_7",
+    name: "Відео 7",
+    file_id:
+      "BAACAgIAAxkBAAIBJ2hVUJvoqCdxxGn6D3NP8N0IfscZAAJxbwACUgioSoHJsbCWYHhjNgQ",
+  },
+  {
+    id: "video_8",
+    name: "Відео 8",
+    file_id:
+      "BAACAgIAAxkBAAIBLWhVUKlsaztpb6g2VLCVeu3G3WW1AAJ1bwACUgioSrx1CweRBSrPNgQ",
+  },
+  {
+    id: "video_9",
+    name: "Відео 9",
+    file_id:
+      "BAACAgIAAxkBAAIBKWhVUJz0L_eLF2m5L8al7u81BPU2AAJybwACUgioSl-oLls7kt0_NgQ",
+  },
+  {
+    id: "video_10",
+    name: "Відео 10",
+    file_id:
+      "BAACAgIAAxkBAAIBK2hVUKKGSc3bouhp9K0qqK7V-HObAAJzbwACUgioSmyeUIFsDly6NgQ",
+  },
+];
 
 function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
@@ -66,7 +123,9 @@ async function initiateVotingFlow(ctx: Context) {
           `reset_vote:${videoNumber}`
         );
       } else {
-        caption = escapeMarkdownV2(`Це Відео #${videoNumber}`);
+        caption = escapeMarkdownV2(
+          `Це Відео #${videoNumber} — ${speaker.name}`
+        );
         keyboard = new InlineKeyboard().text(
           "Проголосувати за це 👍",
           `vote:${videoNumber}`
