@@ -126,7 +126,7 @@ async function initiateVotingFlow(ctx: Context) {
           `Це Відео #${videoNumber} — ${speaker.name}`
         );
         keyboard = new InlineKeyboard().text(
-          "Проголосувати за це 👍",
+          `Проголосувати за ${speaker.name} 👍`,
           `vote:${videoNumber}`
         );
       }
@@ -232,7 +232,9 @@ bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
     );
     await ctx.editMessageCaption({
       caption: escapeMarkdownV2(
-        `✅ Проголосовано! Ви обрали Відео #${videoNumber}`
+        `✅ Проголосовано! 🔥🔥🔥 
+
+        Ви обрали Відео #${videoNumber}`
       ),
       reply_markup: resetKeyboard,
       parse_mode: "MarkdownV2",
