@@ -16,6 +16,9 @@ export const Header = () => {
         <NavLink href="/battle" className="flex items-center space-x-2">
           Батл
         </NavLink>
+        <NavLink href="/speaker_vote" className="flex items-center space-x-2">
+          Народний Спікер
+        </NavLink>
       </div>
     </header>
   );
