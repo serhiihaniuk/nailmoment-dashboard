@@ -87,7 +87,7 @@ const SPEAKERS = [
     id: "video_11",
     name: "Полина Юсупова",
     file_id:
-      "BAACAgIAAxkBAAICBGhWj59NQEwK-LYHXLZMH6OYTtJTAALTcgACUgi4Sr4hWtVEtP_bNgQ",
+      "BAACAgIAAxkBAAICGWhWoHdkZ-yKGZixwyzDggmZW4V3AAK0cwACUgi4Ss5L18EE1XnzNgQ",
   },
 ];
 
