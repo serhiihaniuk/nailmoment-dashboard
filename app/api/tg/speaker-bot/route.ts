@@ -83,6 +83,12 @@ const SPEAKERS = [
     file_id:
       "BAACAgIAAxkBAAIBK2hVUKKGSc3bouhp9K0qqK7V-HObAAJzbwACUgioSmyeUIFsDly6NgQ",
   },
+  {
+    id: "video_11",
+    name: "Полина Юсупова",
+    file_id:
+      "BAACAgIAAxkBAAICBGhWj59NQEwK-LYHXLZMH6OYTtJTAALTcgACUgi4Sr4hWtVEtP_bNgQ",
+  },
 ];
 
 function escapeMarkdownV2(text: string): string {
