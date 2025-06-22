@@ -5,10 +5,9 @@ import Link from "next/link";
 export const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-4 h-full w-full max-w-screen-lg px-2 mx-auto">
+      <div className="flex items-center gap-4 h-full w-full max-w-xl px-2 mx-auto">
         <Link href="/dashboard" className="flex items-center space-x-2">
           <NailIcon className="w-20" />
-          <span className="font-black text-lg">MOMENT</span>
         </Link>
         <NavLink href="/dashboard" className="flex items-center space-x-2">
           Квитки
@@ -17,7 +16,7 @@ export const Header = () => {
           Батл
         </NavLink>
         <NavLink href="/speaker_vote" className="flex items-center space-x-2">
-          Народний Спікер
+          Спікер
         </NavLink>
       </div>
     </header>
@@ -25,11 +24,11 @@ export const Header = () => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const NailIcon: React.FC<any> = ({ size = 60, className, ...props }) => {
+export const NailIcon: React.FC<any> = ({ size = 30, className, ...props }) => {
   const height = typeof size === "string" ? size : `${size}px`;
   const width =
     typeof size === "string"
-      ? `calc(${size} * (230 / 60))`
+      ? `calc(${size} * (200 / 60))`
       : `${(size * 230) / 60}px`;
 
   return (
