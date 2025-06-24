@@ -33,8 +33,8 @@ export function VoteResultsTable() {
   } = useQuery<VoteResultRaw[], Error>({
     queryKey: ["voteResults"],
     queryFn: fetchVoteResults,
-    refetchInterval: 5000,
-    staleTime: 3000,
+    refetchInterval: 20000,
+    staleTime: 5000,
   });
 
   const results: VoteResult[] = useMemo(() => {
@@ -75,6 +75,7 @@ export function VoteResultsTable() {
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Спікер</TableHead>
+                  {/* <TableHead>Відео</TableHead> */}
                   <TableHead className="text-center">Голосів</TableHead>
                   <TableHead className="text-center">%</TableHead>
                 </TableRow>
@@ -84,6 +85,7 @@ export function VoteResultsTable() {
                   <TableRow key={r.id}>
                     <TableCell>{i + 1}</TableCell>
                     <TableCell>{r.name}</TableCell>
+                    {/* <TableCell>{r.id}</TableCell> */}
                     <TableCell className="text-center font-semibold">
                       {r.total}
                     </TableCell>
