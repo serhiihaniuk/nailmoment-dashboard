@@ -81,7 +81,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "french",
     name: "Французький манікюр",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "french_contestant_nadia",
@@ -172,7 +172,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "3d_korean",
     name: "3D / корейський дизайн",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "3d_korean_contestant_1",
