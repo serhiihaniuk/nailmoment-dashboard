@@ -81,7 +81,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "french",
     name: "Французький манікюр",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "french_contestant_nadia",
@@ -172,7 +172,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "3d_korean",
     name: "3D / корейський дизайн",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "3d_korean_contestant_1",
@@ -241,8 +241,8 @@ export const BROADCAST_MESSAGES = [
 
 Не проґавте шанс стати фіналістом та поборотись за кубок, призи й визнання на сцені Nail Moment 💛`,
     button: {
-      text: "Перейти на сайт «Битва майстрів»",
-      url: "https://www.nailmoment.pl/battle", // Assuming this is the correct link
+      text: "Перейти на сайт",
+      url: "https://www.nailmoment.pl",
     },
   },
 
