@@ -109,7 +109,7 @@ async function initiateVotingFlow(ctx: Context) {
   }
 }
 
-// --- BOT COMMANDS & CALLBACKS ---
+// --- BOT COMMANDS AND CALLBACKS ---
 
 bot.command("start", async (ctx) => {
   if (!ctx.from) return;
@@ -253,6 +253,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   const contestant = activeCategory.contestants.find(
     (c) => c.id === contestantId
   )!;
+
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
@@ -268,6 +269,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       text: "Ви вже проголосували в цій категорії. Спочатку скиньте свій голос.",
     });
   }
+
   try {
     await db.insert(battleVoteTGTable).values({
       id: nanoid(),
@@ -277,7 +279,6 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // Find the current photo index from the button label to stay on the same photo.
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Фото 1/";
@@ -290,11 +291,13 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       contestant.photo_file_ids.length,
       true
     );
-    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
+
+    // THE FIX: Combine caption and keyboard updates into a SINGLE API call.
     await ctx.editMessageCaption({
       caption: escapeMarkdownV2(
         `✅ Проголосовано! Ви обрали: ${contestant.name}`
       ),
+      reply_markup: newKeyboard, // Include the new keyboard here
       parse_mode: "MarkdownV2",
     });
   } catch (error) {
@@ -315,6 +318,7 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   const contestant = activeCategory.contestants.find(
     (c) => c.id === contestantId
   )!;
+
   try {
     await db
       .delete(battleVoteTGTable)
@@ -326,7 +330,6 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       );
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
 
-    // Find the current photo index from the button label to stay on the same photo.
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Фото 1/";
@@ -339,9 +342,11 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       contestant.photo_file_ids.length,
       false
     );
-    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
+
+    // THE FIX: Combine caption and keyboard updates into a SINGLE API call.
     await ctx.editMessageCaption({
       caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
+      reply_markup: newKeyboard, // Include the new keyboard here
       parse_mode: "MarkdownV2",
     });
   } catch (error) {
