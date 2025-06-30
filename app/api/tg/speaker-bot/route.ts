@@ -12,7 +12,7 @@ import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { BATTLE_CATEGORIES } from "@/shared/const";
+import { BATTLE_CATEGORIES, BROADCAST_MESSAGES } from "@/shared/const";
 
 const token = process.env.TG_BOT;
 if (!token) throw new Error("BOT_TOKEN is unset");
@@ -420,30 +420,78 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 bot.command("send_message", async (ctx) => {
   if (!ctx.from) return;
 
-  // For now, we hardcode the admin ID to restrict usage.
+  // 1. Security check
   const ADMIN_ID = 299445418;
   if (ctx.from.id !== ADMIN_ID) {
     return ctx.reply("You are not authorized to use this command.");
   }
 
-  // Hardcode the target user ID and the test message.
+  // 2. Get the message ID from the command argument
+  const messageId = ctx.match;
+  if (!messageId) {
+    const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
+    return ctx.reply(
+      `Please provide a message ID. Usage: /send_message <id>\n\nAvailable IDs: ${availableIds}`
+    );
+  }
+
+  // 3. Find the message object
+  const messageToSend = BROADCAST_MESSAGES.find((m) => m.id === messageId);
+  if (!messageToSend) {
+    const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
+    return ctx.reply(
+      `Message with ID "${messageId}" not found.\n\nAvailable IDs: ${availableIds}`
+    );
+  }
+
   const targetUserId = 299445418;
-  const testMessage = "This is a test push message sent from the bot server!";
+  let messageText = messageToSend.text;
+
+  // Handle dynamic placeholders
+  if (
+    messageId.includes("category") ||
+    messageId.includes("final_tour") ||
+    messageId.includes("last_category")
+  ) {
+    const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+    const categoryName = activeCategory ? activeCategory.name : "Test Category";
+    messageText = messageText
+      .replace("{categoryName}", categoryName)
+      .replace("{date}", "сьогодні")
+      .replace("{endDate}", "завтра");
+  }
+
+  const options: Parameters<typeof bot.api.sendMessage>[2] = {};
+
+  if (messageToSend.button) {
+    const keyboard = new InlineKeyboard();
+    if (messageToSend.button.url) {
+      keyboard.url(messageToSend.button.text, messageToSend.button.url);
+    }
+    // Inside here, TypeScript knows `button` has `callback_data`.
+    else if ("callback_data" in messageToSend.button) {
+      keyboard.text(
+        messageToSend.button.text,
+        messageToSend.button.callback_data
+      );
+    }
+    options.reply_markup = keyboard;
+  }
 
   try {
-    // Use bot.api.sendMessage to send a message to a specific chat ID.
-    await bot.api.sendMessage(targetUserId, testMessage);
-
-    // Confirm to the admin that the message was sent.
+    // 5. Send the message
+    await bot.api.sendMessage(targetUserId, messageText, options);
     await ctx.reply(
-      `Successfully sent the test message to user ID: ${targetUserId}`
+      `Successfully sent message with ID "${messageId}" to user ${targetUserId}.`
     );
   } catch (error) {
     console.error(`Failed to send message to ${targetUserId}:`, error);
     if (error instanceof GrammyError && error.error_code === 403) {
       await ctx.reply(`Failed: User ${targetUserId} has blocked the bot.`);
     } else {
-      await ctx.reply("An error occurred while trying to send the message.");
+      await ctx.reply(
+        `An error occurred: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 });
