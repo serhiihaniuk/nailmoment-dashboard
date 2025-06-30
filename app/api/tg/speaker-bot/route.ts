@@ -19,8 +19,40 @@ const BATTLE_WELCOME_1 = `👋 Привіт! Я — чат-бот, який до
 
 const BATTLE_WELCOME_2 = `Наш конкурс розділений на два етапи та 6 номінацій. На першому етапі ми вибираємо трьох учасників з кожної номінації, які продовжать боротьбу у фіналі на майданчику Nail-фестивалю Nail Moment у Вроцлаві 27 липня 2025 року.`;
 
-// Updated final welcome message to be cleaner
 const BATTLE_WELCOME_3 = `Детальні умови конкурсу та список номінацій ви можете переглянути на нашому офіційному сайті.`;
+
+// NEW: Constant for the voting schedule text
+const VOTING_SCHEDULE_MESSAGE = `🗳️ *Графік голосування*
+
+*Френч*
+Старт голосування: 1 липня о 12:00
+Завершення голосування: 2 липня о 12:00
+Оголошення фіналістів: 2 липня о 21:00
+
+*3D-дизайн / Korean Style*
+Старт голосування: 2 липня о 12:00
+Завершення голосування: 3 липня о 12:00
+Оголошення фіналістів: 3 липня о 21:00
+
+*Неоновий манікюр*
+Старт голосування: 3 липня о 12:00
+Завершення голосування: 4 липня о 12:00
+Оголошення фіналістів: 4 липня о 21:00
+
+*Градієнт*
+Старт голосування: 4 липня о 12:00
+Завершення голосування: 5 липня о 12:00
+Оголошення фіналістів: 5 липня о 21:00
+
+*Однотонний манікюр*
+Старт голосування: 5 липня о 12:00
+Завершення голосування: 6 липня о 12:00
+Оголошення фіналістів: 6 липня о 21:00
+
+*Екстремальна довжина*
+Старт голосування: 6 липня о 12:00
+Завершення голосування: 7 липня о 12:00
+Оголошення фіналістів: 7 липня о 21:00`;
 
 function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
@@ -54,6 +86,19 @@ function generateSliderKeyboard(
     keyboard.text("Проголосувати за цього учасника 👍", `vote:${contestantId}`);
   }
   return keyboard;
+}
+
+// NEW: Helper function to generate the main menu keyboard
+function generateMainMenuKeyboard() {
+  return new InlineKeyboard()
+    .text("📌 Перейти до голосування", "show_votes")
+    .row()
+    .text("🗓️ Подивитися графік голосування", "show_schedule") // New button
+    .row()
+    .url(
+      "🌐 Перейти на сайт конкурсу «Битва майстрів»",
+      "https://www.nailmoment.pl/"
+    );
 }
 
 // --- CORE LOGIC ---
@@ -112,7 +157,6 @@ async function initiateVotingFlow(ctx: Context) {
 
 // --- BOT COMMANDS AND CALLBACKS ---
 
-// THIS IS THE UPDATED /start COMMAND
 bot.command("start", async (ctx) => {
   if (!ctx.from) return;
   try {
@@ -134,18 +178,8 @@ bot.command("start", async (ctx) => {
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_2), {
     parse_mode: "MarkdownV2",
   });
-
-  // Create the new keyboard with a voting button and a URL button
-  const actionKeyboard = new InlineKeyboard()
-    .text("📌 Перейти до голосування", "show_votes")
-    .row() // Puts the next button on a new line for clarity
-    .url(
-      "🌐 Перейти на сайт конкурсу «Битва майстрів»",
-      "https://www.nailmoment.pl/"
-    );
-
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_3), {
-    reply_markup: actionKeyboard,
+    reply_markup: generateMainMenuKeyboard(), // Use the helper function
     parse_mode: "MarkdownV2",
   });
 });
@@ -200,6 +234,33 @@ bot.callbackQuery("show_votes", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageReplyMarkup();
   await initiateVotingFlow(ctx);
+});
+
+// NEW: Handler for the schedule button
+bot.callbackQuery("show_schedule", async (ctx) => {
+  if (!ctx.from) return;
+  await ctx.answerCallbackQuery();
+
+  const backButton = new InlineKeyboard().text(
+    "◀️ Назад до головного меню",
+    "main_menu"
+  );
+
+  await ctx.editMessageText(escapeMarkdownV2(VOTING_SCHEDULE_MESSAGE), {
+    parse_mode: "MarkdownV2",
+    reply_markup: backButton,
+  });
+});
+
+// NEW: Handler for the "Back to Main Menu" button
+bot.callbackQuery("main_menu", async (ctx) => {
+  if (!ctx.from) return;
+  await ctx.answerCallbackQuery();
+
+  await ctx.editMessageText(escapeMarkdownV2(BATTLE_WELCOME_3), {
+    reply_markup: generateMainMenuKeyboard(),
+    parse_mode: "MarkdownV2",
+  });
 });
 
 bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
