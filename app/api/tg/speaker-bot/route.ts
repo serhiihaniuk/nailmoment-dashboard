@@ -1,78 +1,107 @@
-// src/app/api/bot/route.ts
-
 import { Bot, Context, InlineKeyboard, webhookCallback } from "grammy";
+import type { InputMediaPhoto } from "@grammyjs/types";
 import { db } from "@/shared/db";
-import { speakerVoteTGTable } from "@/shared/db/schema";
-import { eq } from "drizzle-orm";
+import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
+import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { SPEAKERS } from "@/shared/const";
+import { BATTLE_CATEGORIES } from "@/shared/const";
 
 const token = process.env.TG_BOT;
 if (!token) throw new Error("BOT_TOKEN is unset");
 
 const bot = new Bot(token);
 
-const WELCOME_MESSAGE_PART_1 = `Привіт! Я — бот Nail Moment, і я допоможу визначити переможця конкурсу «Народний спікер», який проходить у рамках підготовки до нашого фестивалю у Вроцлаві 💛💅
-
-🎤 Переможець конкурсу виступить на головній сцені Nail Moment 27 липня 2025 року з авторською темою, яка переможе у голосуванні.`;
-
-const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасників уже доступні! Перед тим, як голосувати, обов’язково переглянь усі заявки!
-
-Голосування проходитиме в цьому чат-боті 💬
-Хто стане наступною зіркою нашої сцени? Обираєш саме ти!`;
+const WELCOME_MESSAGE_PART_1 = `Привіт! Я — бот Nail Moment... (full message)`;
+const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасників уже доступні!... (full message)`;
 
 function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
   return text.replace(charsToEscape, (char) => `\\${char}`);
 }
 
+function generateSliderKeyboard(
+  contestantId: string,
+  currentPhotoIndex: number,
+  totalPhotos: number,
+  hasVotedForThis: boolean
+): InlineKeyboard {
+  const keyboard = new InlineKeyboard();
+  keyboard.text(
+    currentPhotoIndex > 0 ? "◀️" : " ",
+    currentPhotoIndex > 0
+      ? `slide:prev:${contestantId}:${currentPhotoIndex}`
+      : "noop"
+  );
+  keyboard.text(`Фото ${currentPhotoIndex + 1}/${totalPhotos}`, "noop");
+  keyboard.text(
+    currentPhotoIndex < totalPhotos - 1 ? "▶️" : " ",
+    currentPhotoIndex < totalPhotos - 1
+      ? `slide:next:${contestantId}:${currentPhotoIndex}`
+      : "noop"
+  );
+  keyboard.row();
+  if (hasVotedForThis) {
+    keyboard.text("Скинути мій голос 🔄", `reset_vote:${contestantId}`);
+  } else {
+    keyboard.text("Проголосувати за цього учасника 👍", `vote:${contestantId}`);
+  }
+  return keyboard;
+}
+
+// --- CORE LOGIC ---
+
 async function initiateVotingFlow(ctx: Context) {
-  const telegramUserId = ctx.from!.id;
+  if (!ctx.from) return;
+  const telegramUserId = ctx.from.id;
+
   try {
+    const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+    if (!activeCategory || activeCategory.contestants.length === 0) {
+      await ctx.reply(
+        "Наразі немає активних голосувань. Слідкуйте за оновленнями!"
+      );
+      return;
+    }
+
     const existingVote = await db
       .select()
-      .from(speakerVoteTGTable)
-      .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
+      .from(battleVoteTGTable)
+      .where(
+        and(
+          eq(battleVoteTGTable.telegram_user_id, telegramUserId),
+          eq(battleVoteTGTable.category_id, activeCategory.id)
+        )
+      )
       .limit(1);
-
-    const votedForId =
-      existingVote.length > 0 ? existingVote[0].voted_for_id : null;
+    const votedForContestantId =
+      existingVote.length > 0 ? existingVote[0].voted_for_contestant_id : null;
 
     await ctx.reply(
-      escapeMarkdownV2("Будь ласка, перегляньте відео та зробіть свій вибір:"),
+      escapeMarkdownV2(`Голосування в категорії: *${activeCategory.name}*`),
       { parse_mode: "MarkdownV2" }
     );
 
-    for (let i = 0; i < SPEAKERS.length; i++) {
-      const videoNumber = i + 1;
-      const speaker = SPEAKERS[i];
-      let caption: string;
-      let keyboard: InlineKeyboard;
+    for (const contestant of activeCategory.contestants) {
+      if (contestant.photo_file_ids.length === 0) continue;
 
-      if (speaker.id === votedForId) {
-        caption = escapeMarkdownV2(
-          `✅ Ви вже проголосували за Відео #${videoNumber}`
-        );
-        keyboard = new InlineKeyboard().text(
-          "Скинути мій голос 🔄",
-          `reset_vote:${videoNumber}`
-        );
-      } else {
-        caption = escapeMarkdownV2(
-          `Це Відео #${videoNumber} — ${speaker.name}`
-        );
-        keyboard = new InlineKeyboard().text(
-          `Проголосувати за ${speaker.name} 👍`,
-          `vote:${videoNumber}`
-        );
-      }
+      const hasVotedForThis = contestant.id === votedForContestantId;
+      const caption = escapeMarkdownV2(
+        hasVotedForThis
+          ? `✅ Ви вже проголосували за: ${contestant.name}`
+          : `Учасник: ${contestant.name}`
+      );
+      const keyboard = generateSliderKeyboard(
+        contestant.id,
+        0,
+        contestant.photo_file_ids.length,
+        hasVotedForThis
+      );
 
-      await ctx.replyWithVideo(speaker.file_id, {
-        caption: caption,
+      await ctx.replyWithPhoto(contestant.photo_file_ids[0], {
+        caption,
         reply_markup: keyboard,
         parse_mode: "MarkdownV2",
       });
-      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
@@ -80,127 +109,195 @@ async function initiateVotingFlow(ctx: Context) {
   }
 }
 
+// --- BOT COMMANDS & CALLBACKS ---
+
 bot.command("start", async (ctx) => {
+  if (!ctx.from) return;
+  try {
+    await db
+      .insert(telegramUsersTable)
+      .values({
+        telegramUserId: ctx.from.id,
+        firstName: ctx.from.first_name,
+        username: ctx.from.username,
+      })
+      .onConflictDoNothing();
+  } catch (error) {
+    console.error("Failed to save user:", error);
+  }
+
+  const showVotesKeyboard = new InlineKeyboard().text(
+    "Показати роботи для голосування",
+    "show_votes"
+  );
   await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_1), {
     parse_mode: "MarkdownV2",
   });
-
-  const showVideosKeyboard = new InlineKeyboard().text(
-    "Показати відео для голосування",
-    "show_videos"
-  );
   await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_2), {
-    reply_markup: showVideosKeyboard,
+    reply_markup: showVotesKeyboard,
     parse_mode: "MarkdownV2",
   });
 });
 
-bot.command("vote", (ctx) => initiateVotingFlow(ctx));
-
-// --- NEW COMMAND HANDLER ---
-bot.command("reset", async (ctx) => {
-  const telegramUserId = ctx.from!.id;
-  try {
-    const existingVote = await db
-      .select()
-      .from(speakerVoteTGTable)
-      .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
-      .limit(1);
-
-    let replyMessage: string;
-
-    if (existingVote.length > 0) {
-      await db
-        .delete(speakerVoteTGTable)
-        .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
-      replyMessage =
-        "Ваш попередній голос видалено. Тепер ви можете голосувати знову.";
-    } else {
-      replyMessage = "У вас немає активного голосу, який можна було б скинути.";
-    }
-
-    const showVideosKeyboard = new InlineKeyboard().text(
-      "Показати відео для голосування",
-      "show_videos"
-    );
-    await ctx.reply(escapeMarkdownV2(replyMessage), {
-      reply_markup: showVideosKeyboard,
-      parse_mode: "MarkdownV2",
-    });
-  } catch (error) {
-    console.error("Error in /reset command:", error);
-    await ctx.reply("Вибачте, сталася помилка під час скидання вашого голосу.");
-  }
-});
-// -------------------------
-
-bot.callbackQuery("show_videos", async (ctx) => {
+bot.callbackQuery("show_votes", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageReplyMarkup();
   await initiateVotingFlow(ctx);
 });
 
-bot.callbackQuery(/^vote:(\d+)$/, async (ctx) => {
-  const telegramUserId = ctx.from!.id;
-  const videoNumber = parseInt(ctx.match[1], 10);
-  const votedForId = `video_${videoNumber}`;
+bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
+  if (!ctx.from) return;
+  const [, direction, contestantId, currentIndexStr] = ctx.match;
+  const currentIndex = parseInt(currentIndexStr, 10);
+  const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+  const contestant = activeCategory?.contestants.find(
+    (c) => c.id === contestantId
+  );
+  if (!contestant)
+    return await ctx.answerCallbackQuery({
+      text: "Помилка: учасника не знайдено.",
+    });
+
+  const newIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+  if (newIndex < 0 || newIndex >= contestant.photo_file_ids.length) {
+    return await ctx.answerCallbackQuery();
+  }
+
   const existingVote = await db
     .select()
-    .from(speakerVoteTGTable)
-    .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId))
+    .from(battleVoteTGTable)
+    .where(
+      and(
+        eq(battleVoteTGTable.telegram_user_id, ctx.from.id),
+        eq(battleVoteTGTable.category_id, activeCategory!.id)
+      )
+    )
+    .limit(1);
+  const hasVotedForThis =
+    existingVote.length > 0 &&
+    existingVote[0].voted_for_contestant_id === contestantId;
+
+  const newCaption = escapeMarkdownV2(
+    hasVotedForThis
+      ? `✅ Ви вже проголосували за: ${contestant.name}`
+      : `Учасник: ${contestant.name}`
+  );
+  const newKeyboard = generateSliderKeyboard(
+    contestantId,
+    newIndex,
+    contestant.photo_file_ids.length,
+    hasVotedForThis
+  );
+
+  const newPhoto: InputMediaPhoto<string> = {
+    type: "photo",
+    media: contestant.photo_file_ids[newIndex],
+    caption: newCaption,
+    parse_mode: "MarkdownV2",
+  };
+
+  await ctx.answerCallbackQuery();
+  await ctx.editMessageMedia(newPhoto, { reply_markup: newKeyboard });
+});
+
+bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
+  if (!ctx.from) return;
+  const contestantId = ctx.match[1];
+  const telegramUserId = ctx.from.id;
+  const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive)!;
+  const contestant = activeCategory.contestants.find(
+    (c) => c.id === contestantId
+  )!;
+  const existingVote = await db
+    .select()
+    .from(battleVoteTGTable)
+    .where(
+      and(
+        eq(battleVoteTGTable.telegram_user_id, telegramUserId),
+        eq(battleVoteTGTable.category_id, activeCategory.id)
+      )
+    )
     .limit(1);
   if (existingVote.length > 0) {
-    await ctx.answerCallbackQuery({
-      text: "Ви вже проголосували. Спочатку скиньте попередній голос.",
+    return await ctx.answerCallbackQuery({
+      text: "Ви вже проголосували в цій категорії. Спочатку скиньте свій голос.",
     });
-    return;
   }
   try {
-    await db.insert(speakerVoteTGTable).values({
+    await db.insert(battleVoteTGTable).values({
       id: nanoid(),
       telegram_user_id: telegramUserId,
-      voted_for_id: votedForId,
+      category_id: activeCategory.id,
+      voted_for_contestant_id: contestantId,
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
-    const resetKeyboard = new InlineKeyboard().text(
-      "Скинути мій голос 🔄",
-      `reset_vote:${videoNumber}`
+
+    // --- THIS IS THE FIX ---
+    // Access the message via ctx.callbackQuery.message, not ctx.message
+    const buttonText =
+      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
+      "Фото 1/";
+    const match = buttonText.match(/Фото (\d+)\//);
+    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+
+    const newKeyboard = generateSliderKeyboard(
+      contestant.id,
+      currentPhotoIndex,
+      contestant.photo_file_ids.length,
+      true
     );
+    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
     await ctx.editMessageCaption({
       caption: escapeMarkdownV2(
-        `✅ Проголосовано! 🔥🔥🔥 
-
-        Ви обрали Відео #${videoNumber}`
+        `✅ Проголосовано! Ви обрали: ${contestant.name}`
       ),
-      reply_markup: resetKeyboard,
       parse_mode: "MarkdownV2",
     });
   } catch (error) {
     console.error("Error processing vote:", error);
     await ctx.answerCallbackQuery({
-      text: "Сталася помилка, або ви вже проголосували.",
+      text: "Сталася помилка. Спробуйте ще раз.",
       show_alert: true,
     });
   }
 });
 
-bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
-  const telegramUserId = ctx.from!.id;
-  const videoNumber = parseInt(ctx.match[1], 10);
+bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
+  if (!ctx.from) return;
+  const contestantId = ctx.match[1];
+  const telegramUserId = ctx.from.id;
+  const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive)!;
+  const contestant = activeCategory.contestants.find(
+    (c) => c.id === contestantId
+  )!;
   try {
     await db
-      .delete(speakerVoteTGTable)
-      .where(eq(speakerVoteTGTable.telegram_user_id, telegramUserId));
-    await ctx.answerCallbackQuery({
-      text: "Ваш голос скинуто! Тепер ви можете голосувати знову.",
-    });
-    const voteKeyboard = new InlineKeyboard().text(
-      "Проголосувати за це 👍",
-      `vote:${videoNumber}`
+      .delete(battleVoteTGTable)
+      .where(
+        and(
+          eq(battleVoteTGTable.telegram_user_id, telegramUserId),
+          eq(battleVoteTGTable.category_id, activeCategory.id)
+        )
+      );
+    await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
+
+    // --- THIS IS THE FIX ---
+    // Access the message via ctx.callbackQuery.message, not ctx.message
+    const buttonText =
+      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
+      "Фото 1/";
+    const match = buttonText.match(/Фото (\d+)\//);
+    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+
+    const newKeyboard = generateSliderKeyboard(
+      contestant.id,
+      currentPhotoIndex,
+      contestant.photo_file_ids.length,
+      false
     );
+    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
     await ctx.editMessageCaption({
-      caption: escapeMarkdownV2(`Це Відео #${videoNumber}`),
-      reply_markup: voteKeyboard,
+      caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
       parse_mode: "MarkdownV2",
     });
   } catch (error) {
@@ -212,18 +309,12 @@ bot.callbackQuery(/^reset_vote:(\d+)$/, async (ctx) => {
   }
 });
 
-bot.on("message:video", async (ctx) => {
-  const fileId = ctx.message.video.file_id;
-  const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
+bot.on("message:photo", async (ctx) => {
+  const photo = ctx.message.photo[ctx.message.photo.length - 1];
+  const fileId = photo.file_id;
+  const safeText = escapeMarkdownV2(`Отримано фото. \n\nВаш file_id: `);
   await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });
 });
 
-bot.on("message:text", async (ctx) => {
-  await ctx.reply(
-    escapeMarkdownV2(
-      "Будь ласка, використовуйте команду /start, щоб розпочати."
-    )
-  );
-});
-
+// --- WEBHOOK SETUP ---
 export const POST = webhookCallback(bot, "std/http");

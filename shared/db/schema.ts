@@ -8,6 +8,7 @@ import {
   pgEnum,
   decimal,
   bigint,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -172,3 +173,62 @@ export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
 
 export type SpeakerVoteTG = typeof speakerVoteTGTable.$inferSelect;
 export type InsertSpeakerVoteTG = typeof speakerVoteTGTable.$inferInsert;
+
+export const telegramUsersTable = pgTable("telegram_users", {
+  // Use the Telegram User ID as the primary key. It's already unique.
+  telegramUserId: bigint("telegram_user_id", { mode: "number" }).primaryKey(),
+
+  firstName: text("first_name").notNull(),
+  username: text("username"), // Username can be optional
+
+  // Useful for tracking if a user has blocked the bot.
+  isActive: boolean("is_active").notNull().default(true),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Stores the votes for the "Battle of Masters" event.
+ * Keeps this data separate from the previous "Speaker Vote" event.
+ */
+export const battleVoteTGTable = pgTable(
+  "battle_vote_tg",
+  {
+    id: text("id").primaryKey(),
+
+    // Foreign key reference to our new users table.
+    telegram_user_id: bigint("telegram_user_id", { mode: "number" })
+      .notNull()
+      .references(() => telegramUsersTable.telegramUserId),
+
+    // The specific contestant the user voted for (e.g., "poster_contestant_1").
+    voted_for_contestant_id: text("voted_for_contestant_id").notNull(),
+
+    // The category this vote belongs to (e.g., "poster", "fantasy").
+    category_id: text("category_id").notNull(),
+
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return {
+      // This is the CRITICAL part. It enforces that the combination of
+      // a user and a category must be unique.
+      // A user cannot vote twice in the 'poster' category, but they can vote
+      // once in 'poster' and once in 'fantasy'.
+      userCategoryUnique: unique("user_category_unique").on(
+        table.telegram_user_id,
+        table.category_id
+      ),
+    };
+  }
+);
+
+export type TelegramUser = typeof telegramUsersTable.$inferSelect;
+export type InsertTelegramUser = typeof telegramUsersTable.$inferInsert;
+
+export type BattleVoteTG = typeof battleVoteTGTable.$inferSelect;
+export type InsertBattleVoteTG = typeof battleVoteTGTable.$inferInsert;

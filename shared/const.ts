@@ -76,3 +76,100 @@ export const SPEAKERS = [
       "BAACAgIAAxkBAAICGWhWoHdkZ-yKGZixwyzDggmZW4V3AAK0cwACUgi4Ss5L18EE1XnzNgQ",
   },
 ];
+
+export const BATTLE_CATEGORIES = [
+  {
+    id: "french",
+    name: "Французький манікюр",
+    isActive: true,
+    contestants: [
+      {
+        id: "french_contestant_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "REPLACE_WITH_REAL_PHOTO_ID_1A",
+          "REPLACE_WITH_REAL_PHOTO_ID_1B",
+        ],
+      },
+      {
+        id: "french_contestant_2",
+        name: "Учасник 2",
+        photo_file_ids: [
+          "REPLACE_WITH_REAL_PHOTO_ID_2A",
+          "REPLACE_WITH_REAL_PHOTO_ID_2B",
+          "REPLACE_WITH_REAL_PHOTO_ID_2C",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "gradient",
+    name: "Градієнт",
+    isActive: false,
+    contestants: [
+      {
+        id: "gradient_contestant_1",
+        name: "Учасник 1",
+        photo_file_ids: ["REPLACE_WITH_REAL_PHOTO_ID_3A"],
+      },
+    ],
+  },
+
+  {
+    id: "3d_korean",
+    name: "3D / корейський дизайн",
+    isActive: false,
+    contestants: [
+      {
+        id: "3d_korean_contestant_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "REPLACE_WITH_REAL_PHOTO_ID_4A",
+          "REPLACE_WITH_REAL_PHOTO_ID_4B",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "neon",
+    name: "Неоновий манікюр",
+    isActive: false,
+    contestants: [],
+  },
+
+  {
+    id: "monotone",
+    name: "Однотонний манікюр",
+    isActive: false,
+    contestants: [
+      {
+        id: "monotone_contestant_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "REPLACE_WITH_REAL_PHOTO_ID_5A",
+          "REPLACE_WITH_REAL_PHOTO_ID_5B",
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "extra_length",
+    name: "Екстра довжина",
+    isActive: false,
+    contestants: [
+      {
+        id: "extra_length_contestant_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "REPLACE_WITH_REAL_PHOTO_ID_6A",
+          "REPLACE_WITH_REAL_PHOTO_ID_6B",
+        ],
+      },
+    ],
+  },
+];
+
+export type BattleCategory = (typeof BATTLE_CATEGORIES)[number];
