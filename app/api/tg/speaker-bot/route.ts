@@ -13,6 +13,7 @@ import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { BATTLE_CATEGORIES, BROADCAST_MESSAGES } from "@/shared/const";
+import { waitUntil } from "@vercel/functions";
 
 const token = process.env.TG_BOT;
 if (!token) throw new Error("BOT_TOKEN is unset");
@@ -426,100 +427,110 @@ bot.command("send_message", async (ctx) => {
     return ctx.reply("You are not authorized to use this command.");
   }
 
-  const messageId = ctx.match;
-  if (!messageId) {
-    const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
-    return ctx.reply(
-      `Please provide a message ID. Usage: /send_message <id>\n\nAvailable IDs: ${availableIds}`
-    );
-  }
-
-  const messageToSend = BROADCAST_MESSAGES.find((m) => m.id === messageId);
-  if (!messageToSend) {
-    const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
-    return ctx.reply(
-      `Message with ID "${messageId}" not found.\n\nAvailable IDs: ${availableIds}`
-    );
-  }
-
-  // 2. Fetch all active users from the database
-  const users = await db
-    .select()
-    .from(telegramUsersTable)
-    .where(eq(telegramUsersTable.isActive, true));
-  if (users.length === 0) {
-    return ctx.reply("No users found in the database to send messages to.");
-  }
-
+  // 2. Acknowledge the command IMMEDIATELY to prevent timeouts
   await ctx.reply(
-    `Starting broadcast of message "${messageId}" to ${users.length} users...`
+    "✅ Command received. Starting broadcast in the background. I will notify you when it's complete."
   );
 
-  let messageText = messageToSend.text;
-  if (
-    messageId.includes("category") ||
-    messageId.includes("final_tour") ||
-    messageId.includes("last_category")
-  ) {
-    // ... (date and category placeholder logic remains the same)
-    const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
-    const categoryName = activeCategory ? activeCategory.name : "Test Category";
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const startDate = `${today.getDate()} липня`;
-    const endDate = `${tomorrow.getDate()} липня`;
-    messageText = messageToSend.text
-      .replace("{categoryName}", categoryName)
-      .replace("{date}", startDate)
-      .replace("{endDate}", endDate);
-  }
+  // This function will run asynchronously ("fire-and-forget")
+  const runBroadcast = async () => {
+    const messageId = ctx.match;
+    if (!messageId) {
+      return bot.api.sendMessage(ADMIN_ID, "Error: No message ID provided.");
+    }
 
-  const options: Parameters<typeof bot.api.sendMessage>[2] = {};
-  if (messageToSend.button) {
-    const keyboard = new InlineKeyboard();
-    if (messageToSend.button.url) {
-      keyboard.url(messageToSend.button.text, messageToSend.button.url);
-    } else if ("callback_data" in messageToSend.button) {
-      keyboard.text(
-        messageToSend.button.text,
-        messageToSend.button.callback_data
+    const messageToSend = BROADCAST_MESSAGES.find((m) => m.id === messageId);
+    if (!messageToSend) {
+      return bot.api.sendMessage(
+        ADMIN_ID,
+        `Error: Message with ID "${messageId}" not found.`
       );
     }
-    options.reply_markup = keyboard;
-  }
 
-  // 3. Loop through all users and send the message
-  let successCount = 0;
-  let failureCount = 0;
-
-  for (const user of users) {
-    try {
-      await bot.api.sendMessage(user.telegramUserId, messageText, options);
-      // wait 5 ms to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 5));
-
-      successCount++;
-    } catch (error) {
-      failureCount++;
-      console.error(
-        `Failed to send message to user ${user.telegramUserId}:`,
-        error
+    const users = await db
+      .select()
+      .from(telegramUsersTable)
+      .where(eq(telegramUsersTable.isActive, true));
+    if (users.length === 0) {
+      return bot.api.sendMessage(
+        ADMIN_ID,
+        "No active users found to send messages to."
       );
-      // 4. Handle blocked users by marking them as inactive
-      if (error instanceof GrammyError && error.error_code === 403) {
-        await db
-          .update(telegramUsersTable)
-          .set({ isActive: false })
-          .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
-        console.log(`User ${user.telegramUserId} marked as inactive.`);
+    }
+
+    let messageText = messageToSend.text;
+    if (
+      messageId.includes("category") ||
+      messageId.includes("final_tour") ||
+      messageId.includes("last_category")
+    ) {
+      const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+      const categoryName = activeCategory
+        ? activeCategory.name
+        : "Test Category";
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const startDate = `${today.getDate()} липня`;
+      const endDate = `${tomorrow.getDate()} липня`;
+      messageText = messageToSend.text
+        .replace("{categoryName}", categoryName)
+        .replace("{date}", startDate)
+        .replace("{endDate}", endDate);
+    }
+
+    const options: Parameters<typeof bot.api.sendMessage>[2] = {};
+    if (messageToSend.button) {
+      const keyboard = new InlineKeyboard();
+      if ("url" in messageToSend.button && messageToSend.button.url) {
+        keyboard.url(messageToSend.button.text, messageToSend.button.url);
+      } else if ("callback_data" in messageToSend.button) {
+        keyboard.text(
+          messageToSend.button.text,
+          messageToSend.button.callback_data
+        );
       }
+      options.reply_markup = keyboard;
     }
-  }
 
-  // 5. Report the results to the admin
-  await ctx.reply(
-    `Broadcast finished.\n\nSuccessfully sent: ${successCount}\nFailed to send: ${failureCount}`
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const user of users) {
+      try {
+        await bot.api.sendMessage(user.telegramUserId, messageText, options);
+        successCount++;
+      } catch (error) {
+        failureCount++;
+        console.error(
+          `Failed to send message to user ${user.telegramUserId}:`,
+          error
+        );
+        if (error instanceof GrammyError && error.error_code === 403) {
+          await db
+            .update(telegramUsersTable)
+            .set({ isActive: false })
+            .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    await bot.api.sendMessage(
+      ADMIN_ID,
+      `Broadcast finished.\n\nSuccessfully sent: ${successCount}\nFailed to send: ${failureCount}`
+    );
+  };
+
+  // 3. Run the broadcast function without awaiting it.
+  waitUntil(
+    runBroadcast().catch((err) => {
+      console.error("Critical error in broadcast background task:", err);
+      bot.api.sendMessage(
+        ADMIN_ID,
+        "A critical error occurred during the broadcast. Check the server logs."
+      );
+    })
   );
 });
 
