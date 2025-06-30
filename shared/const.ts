@@ -87,17 +87,17 @@ export const BATTLE_CATEGORIES = [
         id: "french_contestant_1",
         name: "Учасник 1",
         photo_file_ids: [
-          "REPLACE_WITH_REAL_PHOTO_ID_1A",
-          "REPLACE_WITH_REAL_PHOTO_ID_1B",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
         ],
       },
       {
         id: "french_contestant_2",
         name: "Учасник 2",
         photo_file_ids: [
-          "REPLACE_WITH_REAL_PHOTO_ID_2A",
-          "REPLACE_WITH_REAL_PHOTO_ID_2B",
-          "REPLACE_WITH_REAL_PHOTO_ID_2C",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
         ],
       },
     ],
@@ -111,7 +111,10 @@ export const BATTLE_CATEGORIES = [
       {
         id: "gradient_contestant_1",
         name: "Учасник 1",
-        photo_file_ids: ["REPLACE_WITH_REAL_PHOTO_ID_3A"],
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+        ],
       },
     ],
   },
@@ -125,8 +128,8 @@ export const BATTLE_CATEGORIES = [
         id: "3d_korean_contestant_1",
         name: "Учасник 1",
         photo_file_ids: [
-          "REPLACE_WITH_REAL_PHOTO_ID_4A",
-          "REPLACE_WITH_REAL_PHOTO_ID_4B",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
         ],
       },
     ],
@@ -148,8 +151,8 @@ export const BATTLE_CATEGORIES = [
         id: "monotone_contestant_1",
         name: "Учасник 1",
         photo_file_ids: [
-          "REPLACE_WITH_REAL_PHOTO_ID_5A",
-          "REPLACE_WITH_REAL_PHOTO_ID_5B",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
         ],
       },
     ],
@@ -164,8 +167,8 @@ export const BATTLE_CATEGORIES = [
         id: "extra_length_contestant_1",
         name: "Учасник 1",
         photo_file_ids: [
-          "REPLACE_WITH_REAL_PHOTO_ID_6A",
-          "REPLACE_WITH_REAL_PHOTO_ID_6B",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
         ],
       },
     ],
