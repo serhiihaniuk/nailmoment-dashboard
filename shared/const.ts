@@ -312,6 +312,79 @@ export const BATTLE_CATEGORIES = [
       },
     ],
   },
+  {
+    id: "monotone",
+    name: "Однотонний манікюр",
+    isActive: false,
+    contestants: [
+      {
+        id: "monotone_oksana_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZZ2hiuKmdqJI4QKEfwjHTk1JHTGhtAAI1-DEbw18ZS2oCKBdRIJhJAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "monotone_nadia_2",
+        name: "Учасник 2",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZamhiuNsAAezRo5Z-OE7KOYLBLMLBKgACN_gxG8NfGUtYeTN_RMbvXgEAAwIAA3kAAzYE",
+          "AgACAgIAAxkBAAIZbGhiuN-9486uCNm_ot0OWsqa1hxiAAI4-DEbw18ZS7YVFHOUj5ZJAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZbmhiuOL9tBh36VTpdEzuuldwRzxBAAI5-DEbw18ZS4cfOPnRSBWAAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "monotone_natali_3",
+        name: "Учасник 3",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZcWhiuSSj4L7wS8vW3MliF2tgHcGnAAI7-DEbw18ZSyHGbxfOHiLkAQADAgADeQADNgQ",
+        ],
+      },
+    ],
+  },
+  {
+    id: "extreme_length",
+    name: "Екстримальна довжина",
+    isActive: false,
+    contestants: [
+      {
+        // nadiya
+        id: "extreme_length_nadia_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZdWhiufvz8O5ndNDjOhQjxFYB1WYPAAI_-DEbw18ZS5ZYb-4PBigCAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZd2hiuf0AAU0SuVhMc1XJzkP6w-bzrAACQPgxG8NfGUspevfeqiUOLgEAAwIAA3kAAzYE",
+          "AgACAgIAAxkBAAIZeWhiugGhpb0PZG8ms80flLCP7cDCAAJB-DEbw18ZS5hyeEWDFsLCAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "extreme_length_oksana_2",
+        name: "Учасник 2",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZfWhiukNLhDTeGw6WpLDutKituoAuAAJC-DEbw18ZS2R2UUsuueYPAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZf2hiukeu6oRjgGneHacbW8X_AbUxAAJD-DEbw18ZS7LZTASxkrYmAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        // viktoriya
+        id: "extreme_length_viktoriya_3",
+        name: "Учасник 3",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZg2hiuoOy4XmwJmmvDFJsVgbxZZUgAAJE-DEbw18ZS76qhdUG0LOPAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZhWhiuodinwIGw9oiAe65pIHTVJ0rAAJF-DEbw18ZS41AoYRRD3VcAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZh2hiuoqj7NHSLopIAlXS--tjlE4GAAJS9TEbDRsZS6BJM4ghGwABCgEAAwIAA3kAAzYE",
+        ],
+      },
+      {
+        id: "extreme_length_daria_pos_4",
+        name: "Учасник 4",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZi2hiurknQ5aPLGh_8IENwv_9k_ciAAJG-DEbw18ZS6Si7vqyKKKmAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZjWhiurwzAstFLTNVj-MCYkFCm1nyAAJH-DEbw18ZS5MuqWh5z_YEAQADAgADeQADNgQ",
+        ],
+      },
+    ],
+  },
 ];
 
 export type BattleCategory = (typeof BATTLE_CATEGORIES)[number];
