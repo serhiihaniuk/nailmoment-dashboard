@@ -1,3 +1,5 @@
+// src/app/api/bot/route.ts
+
 import { Bot, Context, InlineKeyboard, webhookCallback } from "grammy";
 import type { InputMediaPhoto } from "@grammyjs/types";
 import { db } from "@/shared/db";
@@ -83,7 +85,6 @@ async function initiateVotingFlow(ctx: Context) {
 
     for (const contestant of activeCategory.contestants) {
       if (contestant.photo_file_ids.length === 0) continue;
-
       const hasVotedForThis = contestant.id === votedForContestantId;
       const caption = escapeMarkdownV2(
         hasVotedForThis
@@ -96,7 +97,6 @@ async function initiateVotingFlow(ctx: Context) {
         contestant.photo_file_ids.length,
         hasVotedForThis
       );
-
       await ctx.replyWithPhoto(contestant.photo_file_ids[0], {
         caption,
         reply_markup: keyboard,
@@ -138,6 +138,58 @@ bot.command("start", async (ctx) => {
     parse_mode: "MarkdownV2",
   });
 });
+
+// --- NEW /reset COMMAND ---
+bot.command("reset", async (ctx) => {
+  if (!ctx.from) return;
+  const telegramUserId = ctx.from.id;
+  try {
+    const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+    if (!activeCategory) {
+      return await ctx.reply("Наразі немає активних голосувань для скидання.");
+    }
+
+    const existingVote = await db
+      .select()
+      .from(battleVoteTGTable)
+      .where(
+        and(
+          eq(battleVoteTGTable.telegram_user_id, telegramUserId),
+          eq(battleVoteTGTable.category_id, activeCategory.id)
+        )
+      )
+      .limit(1);
+
+    let replyMessage: string;
+
+    if (existingVote.length > 0) {
+      await db
+        .delete(battleVoteTGTable)
+        .where(
+          and(
+            eq(battleVoteTGTable.telegram_user_id, telegramUserId),
+            eq(battleVoteTGTable.category_id, activeCategory.id)
+          )
+        );
+      replyMessage = `Ваш голос в категорії *"${activeCategory.name}"* було видалено. Тепер ви можете голосувати знову.`;
+    } else {
+      replyMessage = `У вас немає активного голосу в категорії *"${activeCategory.name}"*, який можна було б скинути.`;
+    }
+
+    const showVotesKeyboard = new InlineKeyboard().text(
+      "Показати роботи для голосування",
+      "show_votes"
+    );
+    await ctx.reply(escapeMarkdownV2(replyMessage), {
+      reply_markup: showVotesKeyboard,
+      parse_mode: "MarkdownV2",
+    });
+  } catch (error) {
+    console.error("Error in /reset command:", error);
+    await ctx.reply("Вибачте, сталася помилка під час скидання вашого голосу.");
+  }
+});
+// -------------------------
 
 bot.callbackQuery("show_votes", async (ctx) => {
   await ctx.answerCallbackQuery();
@@ -188,7 +240,6 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     contestant.photo_file_ids.length,
     hasVotedForThis
   );
-
   const newPhoto: InputMediaPhoto<string> = {
     type: "photo",
     media: contestant.photo_file_ids[newIndex],
@@ -232,14 +283,11 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
-    // --- THIS IS THE FIX ---
-    // Access the message via ctx.callbackQuery.message, not ctx.message
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Фото 1/";
     const match = buttonText.match(/Фото (\d+)\//);
     const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
-
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       currentPhotoIndex,
@@ -262,6 +310,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   }
 });
 
+// --- THIS IS THE FIXED RESET HANDLER ---
 bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
@@ -281,25 +330,23 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       );
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
 
-    // --- THIS IS THE FIX ---
-    // Access the message via ctx.callbackQuery.message, not ctx.message
-    const buttonText =
-      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
-      "Фото 1/";
-    const match = buttonText.match(/Фото (\d+)\//);
-    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
-
+    // The logic is now much simpler. We reset the slider to the first photo.
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
-      currentPhotoIndex,
+      0,
       contestant.photo_file_ids.length,
       false
     );
-    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
-    await ctx.editMessageCaption({
+
+    // We also need to change the photo back to the first one in case the user was on another slide.
+    const firstPhoto: InputMediaPhoto<string> = {
+      type: "photo",
+      media: contestant.photo_file_ids[0],
       caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
       parse_mode: "MarkdownV2",
-    });
+    };
+
+    await ctx.editMessageMedia(firstPhoto, { reply_markup: newKeyboard });
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
