@@ -287,6 +287,31 @@ export const BATTLE_CATEGORIES = [
       },
     ],
   },
+  {
+    id: "gradient",
+    name: "Градієнт",
+    isActive: false,
+    contestants: [
+      {
+        id: "gradient_nadia_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZVmhit0OMccxY1rK11XNs0R9LlC1PAAIp-DEbw18ZS3l4ZvKQwM64AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZWGhit0VM3fsiKfV6fDuvkxUgWVTAAAJQ-TEbDB8YS7u1D4AeYvdaAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZWmhit0nvs94LBbzLA33WI2Fgj9VFAAIq-DEbw18ZS5dstRt3K-p3AQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "gradient_daria_pos_2",
+        name: "Учасник 2",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZX2hit788nivUxxqSdZvppOo0QZFJAAJK9TEbDRsZSym8E4gB7YrfAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZYWhit8ICOVuOK9I4S4QCsVJVZAkSAAIs-DEbw18ZS5TlVEEKTJJ_AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZY2hit8XlTpoS3TyuQzRNuuuuJkZPAAIt-DEbw18ZS2e_qKXpNPoRAQADAgADeQADNgQ",
+        ],
+      },
+    ],
+  },
 ];
 
 export type BattleCategory = (typeof BATTLE_CATEGORIES)[number];
