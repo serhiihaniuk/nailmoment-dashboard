@@ -139,7 +139,6 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// --- NEW /reset COMMAND ---
 bot.command("reset", async (ctx) => {
   if (!ctx.from) return;
   const telegramUserId = ctx.from.id;
@@ -148,7 +147,6 @@ bot.command("reset", async (ctx) => {
     if (!activeCategory) {
       return await ctx.reply("Наразі немає активних голосувань для скидання.");
     }
-
     const existingVote = await db
       .select()
       .from(battleVoteTGTable)
@@ -159,9 +157,7 @@ bot.command("reset", async (ctx) => {
         )
       )
       .limit(1);
-
     let replyMessage: string;
-
     if (existingVote.length > 0) {
       await db
         .delete(battleVoteTGTable)
@@ -175,7 +171,6 @@ bot.command("reset", async (ctx) => {
     } else {
       replyMessage = `У вас немає активного голосу в категорії *"${activeCategory.name}"*, який можна було б скинути.`;
     }
-
     const showVotesKeyboard = new InlineKeyboard().text(
       "Показати роботи для голосування",
       "show_votes"
@@ -189,7 +184,6 @@ bot.command("reset", async (ctx) => {
     await ctx.reply("Вибачте, сталася помилка під час скидання вашого голосу.");
   }
 });
-// -------------------------
 
 bot.callbackQuery("show_votes", async (ctx) => {
   await ctx.answerCallbackQuery();
@@ -228,7 +222,6 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   const hasVotedForThis =
     existingVote.length > 0 &&
     existingVote[0].voted_for_contestant_id === contestantId;
-
   const newCaption = escapeMarkdownV2(
     hasVotedForThis
       ? `✅ Ви вже проголосували за: ${contestant.name}`
@@ -251,6 +244,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   await ctx.editMessageMedia(newPhoto, { reply_markup: newKeyboard });
 });
 
+// --- THIS IS THE CORRECTED VOTE HANDLER ---
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
@@ -283,11 +277,13 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
 
+    // Find the current photo index from the button label to stay on the same photo.
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Фото 1/";
     const match = buttonText.match(/Фото (\d+)\//);
     const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       currentPhotoIndex,
@@ -310,7 +306,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   }
 });
 
-// --- THIS IS THE FIXED RESET HANDLER ---
+// --- THIS IS THE CORRECTED RESET HANDLER ---
 bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
@@ -330,23 +326,24 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       );
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
 
-    // The logic is now much simpler. We reset the slider to the first photo.
+    // Find the current photo index from the button label to stay on the same photo.
+    const buttonText =
+      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
+      "Фото 1/";
+    const match = buttonText.match(/Фото (\d+)\//);
+    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
-      0,
+      currentPhotoIndex,
       contestant.photo_file_ids.length,
       false
     );
-
-    // We also need to change the photo back to the first one in case the user was on another slide.
-    const firstPhoto: InputMediaPhoto<string> = {
-      type: "photo",
-      media: contestant.photo_file_ids[0],
+    await ctx.editMessageReplyMarkup({ reply_markup: newKeyboard });
+    await ctx.editMessageCaption({
       caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
       parse_mode: "MarkdownV2",
-    };
-
-    await ctx.editMessageMedia(firstPhoto, { reply_markup: newKeyboard });
+    });
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
