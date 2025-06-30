@@ -348,7 +348,6 @@ export const BATTLE_CATEGORIES = [
     isActive: false,
     contestants: [
       {
-        // nadiya
         id: "extreme_length_nadia_1",
         name: "Учасник 1",
         photo_file_ids: [
@@ -366,7 +365,6 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        // viktoriya
         id: "extreme_length_viktoriya_3",
         name: "Учасник 3",
         photo_file_ids: [

@@ -420,6 +420,7 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 bot.command("send_message", async (ctx) => {
   if (!ctx.from) return;
 
+  // 1. Security check
   const ADMIN_ID = 299445418;
   if (ctx.from.id !== ADMIN_ID) {
     return ctx.reply("You are not authorized to use this command.");
@@ -441,30 +442,34 @@ bot.command("send_message", async (ctx) => {
     );
   }
 
-  const targetUserId = 299445418;
-  let messageText = messageToSend.text;
+  // 2. Fetch all active users from the database
+  const users = await db
+    .select()
+    .from(telegramUsersTable)
+    .where(eq(telegramUsersTable.isActive, true));
+  if (users.length === 0) {
+    return ctx.reply("No users found in the database to send messages to.");
+  }
 
-  // --- THIS IS THE FIX ---
-  // Handle dynamic placeholders using the current date
+  await ctx.reply(
+    `Starting broadcast of message "${messageId}" to ${users.length} users...`
+  );
+
+  let messageText = messageToSend.text;
   if (
     messageId.includes("category") ||
     messageId.includes("final_tour") ||
     messageId.includes("last_category")
   ) {
+    // ... (date and category placeholder logic remains the same)
     const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
     const categoryName = activeCategory ? activeCategory.name : "Test Category";
-
-    // 1. Get today's and tomorrow's date objects
     const today = new Date();
-    const tomorrow = new Date(today); // Create a copy for tomorrow
+    const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-
-    // 2. Format the date strings with the hardcoded month "липня"
     const startDate = `${today.getDate()} липня`;
     const endDate = `${tomorrow.getDate()} липня`;
-
-    // 3. Replace placeholders in the text
-    messageText = messageToSend.text // Important: start with the original template text
+    messageText = messageToSend.text
       .replace("{categoryName}", categoryName)
       .replace("{date}", startDate)
       .replace("{endDate}", endDate);
@@ -484,21 +489,38 @@ bot.command("send_message", async (ctx) => {
     options.reply_markup = keyboard;
   }
 
-  try {
-    await bot.api.sendMessage(targetUserId, messageText, options);
-    await ctx.reply(
-      `Successfully sent message with ID "${messageId}" to user ${targetUserId}.`
-    );
-  } catch (error) {
-    console.error(`Failed to send message to ${targetUserId}:`, error);
-    if (error instanceof GrammyError && error.error_code === 403) {
-      await ctx.reply(`Failed: User ${targetUserId} has blocked the bot.`);
-    } else {
-      await ctx.reply(
-        `An error occurred: ${error instanceof Error ? error.message : "Unknown error"}`
+  // 3. Loop through all users and send the message
+  let successCount = 0;
+  let failureCount = 0;
+
+  for (const user of users) {
+    try {
+      await bot.api.sendMessage(user.telegramUserId, messageText, options);
+      // wait 5 ms to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      successCount++;
+    } catch (error) {
+      failureCount++;
+      console.error(
+        `Failed to send message to user ${user.telegramUserId}:`,
+        error
       );
+      // 4. Handle blocked users by marking them as inactive
+      if (error instanceof GrammyError && error.error_code === 403) {
+        await db
+          .update(telegramUsersTable)
+          .set({ isActive: false })
+          .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
+        console.log(`User ${user.telegramUserId} marked as inactive.`);
+      }
     }
   }
+
+  // 5. Report the results to the admin
+  await ctx.reply(
+    `Broadcast finished.\n\nSuccessfully sent: ${successCount}\nFailed to send: ${failureCount}`
+  );
 });
 
 bot.on("message:photo", async (ctx) => {
