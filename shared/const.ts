@@ -240,6 +240,53 @@ export const BATTLE_CATEGORIES = [
       },
     ],
   },
+  {
+    id: "neon_manicure",
+    name: "Неоновий манікюр",
+    isActive: false,
+    contestants: [
+      {
+        id: "neon_manicure_nadia_1",
+        name: "Учасник 1",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZNWhitR3OoHqakWBjlve6hFK8Z8DEAAI--TEbDB8YSyjuBM8TLayvAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZN2hitR_ZowE6BOvZb-HzE4H_qFRTAAIW-DEbw18ZS-Dn7iUIClEYAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZOWhitSI6A-TgOP13Si3OmmXpRUh4AAIY-DEbw18ZSxraerN91eJUAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "neon_manicure_oksana_2",
+        name: "Учасник 2",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZQWhitYTNGSt8agsglTs_BYjW61PGAAId-DEbw18ZS4t8qepjyimoAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZQ2hitYdW3e5szHARR262Lp8o9oXHAAIe-DEbw18ZS-I0G0VMte69AQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "neon_manicure_anna_soloviova_3",
+        name: "Учасник 3",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZR2hitdjvoIOfhcNSaGqfpnzNzu7ZAAIh-DEbw18ZSzdqG3PFJUO-AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZSWhitdra9p12uVZqPSW4SygXdsUvAAJA-TEbDB8YS59h34PDyGxhAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "neon_manicure_maria_lisunova_4",
+        name: "Учасник 4",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZTWhitim401d6MXPjF4g_sU4XHCr4AAIj-DEbw18ZS4wJWhNz5EL9AQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "neon_manicure_daria_rakhniu_5",
+        name: "Учасник 5",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZUWhitlfk4fP46vnN1nk4eULryw88AAIk-DEbw18ZSyw8byjV4jZbAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZU2hitnd_AgqMt_ZyN7QZ0mz9v6EkAAIl-DEbw18ZS96K6BhM6pxJAQADAgADeQADNgQ",
+        ],
+      },
+    ],
+  },
 ];
 
 export type BattleCategory = (typeof BATTLE_CATEGORIES)[number];
