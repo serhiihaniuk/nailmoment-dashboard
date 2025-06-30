@@ -13,8 +13,14 @@ if (!token) throw new Error("BOT_TOKEN is unset");
 
 const bot = new Bot(token);
 
-const WELCOME_MESSAGE_PART_1 = `Привіт! Я — бот Nail Moment... (full message)`;
-const WELCOME_MESSAGE_PART_2 = `📹 Відеопрезентації учасників уже доступні!... (full message)`;
+// --- CONSTANTS & HELPERS ---
+const BATTLE_WELCOME_1 = `👋 Привіт! Я — чат-бот, який допоможе визначити переможця конкурсу «Битва майстрів», що проходить у межах манікюрного фестивалю Nail Moment.
+Ми готуємо справжню nail-битву — з відбором, народним голосуванням і гучним фіналом на сцені фестивалю!`;
+
+const BATTLE_WELCOME_2 = `Наш конкурс розділений на два етапи та 6 номінацій. На першому етапі ми вибираємо трьох учасників з кожної номінації, які продовжать боротьбу у фіналі на майданчику Nail-фестивалю Nail Moment у Вроцлаві 27 липня 2025 року.`;
+
+// Updated final welcome message to be cleaner
+const BATTLE_WELCOME_3 = `Детальні умови конкурсу та список номінацій ви можете переглянути на нашому офіційному сайті.`;
 
 function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
@@ -51,11 +57,9 @@ function generateSliderKeyboard(
 }
 
 // --- CORE LOGIC ---
-
 async function initiateVotingFlow(ctx: Context) {
   if (!ctx.from) return;
   const telegramUserId = ctx.from.id;
-
   try {
     const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
     if (!activeCategory || activeCategory.contestants.length === 0) {
@@ -64,7 +68,6 @@ async function initiateVotingFlow(ctx: Context) {
       );
       return;
     }
-
     const existingVote = await db
       .select()
       .from(battleVoteTGTable)
@@ -77,12 +80,10 @@ async function initiateVotingFlow(ctx: Context) {
       .limit(1);
     const votedForContestantId =
       existingVote.length > 0 ? existingVote[0].voted_for_contestant_id : null;
-
     await ctx.reply(
       escapeMarkdownV2(`Голосування в категорії: *${activeCategory.name}*`),
       { parse_mode: "MarkdownV2" }
     );
-
     for (const contestant of activeCategory.contestants) {
       if (contestant.photo_file_ids.length === 0) continue;
       const hasVotedForThis = contestant.id === votedForContestantId;
@@ -111,6 +112,7 @@ async function initiateVotingFlow(ctx: Context) {
 
 // --- BOT COMMANDS AND CALLBACKS ---
 
+// THIS IS THE UPDATED /start COMMAND
 bot.command("start", async (ctx) => {
   if (!ctx.from) return;
   try {
@@ -126,15 +128,24 @@ bot.command("start", async (ctx) => {
     console.error("Failed to save user:", error);
   }
 
-  const showVotesKeyboard = new InlineKeyboard().text(
-    "Показати роботи для голосування",
-    "show_votes"
-  );
-  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_1), {
+  await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_1), {
     parse_mode: "MarkdownV2",
   });
-  await ctx.reply(escapeMarkdownV2(WELCOME_MESSAGE_PART_2), {
-    reply_markup: showVotesKeyboard,
+  await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_2), {
+    parse_mode: "MarkdownV2",
+  });
+
+  // Create the new keyboard with a voting button and a URL button
+  const actionKeyboard = new InlineKeyboard()
+    .text("📌 Перейти до голосування", "show_votes")
+    .row() // Puts the next button on a new line for clarity
+    .url(
+      "🌐 Перейти на сайт конкурсу «Битва майстрів»",
+      "https://www.nailmoment.pl/"
+    );
+
+  await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_3), {
+    reply_markup: actionKeyboard,
     parse_mode: "MarkdownV2",
   });
 });
@@ -203,12 +214,10 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     return await ctx.answerCallbackQuery({
       text: "Помилка: учасника не знайдено.",
     });
-
   const newIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
   if (newIndex < 0 || newIndex >= contestant.photo_file_ids.length) {
     return await ctx.answerCallbackQuery();
   }
-
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
@@ -239,12 +248,10 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     caption: newCaption,
     parse_mode: "MarkdownV2",
   };
-
   await ctx.answerCallbackQuery();
   await ctx.editMessageMedia(newPhoto, { reply_markup: newKeyboard });
 });
 
-// --- THIS IS THE CORRECTED VOTE HANDLER ---
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
@@ -253,7 +260,6 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   const contestant = activeCategory.contestants.find(
     (c) => c.id === contestantId
   )!;
-
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
@@ -269,7 +275,6 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       text: "Ви вже проголосували в цій категорії. Спочатку скиньте свій голос.",
     });
   }
-
   try {
     await db.insert(battleVoteTGTable).values({
       id: nanoid(),
@@ -278,26 +283,22 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       voted_for_contestant_id: contestantId,
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
-
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Фото 1/";
     const match = buttonText.match(/Фото (\d+)\//);
     const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
-
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       currentPhotoIndex,
       contestant.photo_file_ids.length,
       true
     );
-
-    // THE FIX: Combine caption and keyboard updates into a SINGLE API call.
     await ctx.editMessageCaption({
       caption: escapeMarkdownV2(
         `✅ Проголосовано! Ви обрали: ${contestant.name}`
       ),
-      reply_markup: newKeyboard, // Include the new keyboard here
+      reply_markup: newKeyboard,
       parse_mode: "MarkdownV2",
     });
   } catch (error) {
@@ -309,7 +310,6 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   }
 });
 
-// --- THIS IS THE CORRECTED RESET HANDLER ---
 bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
@@ -318,7 +318,6 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   const contestant = activeCategory.contestants.find(
     (c) => c.id === contestantId
   )!;
-
   try {
     await db
       .delete(battleVoteTGTable)
@@ -329,26 +328,19 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
         )
       );
     await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
-
-    const buttonText =
-      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
-      "Фото 1/";
-    const match = buttonText.match(/Фото (\d+)\//);
-    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
-
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
-      currentPhotoIndex,
+      0,
       contestant.photo_file_ids.length,
       false
     );
-
-    // THE FIX: Combine caption and keyboard updates into a SINGLE API call.
-    await ctx.editMessageCaption({
+    const firstPhoto: InputMediaPhoto<string> = {
+      type: "photo",
+      media: contestant.photo_file_ids[0],
       caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
-      reply_markup: newKeyboard, // Include the new keyboard here
       parse_mode: "MarkdownV2",
-    });
+    };
+    await ctx.editMessageMedia(firstPhoto, { reply_markup: newKeyboard });
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
