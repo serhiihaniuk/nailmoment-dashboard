@@ -420,13 +420,11 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 bot.command("send_message", async (ctx) => {
   if (!ctx.from) return;
 
-  // 1. Security check
   const ADMIN_ID = 299445418;
   if (ctx.from.id !== ADMIN_ID) {
     return ctx.reply("You are not authorized to use this command.");
   }
 
-  // 2. Get the message ID from the command argument
   const messageId = ctx.match;
   if (!messageId) {
     const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
@@ -435,7 +433,6 @@ bot.command("send_message", async (ctx) => {
     );
   }
 
-  // 3. Find the message object
   const messageToSend = BROADCAST_MESSAGES.find((m) => m.id === messageId);
   if (!messageToSend) {
     const availableIds = BROADCAST_MESSAGES.map((m) => m.id).join(", ");
@@ -447,7 +444,8 @@ bot.command("send_message", async (ctx) => {
   const targetUserId = 299445418;
   let messageText = messageToSend.text;
 
-  // Handle dynamic placeholders
+  // --- THIS IS THE FIX ---
+  // Handle dynamic placeholders using the current date
   if (
     messageId.includes("category") ||
     messageId.includes("final_tour") ||
@@ -455,21 +453,29 @@ bot.command("send_message", async (ctx) => {
   ) {
     const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
     const categoryName = activeCategory ? activeCategory.name : "Test Category";
-    messageText = messageText
+
+    // 1. Get today's and tomorrow's date objects
+    const today = new Date();
+    const tomorrow = new Date(today); // Create a copy for tomorrow
+    tomorrow.setDate(today.getDate() + 1);
+
+    // 2. Format the date strings with the hardcoded month "липня"
+    const startDate = `${today.getDate()} липня`;
+    const endDate = `${tomorrow.getDate()} липня`;
+
+    // 3. Replace placeholders in the text
+    messageText = messageToSend.text // Important: start with the original template text
       .replace("{categoryName}", categoryName)
-      .replace("{date}", "сьогодні")
-      .replace("{endDate}", "завтра");
+      .replace("{date}", startDate)
+      .replace("{endDate}", endDate);
   }
 
   const options: Parameters<typeof bot.api.sendMessage>[2] = {};
-
   if (messageToSend.button) {
     const keyboard = new InlineKeyboard();
     if (messageToSend.button.url) {
       keyboard.url(messageToSend.button.text, messageToSend.button.url);
-    }
-    // Inside here, TypeScript knows `button` has `callback_data`.
-    else if ("callback_data" in messageToSend.button) {
+    } else if ("callback_data" in messageToSend.button) {
       keyboard.text(
         messageToSend.button.text,
         messageToSend.button.callback_data
@@ -479,7 +485,6 @@ bot.command("send_message", async (ctx) => {
   }
 
   try {
-    // 5. Send the message
     await bot.api.sendMessage(targetUserId, messageText, options);
     await ctx.reply(
       `Successfully sent message with ID "${messageId}" to user ${targetUserId}.`
