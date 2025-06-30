@@ -152,73 +152,90 @@ export const BATTLE_CATEGORIES = [
       },
     ],
   },
-
   {
-    id: "gradient",
-    name: "Градієнт",
+    id: "3d_design_korean_style",
+    name: "3D дизайн / корейський стиль",
     isActive: false,
     contestants: [
       {
-        id: "gradient_contestant_1",
+        id: "3d_design_korean_style_elizaveta",
         name: "Учасник 1",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIY8mhisRQpjLPY06qrl0VH-14jhJAoAALm9zEbw18ZSwpQP9xHtfsdAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIY9GhisRQG37cJJx1BE630teafN9m4AALn9zEbw18ZS45nE1YpwHlKAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIY9mhisRVUgLfKKix-oD-PFg7fcvL-AALo9zEbw18ZSy2Iz2kioyudAQADAgADeQADNgQ",
         ],
       },
-    ],
-  },
-
-  {
-    id: "3d_korean",
-    name: "3D / корейський дизайн",
-    isActive: false,
-    contestants: [
       {
-        id: "3d_korean_contestant_1",
-        name: "Учасник 1",
+        id: "3d_design_korean_style_roksana",
+        name: "Учасник 2",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIY-GhisXp5mqtL37rDPqlV4gJq_Qy1AALu9zEbw18ZS7rm1-12oCucAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIY-mhisX0gx061mgyfIxoXslhIY-kvAAIW-TEbDB8YS3TAjht3_q3qAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIY_GhisYA1N6cw3aYKh1E51zRiW0-MAALv9zEbw18ZS0wWsfzbdm39AQADAgADeQADNgQ",
         ],
       },
-    ],
-  },
-
-  {
-    id: "neon",
-    name: "Неоновий манікюр",
-    isActive: false,
-    contestants: [],
-  },
-
-  {
-    id: "monotone",
-    name: "Однотонний манікюр",
-    isActive: false,
-    contestants: [
       {
-        id: "monotone_contestant_1",
-        name: "Учасник 1",
+        id: "3d_design_korean_style_marina",
+        name: "Учасник 3",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIY_2hisdkEZTe36B50GO4LMLDaOlV5AAL29zEbw18ZS7ZJGF137T-4AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZAWhisdyrWdLOZdElmqfIJR9dD0qTAAL39zEbw18ZS56_Dy-tzz9qAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZA2hisd_T91bkeUbzbiVO73bOedbuAAIi9TEbDRsZS6thIDyexBbqAQADAgADeQADNgQ",
         ],
       },
-    ],
-  },
-
-  {
-    id: "extra_length",
-    name: "Екстра довжина",
-    isActive: false,
-    contestants: [
       {
-        id: "extra_length_contestant_1",
-        name: "Учасник 1",
+        id: "3d_design_korean_style_nastia",
+        name: "Учасник 4",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIZB2hisjGAy9H5sNo2Td9WSh6qizSGAAL49zEbw18ZSzKuNHsajRRIAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZCWhisjSmd-SvBds14mCBbzlatadxAAIc-TEbDB8YS-kqAqDfSZxUAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZC2hisjbXC3Pf4H7ne_7WR6tVYEjVAAL59zEbw18ZSzjlyuXAK-rQAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "3d_design_korean_style_sofia",
+        name: "Учасник 5",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZD2hisp8CFyOdbq9vuLHfvY0ZfIVOAAP4MRvDXxlLf5l03w231jcBAAMCAAN5AAM2BA",
+          "AgACAgIAAxkBAAIZEWhisqIBaCORU-3bGXtnBDjUI949AAIB-DEbw18ZSzHl0KVuAmRSAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZE2hisqUiH8q3mv4mivevwcB3-72BAAIp9TEbDRsZS0Zu3gus9jwoAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "3d_design_korean_style_yuliia",
+        name: "Учасник 6",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZFmhist-cyUqbLxPhrfmow6rSHYT7AAID-DEbw18ZSxtgYuNgc2UOAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZGGhisuII6dSMT1MQk9HHwwQoSXLwAAIE-DEbw18ZS2h_88BGrzllAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZGmhisuUlFX3q5drNw-dglhLzW0UKAAIF-DEbw18ZS4azKxI1mVbPAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "3d_design_korean_style_anna_soloviova",
+        name: "Учасник 7",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZHmhiszHUH7dhRiqvA3J_459_bYZCAAIp-TEbDB8YS25KBfLhrzKjAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZIGhiszQrXoNk87aFChdky_kmHLuZAAIH-DEbw18ZS5RWVYjGeseFAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZImhiszbN-o3IJpMHKHpgdb156Cc3AAII-DEbw18ZS3RKYZQvGcm5AQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "3d_design_korean_style_oksana",
+        name: "Учасник 8",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZJmhis6xiZAZ_drUM3PD1g1X-OUH6AAIN-DEbw18ZS6DbdUJ4m5FfAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZKGhis7CRHaQjz_IP-Ood0mLVu9coAAIs-TEbDB8YS1q_Y6ksG5o0AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZKmhis76O1KPmDsMDAvEewUv5NJu8AAIO-DEbw18ZSySfFVHA48tlAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "3d_design_korean_style_nadia",
+        name: "Учасник 9",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIZLmhitDWd3_LS8CVmty2NcIPf4cjiAAIP-DEbw18ZS8w748D4PmUMAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZMGhitDkDCzi4DE6o2jxs_bRvyrQCAAIQ-DEbw18ZS9rD-pInQB6_AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIZMmhitDzG92JpxXnvEAnPRorfEZExAAIR-DEbw18ZS1dt5yspJqn3AQADAgADeQADNgQ",
         ],
       },
     ],
