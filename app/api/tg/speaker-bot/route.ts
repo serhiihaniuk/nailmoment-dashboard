@@ -1,6 +1,12 @@
 // src/app/api/bot/route.ts
 
-import { Bot, Context, InlineKeyboard, webhookCallback } from "grammy";
+import {
+  Bot,
+  Context,
+  GrammyError,
+  InlineKeyboard,
+  webhookCallback,
+} from "grammy";
 import type { InputMediaPhoto } from "@grammyjs/types";
 import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
@@ -408,6 +414,37 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       text: "Помилка під час скидання голосу.",
       show_alert: true,
     });
+  }
+});
+
+bot.command("send_message", async (ctx) => {
+  if (!ctx.from) return;
+
+  // For now, we hardcode the admin ID to restrict usage.
+  const ADMIN_ID = 299445418;
+  if (ctx.from.id !== ADMIN_ID) {
+    return ctx.reply("You are not authorized to use this command.");
+  }
+
+  // Hardcode the target user ID and the test message.
+  const targetUserId = 299445418;
+  const testMessage = "This is a test push message sent from the bot server!";
+
+  try {
+    // Use bot.api.sendMessage to send a message to a specific chat ID.
+    await bot.api.sendMessage(targetUserId, testMessage);
+
+    // Confirm to the admin that the message was sent.
+    await ctx.reply(
+      `Successfully sent the test message to user ID: ${targetUserId}`
+    );
+  } catch (error) {
+    console.error(`Failed to send message to ${targetUserId}:`, error);
+    if (error instanceof GrammyError && error.error_code === 403) {
+      await ctx.reply(`Failed: User ${targetUserId} has blocked the bot.`);
+    } else {
+      await ctx.reply("An error occurred while trying to send the message.");
+    }
   }
 });
 
