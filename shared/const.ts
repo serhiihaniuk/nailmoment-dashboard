@@ -84,20 +84,70 @@ export const BATTLE_CATEGORIES = [
     isActive: true,
     contestants: [
       {
-        id: "french_contestant_1",
+        id: "french_contestant_nadia",
         name: "Учасник 1",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYYGhiki0Wn8vuyqTMbJRhrjtZCTTgAAIC9zEbw18ZS0O__ohKii4jAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYYmhikjbf2w2M8plX5QJ2gffCaxQGAAID9zEbw18ZSy1rj-gaz97aAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYZGhikjvC-RNbj0Txk3gWFEAKgcD2AAIE9zEbw18ZS4E3Orsdch_qAQADAgADeQADNgQ",
         ],
       },
       {
-        id: "french_contestant_2",
+        id: "french_contestant_daria",
         name: "Учасник 2",
         photo_file_ids: [
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
-          "AgACAgIAAxkBAAIYK2hifLevJvScat0woW0wwe_708i8AAJv9jEbw18ZS-HooCZW20Y2AQADAgADeAADNgQ",
+          "AgACAgIAAxkBAAIYZmhikoNKWw_-LeWZupT2PW1HRyTSAAIG9zEbw18ZS4ebpNJVAbEWAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYaGhikofDR671IAFEDIxjSbNLRYakAAIH9zEbw18ZS4PeyQj2bzqCAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYamhikorIp5KGqWrk33p0HOu0SgN2AAII9zEbw18ZS30SP_SgGDfpAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "french_contestant_walentyna_kro",
+        name: "Учасник 3",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYbmhikyJCL2QLkMmixX0PM2GIvf39AAIN9zEbw18ZS3jo9XuvHedrAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYcGhikyaPT1RohVkQkXxX293u78VgAAIO9zEbw18ZS1Ya_oV5oFFtAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYcmhikykjgvCAnxNNJQpV8oiWWx6ZAAIP9zEbw18ZS2TuXpON0lfmAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "french_contestant_oksana",
+        name: "Учасник 4",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYdWhik7HvbrT5e2RDaeAi3BKGJQvGAAIU9zEbw18ZS4sJFt3835D3AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYd2hik7R7cCoWuGOvoiNO6jhbOdhPAAIV9zEbw18ZSwfWZ7DPQkAnAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYeWhik89zqLQ-GOi48vnbTfSEuMbfAAIW9zEbw18ZS-dXodcS44_ZAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "french_contestant_natali",
+        name: "Учасник 5",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYe2hilB2fbokO2OaQZDLu5fnGZI70AAIY9zEbw18ZSx8OKeCn_0FdAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "french_contestant_sofiko",
+        name: "Учасник 6",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYfWhilGCHRHOfdqpPkal1pFR2wvbdAAIZ9zEbw18ZSyh0zC_8GM6mAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYf2hilGd_zwnp9WB5gynQwpga8QqfAAIa9zEbw18ZS1BA6IfqRhtZAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "french_contestant_yulia_tsiupak",
+        name: "Учасник 7",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYgmhilMqJQpRg6azdA-DbHhtQpeZ6AAId9zEbw18ZS6Q3umAsFL31AQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYhGhilM2f5u3_DtrJx6pOCtyHUMxpAAIe9zEbw18ZS79EEfLFBfwLAQADAgADeQADNgQ",
+          "AgACAgIAAxkBAAIYhmhilM9y-6YjUjPdYcoB3e_A_xOoAAP4MRsMHxhLoFdoMqzmEQYBAAMCAAN5AAM2BA",
+        ],
+      },
+      {
+        id: "french_contestant_mila",
+        name: "Учасник 8",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIYiWhilRV3ildTHiKYyxleFS7X3h4CAAIl9zEbw18ZS7t6wArdmflzAQADAgADeQADNgQ",
         ],
       },
     ],
