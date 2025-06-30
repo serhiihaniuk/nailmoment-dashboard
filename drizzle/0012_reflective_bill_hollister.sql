@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_users" ADD COLUMN "last_broadcast_sent_at" timestamp with time zone DEFAULT now();

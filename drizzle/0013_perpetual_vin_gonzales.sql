@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_users" ALTER COLUMN "last_broadcast_sent_at" SET NOT NULL;

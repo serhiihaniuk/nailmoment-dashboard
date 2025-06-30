@@ -1,5 +1,5 @@
 // src/app/api/bot/route.ts
-
+import { eq, and, or, isNull, lt } from "drizzle-orm";
 import {
   Bot,
   Context,
@@ -10,7 +10,6 @@ import {
 import type { InputMediaPhoto } from "@grammyjs/types";
 import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
-import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { BATTLE_CATEGORIES, BROADCAST_MESSAGES } from "@/shared/const";
 import { waitUntil } from "@vercel/functions";
@@ -421,24 +420,20 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 bot.command("send_message", async (ctx) => {
   if (!ctx.from) return;
 
-  // 1. Security check
   const ADMIN_ID = 299445418;
   if (ctx.from.id !== ADMIN_ID) {
     return ctx.reply("You are not authorized to use this command.");
   }
 
-  // 2. Acknowledge the command IMMEDIATELY to prevent timeouts
   await ctx.reply(
-    "✅ Command received. Starting broadcast in the background. I will notify you when it's complete."
+    "✅ Command received. Starting broadcast with atomic updates. I will notify you when it's complete."
   );
 
-  // This function will run asynchronously ("fire-and-forget")
   const runBroadcast = async () => {
     const messageId = ctx.match;
     if (!messageId) {
       return bot.api.sendMessage(ADMIN_ID, "Error: No message ID provided.");
     }
-
     const messageToSend = BROADCAST_MESSAGES.find((m) => m.id === messageId);
     if (!messageToSend) {
       return bot.api.sendMessage(
@@ -447,18 +442,31 @@ bot.command("send_message", async (ctx) => {
       );
     }
 
-    const users = await db
-      .select()
+    // 1. Fetch an initial list of POTENTIAL candidates to reduce loop size.
+    // This is still a good optimization.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const candidateUsers = await db
+      .select({ telegramUserId: telegramUsersTable.telegramUserId })
       .from(telegramUsersTable)
-      .where(eq(telegramUsersTable.isActive, true));
-    if (users.length === 0) {
+      .where(
+        and(
+          eq(telegramUsersTable.isActive, true),
+          or(
+            isNull(telegramUsersTable.lastBroadcastSentAt),
+            lt(telegramUsersTable.lastBroadcastSentAt, fiveMinutesAgo)
+          )
+        )
+      );
+
+    if (candidateUsers.length === 0) {
       return bot.api.sendMessage(
         ADMIN_ID,
-        "No active users found to send messages to."
+        "No eligible users found (all recently contacted)."
       );
     }
 
     let messageText = messageToSend.text;
+    // ... (placeholder replacement logic remains the same)
     if (
       messageId.includes("category") ||
       messageId.includes("final_tour") ||
@@ -495,17 +503,37 @@ bot.command("send_message", async (ctx) => {
 
     let successCount = 0;
     let failureCount = 0;
+    let skippedCount = 0;
 
-    for (const user of users) {
+    for (const user of candidateUsers) {
       try {
-        await bot.api.sendMessage(user.telegramUserId, messageText, options);
-        successCount++;
+        // 2. Perform the ATOMIC "claim and update" operation.
+        const updatedRows = await db
+          .update(telegramUsersTable)
+          .set({ lastBroadcastSentAt: new Date() })
+          .where(
+            and(
+              eq(telegramUsersTable.telegramUserId, user.telegramUserId),
+              or(
+                isNull(telegramUsersTable.lastBroadcastSentAt),
+                lt(telegramUsersTable.lastBroadcastSentAt, fiveMinutesAgo)
+              )
+            )
+          )
+          .returning({ id: telegramUsersTable.telegramUserId }); // Ask DB to return the row if update was successful
+
+        if (updatedRows.length > 0) {
+          await bot.api.sendMessage(user.telegramUserId, messageText, options);
+          successCount++;
+        } else {
+          skippedCount++;
+          console.log(
+            `Skipped user ${user.telegramUserId} as they were recently contacted by another process.`
+          );
+        }
       } catch (error) {
         failureCount++;
-        console.error(
-          `Failed to send message to user ${user.telegramUserId}:`,
-          error
-        );
+        console.error(`Failed to process user ${user.telegramUserId}:`, error);
         if (error instanceof GrammyError && error.error_code === 403) {
           await db
             .update(telegramUsersTable)
@@ -513,16 +541,15 @@ bot.command("send_message", async (ctx) => {
             .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     await bot.api.sendMessage(
       ADMIN_ID,
-      `Broadcast finished.\n\nSuccessfully sent: ${successCount}\nFailed to send: ${failureCount}`
+      `Broadcast finished.\n\nSuccessfully sent: ${successCount}\nSkipped (already sent): ${skippedCount}\nFailed: ${failureCount}.`
     );
   };
 
-  // 3. Run the broadcast function without awaiting it.
   waitUntil(
     runBroadcast().catch((err) => {
       console.error("Critical error in broadcast background task:", err);

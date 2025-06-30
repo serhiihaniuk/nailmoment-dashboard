@@ -175,14 +175,16 @@ export type SpeakerVoteTG = typeof speakerVoteTGTable.$inferSelect;
 export type InsertSpeakerVoteTG = typeof speakerVoteTGTable.$inferInsert;
 
 export const telegramUsersTable = pgTable("telegram_users", {
-  // Use the Telegram User ID as the primary key. It's already unique.
   telegramUserId: bigint("telegram_user_id", { mode: "number" }).primaryKey(),
-
   firstName: text("first_name").notNull(),
-  username: text("username"), // Username can be optional
-
-  // Useful for tracking if a user has blocked the bot.
+  username: text("username"),
   isActive: boolean("is_active").notNull().default(true),
+
+  lastBroadcastSentAt: timestamp("last_broadcast_sent_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
