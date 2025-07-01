@@ -166,7 +166,7 @@ export const BATTLE_CATEGORIES = [
     isActive: false,
     contestants: [
       {
-        id: "3d_design_korean_style_elizaveta",
+        id: "3d_design_korean_style_elizaveta_1",
         name: "Учасник 1",
         photo_file_ids: [
           "AgACAgIAAxkBAAIY8mhisRQpjLPY06qrl0VH-14jhJAoAALm9zEbw18ZSwpQP9xHtfsdAQADAgADeQADNgQ",
@@ -175,7 +175,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_roksana",
+        id: "3d_design_korean_style_roksana_2",
         name: "Учасник 2",
         photo_file_ids: [
           "AgACAgIAAxkBAAIY-GhisXp5mqtL37rDPqlV4gJq_Qy1AALu9zEbw18ZS7rm1-12oCucAQADAgADeQADNgQ",
@@ -184,7 +184,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_marina",
+        id: "3d_design_korean_style_marina_3",
         name: "Учасник 3",
         photo_file_ids: [
           "AgACAgIAAxkBAAIY_2hisdkEZTe36B50GO4LMLDaOlV5AAL29zEbw18ZS7ZJGF137T-4AQADAgADeQADNgQ",
@@ -193,7 +193,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_nastia",
+        id: "3d_design_korean_style_nastia_4",
         name: "Учасник 4",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZB2hisjGAy9H5sNo2Td9WSh6qizSGAAL49zEbw18ZSzKuNHsajRRIAQADAgADeQADNgQ",
@@ -202,7 +202,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_sofia",
+        id: "3d_design_korean_style_sofia_5",
         name: "Учасник 5",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZD2hisp8CFyOdbq9vuLHfvY0ZfIVOAAP4MRvDXxlLf5l03w231jcBAAMCAAN5AAM2BA",
@@ -211,7 +211,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_yuliia",
+        id: "3d_design_korean_style_yuliia_6",
         name: "Учасник 6",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZFmhist-cyUqbLxPhrfmow6rSHYT7AAID-DEbw18ZSxtgYuNgc2UOAQADAgADeQADNgQ",
@@ -220,7 +220,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_anna_soloviova",
+        id: "3d_design_korean_style_anna_soloviova_7",
         name: "Учасник 7",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZHmhiszHUH7dhRiqvA3J_459_bYZCAAIp-TEbDB8YS25KBfLhrzKjAQADAgADeQADNgQ",
@@ -229,7 +229,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_oksana",
+        id: "3d_design_korean_style_oksana_8",
         name: "Учасник 8",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZJmhis6xiZAZ_drUM3PD1g1X-OUH6AAIN-DEbw18ZS6DbdUJ4m5FfAQADAgADeQADNgQ",
@@ -238,7 +238,7 @@ export const BATTLE_CATEGORIES = [
         ],
       },
       {
-        id: "3d_design_korean_style_nadia",
+        id: "3d_design_korean_style_nadia_9",
         name: "Учасник 9",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZLmhitDWd3_LS8CVmty2NcIPf4cjiAAIP-DEbw18ZS8w748D4PmUMAQADAgADeQADNgQ",
