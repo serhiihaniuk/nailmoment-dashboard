@@ -185,7 +185,7 @@ bot.command("start", async (ctx) => {
     parse_mode: "MarkdownV2",
   });
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_3), {
-    reply_markup: generateMainMenuKeyboard(), // Use the helper function
+    reply_markup: generateMainMenuKeyboard(),
     parse_mode: "MarkdownV2",
   });
 });
@@ -242,7 +242,6 @@ bot.callbackQuery("show_votes", async (ctx) => {
   await initiateVotingFlow(ctx);
 });
 
-// NEW: Handler for the schedule button
 bot.callbackQuery("show_schedule", async (ctx) => {
   if (!ctx.from) return;
   await ctx.answerCallbackQuery();
@@ -258,7 +257,6 @@ bot.callbackQuery("show_schedule", async (ctx) => {
   });
 });
 
-// NEW: Handler for the "Back to Main Menu" button
 bot.callbackQuery("main_menu", async (ctx) => {
   if (!ctx.from) return;
   await ctx.answerCallbackQuery();
@@ -320,6 +318,8 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
@@ -378,6 +378,8 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
