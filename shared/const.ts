@@ -81,7 +81,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "french",
     name: "Французький манікюр",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "french_contestant_nadia",
@@ -148,6 +148,14 @@ export const BATTLE_CATEGORIES = [
         name: "Учасник 8",
         photo_file_ids: [
           "AgACAgIAAxkBAAIYiWhilRV3ildTHiKYyxleFS7X3h4CAAIl9zEbw18ZS7t6wArdmflzAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        // nastasiia
+        id: "french_contestant_nastasiia",
+        name: "Учасник 9",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIf82hjlMvPxcV_10A9nQpP3p_dyRCCAAK46jEbcY8gSxiF2iYSczmxAQADAgADeQADNgQ",
         ],
       },
     ],
@@ -338,6 +346,13 @@ export const BATTLE_CATEGORIES = [
         name: "Учасник 3",
         photo_file_ids: [
           "AgACAgIAAxkBAAIZcWhiuSSj4L7wS8vW3MliF2tgHcGnAAI7-DEbw18ZSyHGbxfOHiLkAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "monotone_nastasiia_4",
+        name: "Учасник 4",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAIf9WhjlQP-q7WaaVES9bFUZC7VKUGpAAK56jEbcY8gS6POj4Z4lX2pAQADAgADeQADNgQ",
         ],
       },
     ],
