@@ -323,10 +323,13 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
-  const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive)!;
-  const contestant = activeCategory.contestants.find(
+  const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+  const contestant = activeCategory?.contestants.find(
     (c) => c.id === contestantId
-  )!;
+  );
+
+  if (!activeCategory || !contestant) return;
+
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
