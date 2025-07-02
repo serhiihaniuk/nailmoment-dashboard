@@ -81,7 +81,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "french",
     name: "Французький манікюр",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "french_contestant_nadia",
@@ -163,7 +163,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "3d_design_korean_style",
     name: "3D дизайн / корейський стиль",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "3d_design_korean_style_elizaveta_1",
@@ -403,7 +403,6 @@ export const BATTLE_CATEGORIES = [
 export type BattleCategory = (typeof BATTLE_CATEGORIES)[number];
 
 export const BROADCAST_MESSAGES = [
-  // --- Message 1: Last Call for Entries ---
   {
     id: "last_call_for_entries",
     text: `Привіт, друзі! Ми відкриваємо останню можливість, щоб подати заявку на участь у конкурсі «Битва майстрів» ✨
