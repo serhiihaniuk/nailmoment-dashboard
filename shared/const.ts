@@ -163,7 +163,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "3d_design_korean_style",
     name: "3D дизайн / корейський стиль",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "3d_design_korean_style_elizaveta_1",
@@ -251,7 +251,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "neon_manicure",
     name: "Неоновий манікюр",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "neon_manicure_nadia_1",
