@@ -110,6 +110,7 @@ function generateMainMenuKeyboard() {
 // --- CORE LOGIC ---
 async function initiateVotingFlow(ctx: Context) {
   if (!ctx.from) return;
+
   const telegramUserId = ctx.from.id;
   try {
     const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
@@ -164,7 +165,12 @@ async function initiateVotingFlow(ctx: Context) {
 // --- BOT COMMANDS AND CALLBACKS ---
 
 bot.command("start", async (ctx) => {
-  if (!ctx.from) return;
+  await ctx.answerCallbackQuery();
+
+  if (!ctx.from) {
+    return;
+  }
+
   try {
     await db
       .insert(telegramUsersTable)
@@ -191,7 +197,10 @@ bot.command("start", async (ctx) => {
 });
 
 bot.command("reset", async (ctx) => {
-  if (!ctx.from) return;
+  await ctx.answerCallbackQuery();
+  if (!ctx.from) {
+    return;
+  }
   const telegramUserId = ctx.from.id;
   try {
     const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
@@ -243,8 +252,8 @@ bot.callbackQuery("show_votes", async (ctx) => {
 });
 
 bot.callbackQuery("show_schedule", async (ctx) => {
-  if (!ctx.from) return;
   await ctx.answerCallbackQuery();
+  if (!ctx.from) return;
 
   const backButton = new InlineKeyboard().text(
     "◀️ Назад до головного меню",
@@ -268,7 +277,11 @@ bot.callbackQuery("main_menu", async (ctx) => {
 });
 
 bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
-  if (!ctx.from) return;
+  if (!ctx.from) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
   const [, direction, contestantId, currentIndexStr] = ctx.match;
   const currentIndex = parseInt(currentIndexStr, 10);
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
@@ -318,9 +331,10 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
-  await ctx.answerCallbackQuery();
-
-  if (!ctx.from) return;
+  if (!ctx.from) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
@@ -381,9 +395,10 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
-  await ctx.answerCallbackQuery();
-
-  if (!ctx.from) return;
+  if (!ctx.from) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
@@ -391,7 +406,10 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
     (c) => c.id === contestantId
   );
 
-  if (!contestant || !activeCategory) return;
+  if (!contestant || !activeCategory) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
 
   try {
     await db
@@ -426,7 +444,10 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 });
 
 bot.command("send_message", async (ctx) => {
-  if (!ctx.from) return;
+  if (!ctx.from) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
 
   const ADMIN_ID = 299445418;
   if (ctx.from.id !== ADMIN_ID) {
