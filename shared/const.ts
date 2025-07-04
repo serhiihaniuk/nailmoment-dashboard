@@ -251,7 +251,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "neon_manicure",
     name: "Неоновий манікюр",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "neon_manicure_nadia_1",
@@ -298,7 +298,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "gradient",
     name: "Градієнт",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "gradient_nadia_1",
@@ -316,6 +316,13 @@ export const BATTLE_CATEGORIES = [
           "AgACAgIAAxkBAAIZX2hit788nivUxxqSdZvppOo0QZFJAAJK9TEbDRsZSym8E4gB7YrfAQADAgADeQADNgQ",
           "AgACAgIAAxkBAAIZYWhit8ICOVuOK9I4S4QCsVJVZAkSAAIs-DEbw18ZS5TlVEEKTJJ_AQADAgADeQADNgQ",
           "AgACAgIAAxkBAAIZY2hit8XlTpoS3TyuQzRNuuuuJkZPAAIt-DEbw18ZS2e_qKXpNPoRAQADAgADeQADNgQ",
+        ],
+      },
+      {
+        id: "gradient_nastasiia_3",
+        name: "Учасник 3",
+        photo_file_ids: [
+          "AgACAgIAAxkBAAJSA2hnnAxkUW5M4tguFmA-31dzvmveAAKu6jEbnlBASy2Ni-0ofDHXAQADAgADeQADNgQ",
         ],
       },
     ],
