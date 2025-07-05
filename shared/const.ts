@@ -298,7 +298,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "gradient",
     name: "Градієнт",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "gradient_nadia_1",
@@ -330,7 +330,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "monotone",
     name: "Однотонний манікюр",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "monotone_oksana_1",
