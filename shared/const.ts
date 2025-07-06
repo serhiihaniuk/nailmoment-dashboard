@@ -330,7 +330,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "monotone",
     name: "Однотонний манікюр",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "monotone_oksana_1",
@@ -367,7 +367,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "extreme_length",
     name: "Екстримальна довжина",
-    isActive: false,
+    isActive: true,
     contestants: [
       {
         id: "extreme_length_nadia_1",
