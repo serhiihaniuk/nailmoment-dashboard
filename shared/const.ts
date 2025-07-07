@@ -367,7 +367,7 @@ export const BATTLE_CATEGORIES = [
   {
     id: "extreme_length",
     name: "Екстримальна довжина",
-    isActive: true,
+    isActive: false,
     contestants: [
       {
         id: "extreme_length_nadia_1",
