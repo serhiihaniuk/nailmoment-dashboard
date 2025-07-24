@@ -8,7 +8,7 @@ import {
   InlineKeyboard,
   webhookCallback,
 } from "grammy";
-import type { InputMediaPhoto, InputMediaVideo, ParseMode } from "@grammyjs/types";
+import type { ParseMode } from "@grammyjs/types";
 import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { nanoid } from "nanoid";
