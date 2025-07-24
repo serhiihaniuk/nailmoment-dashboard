@@ -447,7 +447,7 @@ bot.command("send_message", async (ctx) => {
       );
     }
 
-    const messageText = messageToSend.text;
+    const messageText = escapeMarkdownV2(messageToSend.text);
     const options: Parameters<typeof bot.api.sendMessage>[2] = {
       parse_mode: PARSE_MODE,
     };
