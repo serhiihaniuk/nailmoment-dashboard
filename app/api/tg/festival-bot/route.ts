@@ -8,7 +8,7 @@ import {
   InlineKeyboard,
   webhookCallback,
 } from "grammy";
-import type { InputMediaPhoto } from "@grammyjs/types";
+import type { InputMediaPhoto, InputMediaVideo, ParseMode } from "@grammyjs/types";
 import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { nanoid } from "nanoid";
@@ -19,29 +19,47 @@ if (!token) throw new Error("TG_FESTIVAL_BOT is unset");
 
 const bot = new Bot(token);
 
+const PARSE_MODE: ParseMode = "MarkdownV2";
+
 // --- FESTIVAL-SPECIFIC CONSTANTS ---
 
 const FESTIVAL_CONTESTANTS = [
   {
     id: "mock-contestant-1",
     name: "Mock Speaker 1",
-    photo_file_ids: [
-      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
-      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+    media: [
+      {
+        type: "photo",
+        file_id:
+          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+      },
+      {
+        type: "video",
+        file_id:
+          "BAACAgIAAxkBAAIBgGWR-j4AAX9p2QTc0dZc1Z2YhX-22gAC4hAAAoB44UlFp7lS3vD93zQE",
+      }, // Replace with a real video file_id
     ],
   },
   {
     id: "mock-contestant-2",
     name: "Mock Speaker 2",
-    photo_file_ids: [
-      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+    media: [
+      {
+        type: "photo",
+        file_id:
+          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+      },
     ],
   },
   {
     id: "mock-contestant-3",
     name: "Mock Speaker 3",
-    photo_file_ids: [
-      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+    media: [
+      {
+        type: "video",
+        file_id:
+          "BAACAgIAAxkBAAIBgGWR-j4AAX9p2QTc0dZc1Z2YhX-22gAC4hAAAoB44UlFp7lS3vD93zQE",
+      }, // Replace with a real video file_id
     ],
   },
 ];
@@ -102,22 +120,22 @@ function escapeMarkdownV2(text: string): string {
 
 function generateSliderKeyboard(
   contestantId: string,
-  currentPhotoIndex: number,
-  totalPhotos: number,
+  currentMediaIndex: number,
+  totalMedia: number,
   hasVotedForThis: boolean
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   keyboard.text(
-    currentPhotoIndex > 0 ? "◀️" : " ",
-    currentPhotoIndex > 0
-      ? `slide:prev:${contestantId}:${currentPhotoIndex}`
+    currentMediaIndex > 0 ? "◀️" : " ",
+    currentMediaIndex > 0
+      ? `slide:prev:${contestantId}:${currentMediaIndex}`
       : "noop"
   );
-  keyboard.text(`Фото ${currentPhotoIndex + 1}/${totalPhotos}`, "noop");
+  keyboard.text(`Медіа ${currentMediaIndex + 1}/${totalMedia}`, "noop");
   keyboard.text(
-    currentPhotoIndex < totalPhotos - 1 ? "▶️" : " ",
-    currentPhotoIndex < totalPhotos - 1
-      ? `slide:next:${contestantId}:${currentPhotoIndex}`
+    currentMediaIndex < totalMedia - 1 ? "▶️" : " ",
+    currentMediaIndex < totalMedia - 1
+      ? `slide:next:${contestantId}:${currentMediaIndex}`
       : "noop"
   );
   keyboard.row();
@@ -167,12 +185,12 @@ async function initiateVotingFlow(ctx: Context) {
 
     await ctx.reply(
       escapeMarkdownV2(`Голосування за найкращого учасника фестивалю! 🏆`),
-      { parse_mode: "MarkdownV2" }
+      { parse_mode: PARSE_MODE }
     );
 
     // Show all contestants - they are always available for voting
     for (const contestant of contestants) {
-      if (contestant.photo_file_ids.length === 0) continue;
+      if (contestant.media.length === 0) continue;
       const hasVotedForThis = contestant.id === votedForContestantId;
       const caption = escapeMarkdownV2(
         hasVotedForThis
@@ -182,14 +200,21 @@ async function initiateVotingFlow(ctx: Context) {
       const keyboard = generateSliderKeyboard(
         contestant.id,
         0,
-        contestant.photo_file_ids.length,
+        contestant.media.length,
         hasVotedForThis
       );
-      await ctx.replyWithPhoto(contestant.photo_file_ids[0], {
+      const firstMedia = contestant.media[0];
+      const replyOptions = {
         caption,
         reply_markup: keyboard,
-        parse_mode: "MarkdownV2",
-      });
+        parse_mode: PARSE_MODE,
+      };
+
+      if (firstMedia.type === "photo") {
+        await ctx.replyWithPhoto(firstMedia.file_id, replyOptions);
+      } else if (firstMedia.type === "video") {
+        await ctx.replyWithVideo(firstMedia.file_id, replyOptions);
+      }
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
@@ -215,14 +240,14 @@ bot.command("start", async (ctx) => {
   }
 
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_1), {
-    parse_mode: "MarkdownV2",
+    parse_mode: PARSE_MODE,
   });
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_2), {
-    parse_mode: "MarkdownV2",
+    parse_mode: PARSE_MODE,
   });
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_3), {
     reply_markup: generateMainMenuKeyboard(),
-    parse_mode: "MarkdownV2",
+    parse_mode: PARSE_MODE,
   });
 });
 
@@ -253,7 +278,7 @@ bot.command("reset", async (ctx) => {
     );
     await ctx.reply(escapeMarkdownV2(replyMessage), {
       reply_markup: showVotesKeyboard,
-      parse_mode: "MarkdownV2",
+      parse_mode: PARSE_MODE,
     });
   } catch (error) {
     console.error("Error in /reset command:", error);
@@ -281,7 +306,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
       text: "Помилка: учасника не знайдено.",
     });
   const newIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
-  if (newIndex < 0 || newIndex >= contestant.photo_file_ids.length) {
+  if (newIndex < 0 || newIndex >= contestant.media.length) {
     return await ctx.answerCallbackQuery();
   }
   
@@ -303,17 +328,36 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   const newKeyboard = generateSliderKeyboard(
     contestantId,
     newIndex,
-    contestant.photo_file_ids.length,
+    contestant.media.length,
     hasVotedForThis
   );
-  const newPhoto: InputMediaPhoto<string> = {
-    type: "photo",
-    media: contestant.photo_file_ids[newIndex],
-    caption: newCaption,
-    parse_mode: "MarkdownV2",
-  };
+  const newMediaItem = contestant.media[newIndex];
   await ctx.answerCallbackQuery();
-  await ctx.editMessageMedia(newPhoto, { reply_markup: newKeyboard });
+
+  const commonProps = {
+    caption: newCaption,
+    parse_mode: PARSE_MODE,
+  };
+
+  if (newMediaItem.type === "photo") {
+    await ctx.editMessageMedia(
+      {
+        type: "photo",
+        media: newMediaItem.file_id,
+        ...commonProps,
+      },
+      { reply_markup: newKeyboard }
+    );
+  } else if (newMediaItem.type === "video") {
+    await ctx.editMessageMedia(
+      {
+        type: "video",
+        media: newMediaItem.file_id,
+        ...commonProps,
+      },
+      { reply_markup: newKeyboard }
+    );
+  }
 });
 
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
@@ -352,13 +396,13 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
-      "Фото 1/";
-    const match = buttonText.match(/Фото (\d+)\//);
-    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+      "Медіа 1/";
+    const match = buttonText.match(/Медіа (\d+)\//);
+    const currentMediaIndex = match ? parseInt(match[1], 10) - 1 : 0;
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
-      currentPhotoIndex,
-      contestant.photo_file_ids.length,
+      currentMediaIndex,
+      contestant.media.length,
       true
     );
     await ctx.editMessageCaption({
@@ -366,7 +410,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
         `✅ Проголосовано! Ви обрали: ${contestant.name}`
       ),
       reply_markup: newKeyboard,
-      parse_mode: "MarkdownV2",
+      parse_mode: PARSE_MODE,
     });
   } catch (error) {
     console.error("Error processing vote:", error);
@@ -399,16 +443,30 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       0,
-      contestant.photo_file_ids.length,
+      contestant.media.length,
       false
     );
-    const firstPhoto: InputMediaPhoto<string> = {
-      type: "photo",
-      media: contestant.photo_file_ids[0],
-      caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
-      parse_mode: "MarkdownV2",
+    const firstMediaItem = contestant.media[0];
+    
+    const commonProps = {
+        caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
+        parse_mode: PARSE_MODE,
     };
-    await ctx.editMessageMedia(firstPhoto, { reply_markup: newKeyboard });
+
+    if (firstMediaItem.type === 'photo') {
+        await ctx.editMessageMedia({
+            type: 'photo',
+            media: firstMediaItem.file_id,
+            ...commonProps,
+        }, { reply_markup: newKeyboard });
+    } else if (firstMediaItem.type === 'video') {
+        await ctx.editMessageMedia({
+            type: 'video',
+            media: firstMediaItem.file_id,
+            ...commonProps,
+        }, { reply_markup: newKeyboard });
+    }
+    
   } catch (error) {
     console.error("Error resetting vote:", error);
     await ctx.answerCallbackQuery({
@@ -478,7 +536,9 @@ bot.command("send_message", async (ctx) => {
       .replace("{date}", startDate)
       .replace("{endDate}", endDate);
 
-    const options: Parameters<typeof bot.api.sendMessage>[2] = {};
+    const options: Parameters<typeof bot.api.sendMessage>[2] = {
+      parse_mode: PARSE_MODE,
+    };
     if (messageToSend.button) {
       // Festival bot broadcast messages only use callback_data buttons, so this is simplified.
       const keyboard = new InlineKeyboard().text(
@@ -552,6 +612,13 @@ bot.on("message:photo", async (ctx) => {
   const photo = ctx.message.photo[ctx.message.photo.length - 1];
   const fileId = photo.file_id;
   const safeText = escapeMarkdownV2(`Отримано фото. \n\nВаш file_id: `);
+  await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });
+});
+
+bot.on("message:video", async (ctx) => {
+  const video = ctx.message.video;
+  const fileId = video.file_id;
+  const safeText = escapeMarkdownV2(`Отримано відео. \n\nВаш file_id: `);
   await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });
 });
 
