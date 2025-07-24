@@ -36,8 +36,8 @@ const FESTIVAL_CONTESTANTS = [
       {
         type: "video",
         file_id:
-          "BAACAgIAAxkBAAIBgGWR-j4AAX9p2QTc0dZc1Z2YhX-22gAC4hAAAoB44UlFp7lS3vD93zQE",
-      }, // Replace with a real video file_id
+          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
+      },
     ],
   },
   {
@@ -58,8 +58,8 @@ const FESTIVAL_CONTESTANTS = [
       {
         type: "video",
         file_id:
-          "BAACAgIAAxkBAAIBgGWR-j4AAX9p2QTc0dZc1Z2YhX-22gAC4hAAAoB44UlFp7lS3vD93zQE",
-      }, // Replace with a real video file_id
+          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
+      },
     ],
   },
 ];
