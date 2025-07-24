@@ -13,105 +13,22 @@ import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { nanoid } from "nanoid";
 import { waitUntil } from "@vercel/functions";
+import {
+  BATTLE_WELCOME_1,
+  BATTLE_WELCOME_2,
+  BATTLE_WELCOME_3,
+  FESTIVAL_BROADCAST_MESSAGES,
+  FESTIVAL_CONTESTANTS,
+  PARSE_MODE,
+  sleep,
+} from "./const";
 
 const token = process.env.TG_FESTIVAL_BOT;
 if (!token) throw new Error("TG_FESTIVAL_BOT is unset");
 
 const bot = new Bot(token);
 
-const PARSE_MODE: ParseMode = "MarkdownV2";
-
-// --- FESTIVAL-SPECIFIC CONSTANTS ---
-
-const FESTIVAL_CONTESTANTS = [
-  {
-    id: "mock-contestant-1",
-    name: "Mock Speaker 1",
-    media: [
-      {
-        type: "photo",
-        file_id:
-          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
-      },
-      {
-        type: "video",
-        file_id:
-          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
-      },
-    ],
-  },
-  {
-    id: "mock-contestant-2",
-    name: "Mock Speaker 2",
-    media: [
-      {
-        type: "photo",
-        file_id:
-          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
-      },
-    ],
-  },
-  {
-    id: "mock-contestant-3",
-    name: "Mock Speaker 3",
-    media: [
-      {
-        type: "video",
-        file_id:
-          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
-      },
-    ],
-  },
-];
-
-const FESTIVAL_BROADCAST_MESSAGES = [
-    {
-        id: "welcome_broadcast",
-        text: "👋 Привіт! Нагадуємо, що голосування за найкращу роботу триває! Ваш голос може стати вирішальним!",
-        button: {
-            text: "Проголосувати зараз",
-            callback_data: "show_votes"
-        }
-    },
-    {
-        id: "last_call_broadcast",
-        text: "❗️Залишилось зовсім мало часу, щоб віддати свій голос! Поспішайте, голосування скоро завершиться!",
-        button: {
-            text: "Віддати свій голос",
-            callback_data: "show_votes"
-        }
-    }
-];
-
-
-// --- CONSTANTS & HELPERS ---
-const BATTLE_WELCOME_1 = `👋 Привіт! Я — чат-бот, який допоможе визначити переможця конкурсу «Битва майстрів», що проходить у межах манікюрного фестивалю Nail Moment.
-
-І зараз пару слів від організаторів:`;
-
-const BATTLE_WELCOME_2 = `Привіт, наші неіл-майстри! ☺️
-Ми раді вітати вас на фестивалі Nail Moment  — дякуємо, що ви з нами сьогодні 💛
-
-Учасники конкурсу «Битва майстрів» вже завершили свої роботи.
-Було спекотно, емоційно й дуже красиво!
-
-І вже прямо зараз ми готові представити вашій увазі всі конкурсні роботи.
-Голосування відкрито з цього моменту й триватиме до 19:00.
-Тож не зволікайте — подивіться всі роботи та оберіть найкращу 🔥
-
-🏆 Що стоїть на кону:
-– Кубок переможця Битви Майстрів
-– Грошовий приз у розмірі 2000 злотих
-- Ціла валіза з матеріалами на сумму 2000 зл від партнера Битви Майстрів компанії Edlen 🩷
-– Цінні подарунки від партнерів фестивалю
-– І, звісно, гучне визнання на головній сцені Nail Moment!`;
-
-const BATTLE_WELCOME_3 = `Нагадуємо:
-Ви можете віддати лише 1 голос — за того учасника, якого вважаєте гідним перемоги.
-
-Голосування проводять тільки учасники фестивалю, тож саме ви вирішуєте, хто отримає кубок!
-
-Обирайте серцем і голосуйте за роботу, яка справді вразила 💥`;
+// --- HELPERS ---
 
 function escapeMarkdownV2(text: string): string {
   const charsToEscape = /[_\[\]()~`>#+\-=|{}.!]/g;
@@ -242,9 +159,17 @@ bot.command("start", async (ctx) => {
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_1), {
     parse_mode: PARSE_MODE,
   });
+
+  await ctx.replyWithChatAction("typing");
+  await sleep(2000);
+
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_2), {
     parse_mode: PARSE_MODE,
   });
+
+  await ctx.replyWithChatAction("typing");
+  await sleep(2000);
+
   await ctx.reply(escapeMarkdownV2(BATTLE_WELCOME_3), {
     reply_markup: generateMainMenuKeyboard(),
     parse_mode: PARSE_MODE,
@@ -501,8 +426,7 @@ bot.command("send_message", async (ctx) => {
       );
     }
 
-    // 1. Fetch an initial list of POTENTIAL candidates to reduce loop size.
-    // This is still a good optimization.
+    // Fetch candidate users who haven't been contacted recently to prevent race conditions on Vercel
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const candidateUsers = await db
       .select({ telegramUserId: telegramUsersTable.telegramUserId })
@@ -520,31 +444,24 @@ bot.command("send_message", async (ctx) => {
     if (candidateUsers.length === 0) {
       return bot.api.sendMessage(
         ADMIN_ID,
-        "No eligible users found (all recently contacted)."
+        "No eligible users found to send the broadcast to (all recently contacted)."
       );
     }
 
-    let messageText = messageToSend.text;
-    // Festival bot has simpler message templating - just basic date replacements
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const startDate = `${today.getDate()} липня`;
-    const endDate = `${tomorrow.getDate()} липня`;
-    messageText = messageToSend.text
-      .replace("{categoryName}", "Фестиваль")
-      .replace("{date}", startDate)
-      .replace("{endDate}", endDate);
-
+    const messageText = messageToSend.text;
     const options: Parameters<typeof bot.api.sendMessage>[2] = {
       parse_mode: PARSE_MODE,
     };
     if (messageToSend.button) {
-      // Festival bot broadcast messages only use callback_data buttons, so this is simplified.
-      const keyboard = new InlineKeyboard().text(
-        messageToSend.button.text,
-        messageToSend.button.callback_data
-      );
+      const keyboard = new InlineKeyboard();
+      if ("url" in messageToSend.button && messageToSend.button.url) {
+        keyboard.url(messageToSend.button.text, messageToSend.button.url);
+      } else if ("callback_data" in messageToSend.button) {
+        keyboard.text(
+          messageToSend.button.text,
+          messageToSend.button.callback_data
+        );
+      }
       options.reply_markup = keyboard;
     }
 
@@ -554,7 +471,7 @@ bot.command("send_message", async (ctx) => {
 
     for (const user of candidateUsers) {
       try {
-        // 2. Perform the ATOMIC "claim and update" operation.
+        // Perform the ATOMIC "claim and update" operation.
         const updatedRows = await db
           .update(telegramUsersTable)
           .set({ lastBroadcastSentAt: new Date() })
@@ -588,7 +505,7 @@ bot.command("send_message", async (ctx) => {
             .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await sleep(50); // Sleep to avoid hitting rate limits
     }
 
     await bot.api.sendMessage(
