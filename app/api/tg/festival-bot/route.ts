@@ -285,7 +285,6 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
-  await ctx.answerCallbackQuery();
 
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
