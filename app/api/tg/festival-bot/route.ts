@@ -26,22 +26,22 @@ const FESTIVAL_CONTESTANTS = [
     id: "mock-contestant-1",
     name: "Mock Speaker 1",
     photo_file_ids: [
-      "AgACAgIAAxkBAAIZi2hiurknQ5aPLGh_8IENwv_9k_ciAAJG-DEbw18ZS6Si7vqyKKKmAQADAgADeQADNgQ",
-      "AgACAgIAAxkBAAIZi2hiurknQ5aPLGh_8IENwv_9k_ciAAJG-DEbw18ZS6Si7vqyKKKmAQADAgADeQADNgQ",
+      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
     ],
   },
   {
     id: "mock-contestant-2",
     name: "Mock Speaker 2",
     photo_file_ids: [
-      "AgACAgIAAxkBAAIZi2hiurknQ5aPLGh_8IENwv_9k_ciAAJG-DEbw18ZS6Si7vqyKKKmAQADAgADeQADNgQ",
+      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
     ],
   },
   {
     id: "mock-contestant-3",
     name: "Mock Speaker 3",
     photo_file_ids: [
-      "AgACAgIAAxkBAAIZi2hiurknQ5aPLGh_8IENwv_9k_ciAAJG-DEbw18ZS6Si7vqyKKKmAQADAgADeQADNgQ",
+      "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
     ],
   },
 ];
