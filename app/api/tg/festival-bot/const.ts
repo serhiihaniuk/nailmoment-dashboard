@@ -36,46 +36,53 @@ export const BATTLE_WELCOME_3 = `Нагадуємо:
 
 
 // --- CONTESTANTS DATA ---
-
-export const FESTIVAL_CONTESTANTS = [
-  {
-    id: "mock-contestant-1",
-    name: "Mock Speaker 1",
-    media: [
-      {
-        type: "photo",
-        file_id:
-          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
-      },
-      {
-        type: "video",
-        file_id:
-          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
-      },
-    ],
-  },
-  {
-    id: "mock-contestant-2",
-    name: "Mock Speaker 2",
-    media: [
-      {
-        type: "photo",
-        file_id:
-          "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
-      },
-    ],
-  },
-  {
-    id: "mock-contestant-3",
-    name: "Mock Speaker 3",
-    media: [
-      {
-        type: "video",
-        file_id:
-          "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
-      },
-    ],
-  },
+type FestivalContestant = {
+  id: string;
+  name: string;
+  media: {
+    type: "photo" | "video";
+    file_id: string;
+  }[];
+}
+export const FESTIVAL_CONTESTANTS: FestivalContestant[] = [
+  // {
+  //   id: "mock-contestant-1",
+  //   name: "Mock Speaker 1",
+  //   media: [
+  //     {
+  //       type: "photo",
+  //       file_id:
+  //         "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+  //     },
+  //     {
+  //       type: "video",
+  //       file_id:
+  //         "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
+  //     },
+  //   ],
+  // },
+  // {
+  //   id: "mock-contestant-2",
+  //   name: "Mock Speaker 2",
+  //   media: [
+  //     {
+  //       type: "photo",
+  //       file_id:
+  //         "AgACAgIAAxkBAAMOaIJsaUnyOfl_ZWOkKEC1RpjFSv4AAnbxMRsK8hlIiETYpXwE0lsBAAMCAAN4AAM2BA",
+  //     },
+  //   ],
+  // },
+  // {
+  //   id: "mock-contestant-3",
+  //   name: "Mock Speaker 3",
+  //   media: [
+  //     {
+  //       type: "video",
+  //       file_id:
+  //         "BAACAgIAAxkBAAMfaIJusQdWJ5CY2eLJo3r7mnb90IYAAuF6AAIK8hlIcn4MQ1WMtTI2BA",
+  //     },
+  //   ],
+  // },
 ];
 
 
