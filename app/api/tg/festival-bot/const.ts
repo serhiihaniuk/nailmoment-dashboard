@@ -220,7 +220,7 @@ export const FESTIVAL_CONTESTANTS: FestivalContestant[] = [
     media: [
       {
         type: "video",
-        file_id: "BAACAgIAAxkBAAO8aIYHGaaSFgf4OUnk_MHi4imMbeUAAnZ5AAJg5TFIET5cgyMaSdo2BA"
+        file_id: "BAACAgIAAxkBAAICH2iGFumqIUoTcTzdc4Bg3lQBP8ZkAAI8egACYOUxSMdQMghPm0PONgQ"
       },
       { type: "photo", file_id: "AgACAgIAAxkBAAPCaIYHNU5rlEHl2951Ezu1iB3mhDYAAr_1MRsyMzBI9sSHZZTMdowBAAMCAAN5AAM2BA" },
       { type: "photo", file_id: "AgACAgIAAxkBAAPAaIYHMMoUEvO9zYh3bFFx-w9Fz6cAAuP2MRtg5TFIweP9ZiGlvHwBAAMCAAN5AAM2BA" },
