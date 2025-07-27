@@ -365,7 +365,6 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       .delete(battleVoteTGTable)
       .where(eq(battleVoteTGTable.telegram_user_id, telegramUserId));
       
-    await ctx.answerCallbackQuery({ text: "Ваш голос скинуто!" });
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       0,
@@ -395,10 +394,6 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
     
   } catch (error) {
     console.error("Error resetting vote:", error);
-    await ctx.answerCallbackQuery({
-      text: "Помилка під час скидання голосу.",
-      show_alert: true,
-    });
   }
 });
 
