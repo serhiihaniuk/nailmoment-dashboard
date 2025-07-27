@@ -131,6 +131,7 @@ async function initiateVotingFlow(ctx: Context) {
       } else if (firstMedia.type === "video") {
         await ctx.replyWithVideo(firstMedia.file_id, replyOptions);
       }
+      await sleep(50);
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
