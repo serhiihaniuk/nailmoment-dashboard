@@ -296,6 +296,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
 
   if (!contestant) return;
 
+
   // Check if user has already voted for any contestant
   const existingVote = await db
     .select()
@@ -308,6 +309,8 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       text: "Ви вже проголосували. Спочатку скиньте свій голос.",
     });
   }
+  await ctx.answerCallbackQuery();
+  
   
   try {
     await db.insert(battleVoteTGTable).values({
@@ -316,7 +319,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
       category_id: "festival", // Fixed category ID for festival voting
       voted_for_contestant_id: contestantId,
     });
-    await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
+
     const buttonText =
       ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
       "Медіа 1/";
