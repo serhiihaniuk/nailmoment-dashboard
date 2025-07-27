@@ -11,7 +11,7 @@ import {
 import { db } from "@/shared/db";
 import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { nanoid } from "nanoid";
-import { waitUntil } from "@vercel/functions";
+import { waitUntil } from "@vercel/functions"; // <-- IMPORT ADDED HERE
 import {
   BATTLE_WELCOME_1,
   BATTLE_WELCOME_2,
@@ -131,6 +131,7 @@ async function initiateVotingFlow(ctx: Context) {
       } else if (firstMedia.type === "video") {
         await ctx.replyWithVideo(firstMedia.file_id, replyOptions);
       }
+      await sleep(500); // This sleep is now safe to use
     }
   } catch (error) {
     console.error("Error in initiateVotingFlow:", error);
@@ -210,18 +211,38 @@ bot.command("reset", async (ctx) => {
   }
 });
 
+// --- THIS IS THE CORRECTED BLOCK ---
 bot.callbackQuery("show_votes", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.editMessageReplyMarkup();
-  await initiateVotingFlow(ctx);
+  // Acknowledge the button press immediately so the user sees the loading icon.
+  await ctx.answerCallbackQuery(); 
+  
+  try {
+    // Remove the button from the original message. This is fast.
+    await ctx.editMessageReplyMarkup({});
+  } catch (error) {
+    // If Telegram retries (e.g., due to network issues), the keyboard might
+    // already be removed. This error is safe to ignore.
+    if (error instanceof GrammyError && error.description.includes("message is not modified")) {
+      console.log("Keyboard already removed. Ignoring and stopping execution.");
+      // Stop here because the long-running task was likely already started.
+      return; 
+    } else {
+      console.error("An unexpected error occurred while editing message reply markup:", error);
+      throw error; // Re-throw other unexpected errors
+    }
+  }
+
+  // Schedule the LONG-RUNNING task to run in the background.
+  // The main function will now return a 200 OK to Telegram immediately.
+  waitUntil(initiateVotingFlow(ctx));
 });
+// --- END OF CORRECTION ---
 
 bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   if (!ctx.from) return;
   const [, direction, contestantId, currentIndexStr] = ctx.match;
   const currentIndex = parseInt(currentIndexStr, 10);
   
-  // Find contestant from the fixed set of contestants
   const contestants = FESTIVAL_CONTESTANTS;
   const contestant = contestants.find((c) => c.id === contestantId);
   
@@ -234,7 +255,6 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     return await ctx.answerCallbackQuery();
   }
   
-  // Check if user has voted for this specific contestant
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
@@ -290,13 +310,11 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
   
-  // Find contestant from the fixed set of contestants
   const contestants = FESTIVAL_CONTESTANTS;
   const contestant = contestants.find((c) => c.id === contestantId);
 
   if (!contestant) return;
 
-  // Check if user has already voted for any contestant
   const existingVote = await db
     .select()
     .from(battleVoteTGTable)
@@ -351,7 +369,6 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
   const contestantId = ctx.match[1];
   const telegramUserId = ctx.from.id;
   
-  // Find contestant from the fixed set of contestants
   const contestants = FESTIVAL_CONTESTANTS;
   const contestant = contestants.find((c) => c.id === contestantId);
 
@@ -424,7 +441,6 @@ bot.command("send_message", async (ctx) => {
       );
     }
 
-    // Fetch candidate users who haven't been contacted recently to prevent race conditions on Vercel
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const candidateUsers = await db
       .select({ telegramUserId: telegramUsersTable.telegramUserId })
@@ -469,7 +485,6 @@ bot.command("send_message", async (ctx) => {
 
     for (const user of candidateUsers) {
       try {
-        // Perform the ATOMIC "claim and update" operation.
         const updatedRows = await db
           .update(telegramUsersTable)
           .set({ lastBroadcastSentAt: new Date() })
@@ -482,7 +497,7 @@ bot.command("send_message", async (ctx) => {
               )
             )
           )
-          .returning({ id: telegramUsersTable.telegramUserId }); // Ask DB to return the row if update was successful
+          .returning({ id: telegramUsersTable.telegramUserId });
 
         if (updatedRows.length > 0) {
           await bot.api.sendMessage(user.telegramUserId, messageText, options);
@@ -503,7 +518,7 @@ bot.command("send_message", async (ctx) => {
             .where(eq(telegramUsersTable.telegramUserId, user.telegramUserId));
         }
       }
-      await sleep(50); // Sleep to avoid hitting rate limits
+      await sleep(50);
     }
 
     await bot.api.sendMessage(
