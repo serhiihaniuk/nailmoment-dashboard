@@ -233,7 +233,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   if (newIndex < 0 || newIndex >= contestant.media.length) {
     return await ctx.answerCallbackQuery();
   }
-  
+  await ctx.answerCallbackQuery();
   // Check if user has voted for this specific contestant
   const existingVote = await db
     .select()
@@ -256,7 +256,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     hasVotedForThis
   );
   const newMediaItem = contestant.media[newIndex];
-  await ctx.answerCallbackQuery();
+
 
   const commonProps = {
     caption: newCaption,
