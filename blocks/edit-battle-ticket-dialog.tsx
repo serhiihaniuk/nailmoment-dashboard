@@ -1,8 +1,6 @@
-// components/edit-battle-ticket-dialog.tsx
-
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,90 +9,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Field } from "@/components/ui/label";
 import { Label } from "@/components/ui/label";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { Loader2, Pencil, Camera, CameraOff } from "lucide-react";
-import { UseMutationResult } from "@tanstack/react-query";
 import { BattleTicket } from "@/shared/db/schema";
-import { UpdateBattleTicketInput } from "@/shared/db/schema.zod";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  normalizeEditableNominationQuantity,
+  useEditBattleTicketDialog,
+} from "@/features/edit-battle-ticket";
 
 interface EditBattleTicketDialogProps {
   battleTicket: BattleTicket;
-  mutation: UseMutationResult<BattleTicket, Error, UpdateBattleTicketInput>;
+  battleTicketId: string;
 }
 
 export function EditBattleTicketDialog({
   battleTicket,
-  mutation,
+  battleTicketId,
 }: EditBattleTicketDialogProps) {
-  const [open, setOpen] = useState(false);
-
-  // Initial form state should be set once or when battleTicket changes if dialog is not open
-  const [form, setForm] = useState<UpdateBattleTicketInput>({
-    name: battleTicket.name,
-    email: battleTicket.email,
-    instagram: battleTicket.instagram,
-    phone: battleTicket.phone,
-    nomination_quantity: battleTicket.nomination_quantity,
-    comment: battleTicket.comment ?? "",
-    photos_sent: battleTicket.photos_sent,
-  });
-
-  // Effect to close dialog on successful mutation
-  useEffect(() => {
-    if (mutation.isSuccess && open) {
-      mutation.reset();
-      setOpen(false);
-    }
-  }, [mutation, mutation.isSuccess, open]); // Removed mutation.reset from here to avoid race conditions
-
-  // Effect to reset form when dialog opens AND battleTicket data has changed
-  // or just when it opens to ensure fresh state
-  useEffect(() => {
-    if (open) {
-      setForm({
-        name: battleTicket.name,
-        email: battleTicket.email,
-        instagram: battleTicket.instagram,
-        phone: battleTicket.phone,
-        nomination_quantity: battleTicket.nomination_quantity,
-        comment: battleTicket.comment ?? "",
-        photos_sent: battleTicket.photos_sent,
-      });
-    }
-  }, [open, battleTicket]);
-
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (!isOpen) {
-      // Reset mutation state when dialog is closed
-      mutation.reset();
-    }
-  };
-
-  const handleChange = <K extends keyof UpdateBattleTicketInput>(
-    key: K,
-    value: UpdateBattleTicketInput[K]
-  ) => {
-    setForm((prevForm) => ({ ...prevForm, [key]: value }));
-  };
-
-  const handleSubmit = () => {
-    const payload: UpdateBattleTicketInput = {
-      ...form,
-      nomination_quantity: Number(form.nomination_quantity) || 0,
-    };
-    mutation.mutate(payload);
-  };
+  const { form, handleOpenChange, handleSubmit, isPending, open } =
+    useEditBattleTicketDialog({
+      battleTicket,
+      battleTicketId,
+    });
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {" "}
-      {/* Use handleOpenChange */}
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1">
           <Pencil size={14} /> Редагувати Учасника
@@ -105,86 +49,154 @@ export function EditBattleTicketDialog({
           <DialogTitle>Редагувати дані учасника батлу</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <Field label="Ім'я">
-            <Input
-              value={form.name ?? ""}
-              onChange={(e) => handleChange("name", e.target.value)}
-            />
-          </Field>
-          <Field label="Email">
-            <Input
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => handleChange("email", e.target.value)}
-            />
-          </Field>
-          <Field label="Instagram">
-            <Input
-              value={form.instagram ?? ""}
-              onChange={(e) => handleChange("instagram", e.target.value)}
-            />
-          </Field>
-          <Field label="Телефон">
-            <Input
-              value={form.phone ?? ""}
-              onChange={(e) => handleChange("phone", e.target.value)}
-            />
-          </Field>
-          <Field label="Кількість номінацій">
-            <Input
-              type="number"
-              min="0"
-              value={form.nomination_quantity ?? 0}
-              onChange={(e) =>
-                handleChange(
-                  "nomination_quantity",
-                  parseInt(e.target.value, 10) || 0
-                )
-              }
-            />
-          </Field>
-          <Field label="Коментар">
-            <Textarea
-              className="h-24"
-              value={form.comment ?? ""}
-              onChange={(e) => handleChange("comment", e.target.value)}
-            />
-          </Field>
-          <div className="space-y-2">
-            <Label htmlFor="photos-sent-toggle">Статус відправки фото</Label>
-            <Toggle
-              id="photos-sent-toggle"
-              aria-label="Toggle photos sent status"
-              pressed={form.photos_sent}
-              onPressedChange={(pressed) =>
-                handleChange("photos_sent", pressed)
-              }
-              variant="outline"
-              className="w-full data-[state=on]:bg-green-100 data-[state=on]:text-green-700 dark:data-[state=on]:bg-green-800 dark:data-[state=on]:text-green-200 data-[state=off]:bg-red-100 data-[state=off]:text-red-700 dark:data-[state=off]:bg-red-800 dark:data-[state=off]:text-red-200"
-            >
-              {form.photos_sent ? (
-                <Camera className="h-4 w-4 mr-2" />
-              ) : (
-                <CameraOff className="h-4 w-4 mr-2" />
+        <Form {...form}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSubmit();
+            }}
+            className="grid gap-4 py-4"
+          >
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Ім&apos;я</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} />
+                    </FormControl>
+                  </div>
+                </FormItem>
               )}
-              {form.photos_sent ? "Фото Надіслано" : "Фото Не Надіслано"}
-            </Toggle>
-            <p className="text-xs text-muted-foreground">
-              Натисніть, щоб змінити статус.
-            </p>
-          </div>
-        </div>
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Email</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input {...field} type="email" value={field.value ?? ""} />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="instagram"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Instagram</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Телефон</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="nomination_quantity"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Кількість номінацій</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={field.value ?? 0}
+                        onChange={(event) =>
+                          field.onChange(
+                            normalizeEditableNominationQuantity(
+                              event.target.value,
+                            ),
+                          )
+                        }
+                      />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="comment"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Коментар</Label>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        className="h-24"
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="photos_sent"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <Label htmlFor="photos-sent-toggle">Статус відправки фото</Label>
+                  <FormControl>
+                    <Toggle
+                      id="photos-sent-toggle"
+                      aria-label="Toggle photos sent status"
+                      pressed={field.value}
+                      onPressedChange={field.onChange}
+                      variant="outline"
+                      className="w-full data-[state=on]:bg-green-100 data-[state=on]:text-green-700 dark:data-[state=on]:bg-green-800 dark:data-[state=on]:text-green-200 data-[state=off]:bg-red-100 data-[state=off]:text-red-700 dark:data-[state=off]:bg-red-800 dark:data-[state=off]:text-red-200"
+                    >
+                      {field.value ? (
+                        <Camera className="h-4 w-4 mr-2" />
+                      ) : (
+                        <CameraOff className="h-4 w-4 mr-2" />
+                      )}
+                      {field.value ? "Фото Надіслано" : "Фото Не Надіслано"}
+                    </Toggle>
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Натисніть, щоб змінити статус.
+                  </p>
+                </FormItem>
+              )}
+            />
+          </form>
+        </Form>
 
         <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            // Disable button if mutation is pending.
-            // The `!mutation` part of your original disabled condition is unusual;
-            // mutation object should always exist.
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? (
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? (
               <Loader2 className="animate-spin" size={16} />
             ) : (
               "Зберегти Зміни"

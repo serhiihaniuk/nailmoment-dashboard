@@ -53,7 +53,7 @@ export function TicketsTable() {
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
   const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>(
-    "all"
+    "all",
   );
   const [buyType, setBuyType] = useState<"all" | "stripe" | "manual">("all");
   const [query, setQuery] = useState("");
@@ -64,17 +64,17 @@ export function TicketsTable() {
     return tickets
       .filter((t) => (showDeleted ? true : !t.archived))
       .filter((t) =>
-        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived
+        arrived === "all" ? true : arrived === "yes" ? t.arrived : !t.arrived,
       )
       .filter((t) =>
-        grade === "all" ? true : (t.updated_grade ?? t.grade) === grade
+        grade === "all" ? true : (t.updated_grade ?? t.grade) === grade,
       )
       .filter((t) =>
         buyType === "all"
           ? true
           : buyType === "manual"
             ? t.stripe_event_id.startsWith("manual")
-            : !t.stripe_event_id.startsWith("manual")
+            : !t.stripe_event_id.startsWith("manual"),
       )
       .filter((t) => {
         if (!query.trim()) return true;
@@ -223,14 +223,14 @@ export function TicketsTable() {
                     key={t.id}
                     className={cn(
                       i % 2 === 0 && "bg-muted/25",
-                      t.archived && "bg-destructive/5"
+                      t.archived && "bg-destructive/5",
                     )}
                   >
                     <TableCell
                       className={cn(
                         "sticky left-0 bg-white z-10 border-r border-dashed border-border",
                         i % 2 === 0 && "bg-gray-50",
-                        t.archived && "bg-red-300"
+                        t.archived && "bg-red-300",
                       )}
                     >
                       {i + 1}
