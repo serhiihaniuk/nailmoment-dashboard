@@ -302,22 +302,8 @@ export function TicketsTable() {
                   className="pl-7 h-8 border-0 bg-transparent shadow-none text-[13px] placeholder:text-muted-foreground/40"
                 />
               </div>
-              <div className="px-3 py-2 flex flex-col gap-2">
+              <div className="px-3 py-2">
                 <ArrivedSegment value={arrived} onChange={setArrived} fullWidth />
-                <GradeSegment value={grade} onChange={setGrade} />
-                <PaymentSegment value={buyType} onChange={setBuyType} />
-                <button
-                  type="button"
-                  onClick={() => setShowDeleted((prev) => !prev)}
-                  className={cn(
-                    "h-8 rounded-md border border-border/60 px-3 text-[12px] text-left transition-colors",
-                    showDeleted
-                      ? "border-destructive/30 bg-destructive/10 text-destructive"
-                      : "text-muted-foreground hover:bg-muted/40",
-                  )}
-                >
-                  {showDeleted ? "Приховати видалені" : "Показати видалені"}
-                </button>
               </div>
             </div>
 
@@ -418,12 +404,6 @@ const GRADE_OPTIONS = [
   { value: TICKET_TYPE.VIP, label: "VIP" },
 ] as const;
 
-const PAYMENT_OPTIONS = [
-  { value: "all", label: "Всі" },
-  { value: "stripe", label: "Stripe" },
-  { value: "manual", label: "Direct" },
-] as const;
-
 const GradeSegment: FC<{
   value: "all" | (typeof TICKET_TYPE_LIST)[number];
   onChange: (v: "all" | (typeof TICKET_TYPE_LIST)[number]) => void;
@@ -436,30 +416,6 @@ const GradeSegment: FC<{
         onClick={() => onChange(opt.value as "all" | (typeof TICKET_TYPE_LIST)[number])}
         className={cn(
           "h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
-          value === opt.value
-            ? "bg-[#f5f5f5] text-foreground font-medium"
-            : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
-          opt.value !== "all" && "border-l border-border/60",
-        )}
-      >
-        {opt.label}
-      </button>
-    ))}
-  </div>
-);
-
-const PaymentSegment: FC<{
-  value: "all" | "stripe" | "manual";
-  onChange: (v: "all" | "stripe" | "manual") => void;
-}> = ({ value, onChange }) => (
-  <div className="flex items-center h-8 rounded-md border border-border/60 overflow-hidden">
-    {PAYMENT_OPTIONS.map((opt) => (
-      <button
-        key={opt.value}
-        type="button"
-        onClick={() => onChange(opt.value)}
-        className={cn(
-          "flex-1 h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
           value === opt.value
             ? "bg-[#f5f5f5] text-foreground font-medium"
             : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
