@@ -50,7 +50,7 @@ const FAQ_ITEMS = [
   {
     question: "Не можу увійти в систему",
     answer:
-      "Напишіть або подзвоніть [контакт для техпідтримки].",
+      "Зверніться до колег, які мають доступ, або до організатора на місці.",
   },
 ] as const;
 
@@ -98,14 +98,6 @@ export default function InfoPage() {
             Швидка шпаргалка для check-in, пошуку та типових фестивальних ситуацій.
           </p>
         </section>
-
-        <Card className="border-brand/20 bg-brand/5">
-          <CardContent className="pt-6">
-            <p className="text-body-medium">
-              Питання? Пишіть <span className="font-semibold">[ім'я]</span> у Telegram.
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
