@@ -24,13 +24,13 @@ import {
 } from "@/components/ui/select";
 import { Ticket } from "@/shared/db/schema";
 import { TICKET_TYPE_LIST } from "@/shared/const";
-import { cn, formatInstagramLink } from "@/shared/utils";
+import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import { Check, Instagram, Loader, Mail, Phone, X } from "lucide-react";
 import { AddTicketDialog } from "@/features/add-ticket";
 import { Label } from "@radix-ui/react-label";
-import { Button } from "@/components/ui/button";
+
 import { CheckedState } from "@radix-ui/react-checkbox";
 
 async function fetchTickets(): Promise<Ticket[]> {
@@ -102,12 +102,12 @@ export function TicketsTable() {
           <p className="p-4 text-red-600">Помилка завантаження квитків</p>
         )}
 
-        <div className="flex flex-wrap gap-4 mb-4 px-4">
+        <div className="flex flex-wrap items-center gap-3 mb-4 mx-4 rounded-lg border bg-muted/30 px-3 py-2.5">
           <Input
             placeholder="Пошук: ім'я, email, insta, телефон"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs text-[16px] flex-grow"
+            className="sm:max-w-xs text-[16px] flex-grow border-0 bg-background shadow-none"
           />
 
           <Label className="flex gap-2 items-center text-sm">
@@ -120,7 +120,7 @@ export function TicketsTable() {
             >
               <ToggleGroupItem value="all">Всі</ToggleGroupItem>
               <ToggleGroupItem className="px-2" value="yes">
-                <Check size={16} className="text-green-600" />
+                <Check size={16} className="text-emerald-600" />
               </ToggleGroupItem>
               <ToggleGroupItem className="px-2" value="no">
                 <X size={14} className="text-red-600" />
@@ -181,13 +181,13 @@ export function TicketsTable() {
         )}
 
         {filtered.length > 0 && (
-          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto mx-4 rounded-lg border">
             <Table>
-              <TableHeader className="bg-muted/70 dark:bg-muted/20">
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-muted">#</TableHead>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="sticky left-0 z-10 bg-muted/50">#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
-                  <TableHead className="border-r border-dashed border-border text-center">
+                  <TableHead className="text-center">
                     Прибув(ла)
                   </TableHead>
                   <TableHead className="text-center">Тип</TableHead>
@@ -222,15 +222,13 @@ export function TicketsTable() {
                   <TableRow
                     key={t.id}
                     className={cn(
-                      i % 2 === 0 && "bg-muted/25",
                       t.archived && "bg-destructive/5",
                     )}
                   >
                     <TableCell
                       className={cn(
-                        "sticky left-0 bg-white z-10 border-r border-dashed border-border",
-                        i % 2 === 0 && "bg-gray-50",
-                        t.archived && "bg-red-300",
+                        "sticky left-0 z-10 bg-card text-muted-foreground tabular-nums",
+                        t.archived && "bg-destructive/10",
                       )}
                     >
                       {i + 1}
@@ -238,9 +236,9 @@ export function TicketsTable() {
                     <TableCell>
                       <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
                     </TableCell>
-                    <TableCell className="text-center border-r border-dashed border-border">
+                    <TableCell className="text-center">
                       {t.arrived ? (
-                        <Check size={16} className="text-green-600 mx-auto" />
+                        <Check size={16} className="text-emerald-600 mx-auto" />
                       ) : (
                         <X size={16} className="text-red-600 mx-auto" />
                       )}
@@ -300,7 +298,7 @@ export function TicketsTable() {
                     <TableCell colSpan={9} className="text-center">
                       <Loader
                         size={16}
-                        className="animate-spin text-gray-500 inline-block"
+                        className="animate-spin text-muted-foreground inline-block"
                       />{" "}
                       Оновлення…
                     </TableCell>
@@ -320,9 +318,12 @@ const TableLink: FC<{
   children: React.ReactNode;
   target?: string;
 }> = ({ href, children, target }) => (
-  <Button asChild size="sm" className="p-0" variant="link">
-    <Link prefetch={false} target={target} href={href}>
-      {children}
-    </Link>
-  </Button>
+  <Link
+    prefetch={false}
+    target={target}
+    href={href}
+    className={linkStyles}
+  >
+    {children}
+  </Link>
 );

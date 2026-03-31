@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, formatInstagramLink } from "@/shared/utils";
+import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
 import {
   Loader2,
   AlertTriangle,
@@ -71,9 +71,9 @@ interface TicketDetailsProps {
 }
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
-  <div className="space-y-1">
-    <h3 className="text-md font-semibold text-gray-700 mb-3">Деталі квитка</h3>
-    <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+  <div className="space-y-3">
+    <h3 className="text-sm font-semibold">Деталі квитка</h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-sm">
       <DetailItem
         icon={<User size={14} className="text-muted-foreground" />}
         label="Імʼя"
@@ -85,7 +85,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         value={
           <Link
             href={`mailto:${ticket.email}`}
-            className="text-blue-600 hover:underline truncate"
+            className={cn(linkStyles, "truncate")}
             title={ticket.email}
           >
             {ticket.email}
@@ -101,7 +101,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
               href={formatInstagramLink(ticket.instagram)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
+              className={linkStyles}
             >
               @{ticket.instagram}
             </a>
@@ -116,7 +116,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         value={
           <Link
             href={`tel:${ticket.phone.replace(/\s+/g, "")}`}
-            className="text-blue-600 hover:underline"
+            className={linkStyles}
           >
             {ticket.phone.replace(/\s+/g, "")}
           </Link>
@@ -153,7 +153,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         label="Прибув(ла)"
         value={
           ticket.arrived ? (
-            <Check size={18} className="text-green-600" />
+            <Check size={18} className="text-emerald-600" />
           ) : (
             <X size={18} className="text-red-600" />
           )
@@ -170,7 +170,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         value={
           <Link
             href={`/pdf/${ticket.id}`}
-            className="text-blue-600 hover:underline"
+            className={linkStyles}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -266,18 +266,17 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
   };
 
   return (
-    <Card className="max-w-md mx-auto shadow-md">
+    <Card className="max-w-md mx-auto">
       <CardHeader
         className={cn("py-6 transition-colors duration-300", {
-          "bg-teal-100": data?.arrived,
-          "bg-gray-200": !data?.arrived && data !== null,
-          "bg-gray-100": data === null || isLoading || isError,
+          "bg-emerald-50": data?.arrived && !data?.archived,
+          "bg-muted": !data?.arrived || data === null || isLoading || isError,
           "!bg-destructive/10": data?.archived,
         })}
       >
         <CardTitle className="text-lg flex items-center gap-2">
           Квиток {data?.name || "..."}{" "}
-          {data?.arrived && <Check size={16} className="text-green-600" />}
+          {data?.arrived && <Check size={16} className="text-emerald-600" />}
           {data?.archived && <Badge className="bg-destructive">DELETED</Badge>}
         </CardTitle>
         <CardDescription>#{ticketId.slice(-6)}</CardDescription>

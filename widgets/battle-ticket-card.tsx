@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, formatInstagramLink } from "@/shared/utils";
+import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
 import { BattleTicket } from "@/shared/db/schema";
 import {
   Loader2,
@@ -63,25 +63,23 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
   }
 
   return (
-    <Card className="max-w-md mx-auto shadow-md dark:border-gray-700">
+    <Card className="max-w-md mx-auto">
       <CardHeader
         className={cn("py-6 transition-colors duration-300", {
-          "bg-green-100 dark:bg-green-900/30":
-            battleTicket?.photos_sent === true,
-          "bg-yellow-100 dark:bg-yellow-800/30":
-            battleTicket?.photos_sent === false,
-          "bg-gray-200 dark:bg-gray-700": battleTicket === undefined,
+          "bg-emerald-50": battleTicket?.photos_sent === true,
+          "bg-amber-50": battleTicket?.photos_sent === false,
+          "bg-muted": battleTicket === undefined,
         })}
       >
         <CardTitle className="text-lg flex items-center gap-2">
           Учасник Батлу: {battleTicket?.name || "Завантаження..."}
           {battleTicket?.photos_sent ? (
-            <Camera size={14} className="text-green-500" />
+            <Camera size={14} className="text-emerald-600" />
           ) : (
-            <CameraOff size={14} className="text-red-500" />
+            <CameraOff size={14} className="text-red-600" />
           )}
         </CardTitle>
-        <CardDescription className="dark:text-gray-400">
+        <CardDescription>
           #{battleTicketId}
         </CardDescription>
       </CardHeader>
@@ -89,16 +87,16 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
       <CardContent className="space-y-4 pt-6">
         {isLoading && (
           <div className="flex flex-col items-center gap-2 h-44 justify-center">
-            <Skeleton className="h-full w-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+            <Skeleton className="h-full w-full flex items-center justify-center">
               <Loader2
-                className="animate-spin text-gray-500 dark:text-gray-400"
+                className="animate-spin text-muted-foreground"
                 size={24}
               />
             </Skeleton>
           </div>
         )}
         {isError && (
-          <div className="flex flex-col items-center text-center gap-2 text-red-600 dark:text-red-400 h-44 justify-center">
+          <div className="flex flex-col items-center text-center gap-2 text-red-600 h-44 justify-center">
             <AlertTriangle size={20} />
             <span>Помилка завантаження даних учасника.</span>
             <span className="text-xs text-muted-foreground">
@@ -113,117 +111,106 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
           </div>
         )}
         {battleTicket && (
-          <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <User size={14} className="text-gray-400 dark:text-gray-500" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-sm">
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <User size={14} className="text-muted-foreground" />
               Імʼя
-            </div>
-            <span className="dark:text-gray-50">{battleTicket.name}</span>
+            </span>
+            <span>{battleTicket.name}</span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Mail size={14} className="text-gray-400 dark:text-gray-500" />
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <Mail size={14} className="text-muted-foreground" />
               Електронна пошта
-            </div>
+            </span>
             {battleTicket.email ? (
               <Link
                 href={`mailto:${battleTicket.email}`}
-                className="text-blue-600 hover:underline dark:text-blue-400 truncate"
+                className={cn(linkStyles, "truncate")}
               >
                 {battleTicket.email}
               </Link>
             ) : (
-              <span className="dark:text-gray-50">-</span>
+              <span className="text-muted-foreground">-</span>
             )}
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Instagram
-                size={14}
-                className="text-gray-400 dark:text-gray-500"
-              />
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <Instagram size={14} className="text-muted-foreground" />
               Instagram
-            </div>
+            </span>
             <span>
               {battleTicket.instagram ? (
                 <a
                   href={formatInstagramLink(battleTicket.instagram)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline dark:text-blue-400"
+                  className={linkStyles}
                 >
                   {battleTicket.instagram}
                 </a>
               ) : (
-                <span className="dark:text-gray-50">-</span>
+                <span className="text-muted-foreground">-</span>
               )}
             </span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <Phone size={14} className="text-gray-400 dark:text-gray-500" />
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <Phone size={14} className="text-muted-foreground" />
               Телефон
-            </div>
+            </span>
             {battleTicket.phone ? (
               <Link
                 href={`tel:${battleTicket.phone.replace(/\s+/g, "")}`}
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className={linkStyles}
               >
                 {battleTicket.phone.replace(/\s+/g, "")}
               </Link>
             ) : (
-              <span className="dark:text-gray-50">-</span>
+              <span className="text-muted-foreground">-</span>
             )}
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <ListChecks
-                size={14}
-                className="text-gray-400 dark:text-gray-500"
-              />
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <ListChecks size={14} className="text-muted-foreground" />
               Кількість номінацій
-            </div>
-            <span className="dark:text-gray-50">
-              {battleTicket.nomination_quantity}
             </span>
+            <span>{battleTicket.nomination_quantity}</span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <CalendarClock
-                size={14}
-                className="text-gray-400 dark:text-gray-500"
-              />
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
+              <CalendarClock size={14} className="text-muted-foreground" />
               Дата реєстрації
-            </div>
-            <span className="dark:text-gray-50">
+            </span>
+            <span>
               {new Date(battleTicket.date).toLocaleString("uk-UA")}
             </span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
               {battleTicket.mail_sent ? (
-                <MailCheck size={14} className="text-green-500" />
+                <MailCheck size={14} className="text-emerald-600" />
               ) : (
-                <MailX size={14} className="text-yellow-500" />
+                <MailX size={14} className="text-amber-600" />
               )}
               Email надіслано
-            </div>
-            <span className="dark:text-gray-50">
-              {battleTicket.mail_sent ? "Так ✅" : "Ні ❌"}
+            </span>
+            <span>
+              {battleTicket.mail_sent ? "Так" : "Ні"}
             </span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300">
+            <span className="font-medium text-muted-foreground flex items-center gap-2">
               {battleTicket.photos_sent ? (
-                <Camera size={14} className="text-green-500" />
+                <Camera size={14} className="text-emerald-600" />
               ) : (
-                <CameraOff size={14} className="text-red-500" />
+                <CameraOff size={14} className="text-red-600" />
               )}
               Фото Надіслано
-            </div>
-            <span className="dark:text-gray-50">
-              {battleTicket.photos_sent ? "Так ✅" : "Ні ❌"}
+            </span>
+            <span>
+              {battleTicket.photos_sent ? "Так" : "Ні"}
             </span>
 
-            <div className="font-medium flex items-center gap-2 text-gray-600 dark:text-gray-300 sm:col-span-2">
-              <Text size={14} className="text-gray-400 dark:text-gray-500" />
+            <span className="font-medium text-muted-foreground flex items-center gap-2 sm:col-span-2">
+              <Text size={14} className="text-muted-foreground" />
               Коментар
-            </div>
-            <div className="sm:col-span-2 dark:text-gray-50 break-words">
-              {battleTicket.comment || "-"}
+            </span>
+            <div className="sm:col-span-2 break-words">
+              {battleTicket.comment || <span className="text-muted-foreground">-</span>}
             </div>
           </div>
         )}

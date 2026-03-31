@@ -135,7 +135,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
   return (
     <section className="space-y-4 border-t pt-4 mt-4">
       <header className="flex items-center justify-between gap-4">
-        <h3 className="text-md font-semibold flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
           <CreditCard size={18} /> Платежі ({payments?.length || 0})
         </h3>
         <AddPaymentInstallmentDialog
@@ -167,21 +167,21 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
           return (
             <li
               key={p.id}
-              className="rounded-lg border bg-slate-50 p-4 shadow-sm"
+              className="rounded-lg border bg-muted/30 p-4"
             >
               <div className="flex items-start justify-between gap-4">
                 {/* details */}
                 <div className="flex-1 space-y-2 text-sm">
                   {/* amount */}
                   <div className="flex items-center gap-2">
-                    <CircleDollarSign size={14} className="text-gray-400" />
+                    <CircleDollarSign size={14} className="text-muted-foreground" />
                     <span className="font-medium">Сума:</span>
                     <span>{p.amount} Zł</span>
                   </div>
 
                   {/* date */}
                   <div className="flex items-center gap-2">
-                    <CalendarClock size={14} className="text-gray-400" />
+                    <CalendarClock size={14} className="text-muted-foreground" />
                     <span className="font-medium">{dateLabel}</span>
                     <span>{dateValue}</span>
                   </div>
@@ -189,14 +189,14 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                   {/* status */}
                   <div className="flex items-center gap-2">
                     {p.is_paid ? (
-                      <CheckCircle size={14} className="text-green-600" />
+                      <CheckCircle size={14} className="text-emerald-600" />
                     ) : (
-                      <XCircle size={14} className="text-orange-600" />
+                      <XCircle size={14} className="text-amber-600" />
                     )}
                     <span className="font-medium">Статус:</span>
                     <span
                       className={cn(
-                        p.is_paid ? "text-green-600" : "text-orange-600",
+                        p.is_paid ? "text-emerald-600" : "text-amber-600",
                       )}
                     >
                       {p.is_paid ? "Оплачено" : "Не оплачено"}
@@ -205,7 +205,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
 
                   {/* invoice */}
                   <div className="flex items-center gap-2">
-                    <FileSignature size={14} className="text-gray-400" />
+                    <FileSignature size={14} className="text-muted-foreground" />
                     <span className="font-medium">Фактура:</span>
                     <span>
                       {p.invoice_requested
@@ -219,7 +219,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                   {/* nip – optional */}
                   {p.nip && p.nip.trim() !== "" && (
                     <div className="flex items-center gap-2">
-                      <ReceiptText size={14} className="text-gray-400" />
+                      <ReceiptText size={14} className="text-muted-foreground" />
                       <span className="font-medium">NIP:</span>
                       <span>{p.nip}</span>
                     </div>
@@ -230,7 +230,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                     <div className="flex items-start gap-2">
                       <MessageSquareText
                         size={14}
-                        className="text-gray-400 mt-0.5"
+                        className="text-muted-foreground mt-0.5"
                       />
                       <span className="font-medium">Коментар:</span>
                       <span className="whitespace-pre-line">{p.comment}</span>

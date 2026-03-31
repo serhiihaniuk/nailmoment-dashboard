@@ -16,9 +16,9 @@ export const NavLink: FC<{
     <Link
       href={href}
       className={cn(
-        {
-          "font-bold": pathname === href,
-        },
+        "relative py-1 text-sm text-muted-foreground transition-colors hover:text-foreground",
+        pathname === href &&
+          "font-semibold text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-foreground",
         className,
       )}
     >
