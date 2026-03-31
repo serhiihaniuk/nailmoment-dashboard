@@ -71,8 +71,8 @@ interface TicketDetailsProps {
 }
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
-  <div className="flex flex-col gap-6 w-full">
-    <h3 className="text-heading-2 border-b border-border pb-2">Деталі квитка</h3>
+  <div className="flex flex-col gap-6 w-full animate-in-fade">
+    <h3 className="text-heading-2 border-b border-border/60 pb-2">Деталі квитка</h3>
     <DetailGrid>
       <DetailItem
         icon={<User />}
@@ -268,14 +268,14 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
   return (
     <Card className="max-w-md mx-auto">
       <CardHeader
-        className={cn("transition-colors duration-300", {
-          "bg-success/15": data?.arrived && !data?.archived,
-          "bg-muted/30": !data?.arrived || data === null || isLoading || isError,
-          "bg-destructive/10": data?.archived,
+        className={cn("transition-all duration-500", {
+          "bg-gradient-to-br from-success/10 via-success/5 to-transparent": data?.arrived && !data?.archived,
+          "bg-gradient-to-br from-muted/40 to-transparent": !data?.arrived || data === null || isLoading || isError,
+          "bg-gradient-to-br from-destructive/10 via-destructive/5 to-transparent": data?.archived,
         })}
       >
         <CardTitle className="flex items-center gap-2">
-          Квиток {data?.name ? <span className="font-bold underline">{data.name}</span> : "..."}{" "}
+          Квиток {data?.name ? <span className="font-bold underline decoration-foreground/20 underline-offset-2">{data.name}</span> : "..."}{" "}
           {data?.arrived && <Check size={18} className="text-success" />}
           {data?.archived && <Badge variant="destructive">DELETED</Badge>}
         </CardTitle>
@@ -285,7 +285,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
       <CardContent className="flex flex-col gap-6 pt-6">{renderContent()}</CardContent>
 
       {data && (
-        <CardFooter className="pt-4 flex gap-2 border-t flex-col md:flex-row items-stretch">
+        <CardFooter className="pt-4 flex gap-2 border-t border-border/60 flex-col md:flex-row items-stretch">
           <EditTicketDialog ticket={data} ticketId={ticketId} />
           {!data.archived && (
             <Button

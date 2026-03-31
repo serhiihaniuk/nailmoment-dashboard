@@ -1,27 +1,21 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Mail, Lock } from "lucide-react";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { authClient } from "@/shared/better-auth/auth-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NailIcon } from "@/widgets/header";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from") ?? "/dashboard";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,78 +23,80 @@ export default function LoginPage() {
       {
         email,
         password,
-        callbackURL: "/dashboard",
+        callbackURL: from,
       },
       {
         onRequest: () => {
           setLoading(true);
           setError(undefined);
         },
-        onSuccess: () => router.push("/dashboard"),
+        onSuccess: () => router.push(from),
         onError: (ctx) => setError(ctx.error.message),
-      }
+      },
     );
   };
 
   return (
-    <div className="w-full min-h-[100dvh] flex items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Login
-          </CardTitle>
-          <CardDescription className="text-center">
-            Enter your email and password to sign in
-          </CardDescription>
-        </CardHeader>
+    <div className="bg-white rounded-xl border border-border/60 shadow-surface p-6">
+      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email" className="text-[12px] text-muted-foreground">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="h-9"
+          />
+        </div>
 
-        <CardContent>
-          <form id="login-form" className="space-y-8" onSubmit={onSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="password" className="text-[12px] text-muted-foreground">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="h-9"
+          />
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  className="pl-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+        {error && (
+          <p className="text-[12px] text-destructive" aria-live="assertive">
+            {error}
+          </p>
+        )}
 
-            {error && (
-              <p className="text-sm text-red-600" aria-live="assertive">
-                {error}
-              </p>
-            )}
-          </form>
-        </CardContent>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full h-9 bg-foreground text-background hover:bg-foreground/90 mt-2"
+        >
+          {loading ? "Signing in…" : "Увійти"}
+        </Button>
+      </form>
+    </div>
+  );
+}
 
-        <CardFooter className="border-t">
-          <Button form="login-form" type="submit" className="w-full">
-            {loading ? "Signing in…" : "Sign in"}
-          </Button>
-        </CardFooter>
-      </Card>
+export default function LoginPage() {
+  return (
+    <div className="w-full min-h-[100dvh] flex items-center justify-center bg-background">
+      <div className="w-full max-w-[360px] mx-4 animate-in-scale">
+        <div className="flex justify-center mb-8">
+          <NailIcon className="w-24" />
+        </div>
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import Link from "next/link";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useSearchParams } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -13,20 +12,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { BattleTicket } from "@/shared/db/schema";
-import { formatInstagramLink, linkStyles } from "@/shared/utils";
+import { cn } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Camera, CameraOff } from "lucide-react";
+import { Camera, CameraOff, Search } from "lucide-react";
 import { AddBattleTicketDialog } from "@/features/add-battle-ticket";
+import { SlidePanel } from "@/components/ui/slide-panel";
+import { BattleTicketPanel } from "@/widgets/battle-ticket-panel";
 
 async function fetchBattleTickets(): Promise<BattleTicket[]> {
   const res = await fetch("/api/battle-ticket");
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Failed to fetch battle tickets:", errorText);
-    throw new Error(`Failed to fetch battle tickets: ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -46,8 +42,21 @@ export function BattleTicketsTable() {
     "all" | "yes" | "no"
   >("all");
   const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
-  const filteredBattleTickets = useMemo(() => {
+  // Auto-open panel from URL query param (e.g., redirected from /battle/[id])
+  // Run once on mount only — avoids reopening panel after user closes it
+  useEffect(() => {
+    const ticketParam = searchParams.get("ticket");
+    if (ticketParam) setSelectedId(ticketParam);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleClosePanel = useCallback(() => setSelectedId(null), []);
+  const handleSelect = useCallback((id: string) => setSelectedId(id), []);
+
+  const filtered = useMemo(() => {
     if (!battleTickets) return [];
     return battleTickets
       .filter((bt) => {
@@ -67,163 +76,248 @@ export function BattleTicketsTable() {
       });
   }, [battleTickets, photosSentFilter, query]);
 
-  if (isError) {
-    console.error("Error in BattleTicketsTable query:", error);
-  }
+  // Stats
+  const stats = useMemo(() => {
+    if (!battleTickets) return null;
+    return {
+      total: battleTickets.length,
+      photosSent: battleTickets.filter((bt) => bt.photos_sent).length,
+      photosNotSent: battleTickets.filter((bt) => !bt.photos_sent).length,
+    };
+  }, [battleTickets]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          Учасники Батлу <AddBattleTicketDialog />
-        </CardTitle>
-      </CardHeader>
+    <div className="flex flex-col gap-4 w-full">
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-heading-1">
+          Учасники Батлу{" "}
+          {stats && (
+            <span className="text-muted-foreground font-normal text-base">
+              {stats.total}
+            </span>
+          )}
+        </h2>
+        <AddBattleTicketDialog />
+      </div>
 
-      <CardContent className="flex flex-col gap-6">
-        <div>
-          {isError && (
-            <p className="text-destructive font-medium">
-              Помилка завантаження учасників: {error?.message}
+      {/* Stats row */}
+      {stats && (
+        <div className="text-[12px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+          <span>{stats.total} всього</span>
+          <span className="text-border">·</span>
+          <span className="text-[#1a7f37]">
+            {stats.photosSent} фото надіслано
+          </span>
+          <span className="text-border">·</span>
+          <span>{stats.photosNotSent} очікують фото</span>
+        </div>
+      )}
+
+      {isError && (
+        <p className="text-destructive font-medium">
+          Помилка завантаження учасників: {error?.message}
+        </p>
+      )}
+
+      {isLoading && <Skeleton className="h-[400px] w-full rounded-xl" />}
+
+      {!isLoading && (
+        <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
+            {/* Search */}
+            <div className="relative flex-grow sm:max-w-[220px]">
+              <Search
+                size={14}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+              />
+              <Input
+                placeholder="Пошук..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-7 h-8 border-0 bg-transparent shadow-none text-[13px] placeholder:text-muted-foreground/40"
+              />
+            </div>
+
+            <div className="h-4 w-px bg-border/50 mx-1 hidden sm:block" />
+
+            {/* Photo filter — segmented control */}
+            <div className="flex items-center h-7 rounded-md bg-muted/50 p-0.5">
+              <SegmentBtn
+                active={photosSentFilter === "all"}
+                onClick={() => setPhotosSentFilter("all")}
+              >
+                Всі
+              </SegmentBtn>
+              <SegmentBtn
+                active={photosSentFilter === "yes"}
+                onClick={() => setPhotosSentFilter("yes")}
+              >
+                <Camera size={12} className="text-[#1a7f37]" />
+              </SegmentBtn>
+              <SegmentBtn
+                active={photosSentFilter === "no"}
+                onClick={() => setPhotosSentFilter("no")}
+              >
+                <CameraOff size={12} className="text-destructive" />
+              </SegmentBtn>
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {!filtered.length && !isError && (
+            <p className="text-muted-foreground text-center py-12">
+              Учасників не знайдено.
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
-            <Input
-              placeholder="Пошук: імʼя, email, insta, телефон, коментар"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="sm:max-w-xs flex-grow border-0 bg-background shadow-none"
-            />
+          {/* Desktop table */}
+          {filtered.length > 0 && (
+            <div className="hidden md:block [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead>Ім&apos;я / Статус</TableHead>
+                    <TableHead className="text-center">Номінації</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Instagram</TableHead>
+                    <TableHead>Телефон</TableHead>
+                    <TableHead>Дата</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((bt, i) => (
+                    <TableRow
+                      key={bt.id}
+                      className={cn(
+                        "cursor-pointer",
+                        selectedId === bt.id && "bg-muted/60",
+                      )}
+                      onClick={() => handleSelect(bt.id)}
+                    >
+                      <TableCell className="text-muted-foreground/60 tabular-nums">
+                        {i + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full shrink-0",
+                              bt.photos_sent
+                                ? "bg-[#1a7f37]"
+                                : "bg-destructive",
+                            )}
+                            title={
+                              bt.photos_sent ? "Фото надіслано" : "Не надіслано"
+                            }
+                          />
+                          <span className="font-medium">{bt.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {bt.nomination_quantity}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {bt.email || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {bt.instagram || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {bt.phone ? bt.phone.replace(/\s+/g, "") : "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground tabular-nums">
+                        {new Intl.DateTimeFormat("uk-UA", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        }).format(new Date(bt.date))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={photosSentFilter}
-              onValueChange={(v) =>
-                setPhotosSentFilter((v as typeof photosSentFilter) || "all")
-              }
-              aria-label="Фільтр по статусу відправки фото"
-              className="gap-1 bg-background"
-            >
-              <ToggleGroupItem value="all" className="h-8 px-3">Всі</ToggleGroupItem>
-              <ToggleGroupItem
-                className="h-8 px-2"
-                value="yes"
-                aria-label="Фото надіслано"
-              >
-                <Camera size={16} className="text-success" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                className="h-8 px-2"
-                value="no"
-                aria-label="Фото не надіслано"
-              >
-                <CameraOff size={16} className="text-destructive" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          {isLoading && <Skeleton className="h-[400px] w-full rounded-md mt-6" />}
-          {!filteredBattleTickets.length && !isError && !isLoading && (
-            <p className="text-muted-foreground mt-4">Учасників не знайдено.</p>
+          {/* Mobile card list */}
+          {filtered.length > 0 && (
+            <div className="md:hidden flex flex-col">
+              {filtered.map((bt) => (
+                <button
+                  key={bt.id}
+                  type="button"
+                  onClick={() => handleSelect(bt.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-3 border-b border-border/40 transition-colors hover:bg-muted/30 active:bg-muted/50",
+                    selectedId === bt.id && "bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full shrink-0",
+                          bt.photos_sent ? "bg-[#1a7f37]" : "bg-destructive",
+                        )}
+                      />
+                      <span className="text-[13px] font-medium truncate">
+                        {bt.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {bt.photos_sent ? (
+                        <Camera size={12} className="text-[#1a7f37]" />
+                      ) : (
+                        <CameraOff size={12} className="text-destructive" />
+                      )}
+                      <span className="text-[10px] text-muted-foreground">
+                        {bt.nomination_quantity}N
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-[12px] text-muted-foreground">
+                    {bt.email && <span className="truncate">{bt.email}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
+      )}
 
-        {filteredBattleTickets.length > 0 && (
-          <div className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Ім&apos;я</TableHead>
-                  <TableHead className="text-center">Номінації</TableHead>
-                  <TableHead className="text-center">Фото</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Instagram</TableHead>
-                  <TableHead>Телефон</TableHead>
-                  <TableHead>Дата</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBattleTickets.map((bt, i) => (
-                  <TableRow key={bt.id}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/battle/${bt.id}`}
-                        className={linkStyles}
-                      >
-                        {bt.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bt.nomination_quantity}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bt.photos_sent ? (
-                        <Camera
-                          size={18}
-                          className="text-success inline-block"
-                        />
-                      ) : (
-                        <CameraOff
-                          size={18}
-                          className="text-destructive inline-block"
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {bt.email ? (
-                        <Link
-                          href={`mailto:${bt.email}`}
-                          className={linkStyles}
-                        >
-                          {bt.email}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {bt.instagram ? (
-                        <a
-                          href={formatInstagramLink(bt.instagram)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={linkStyles}
-                        >
-                          {bt.instagram}
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {bt.phone ? (
-                        <Link
-                          href={`tel:${bt.phone.replace(/\s+/g, "")}`}
-                          className={linkStyles}
-                        >
-                          {bt.phone.replace(/\s+/g, "")}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Intl.DateTimeFormat("uk-UA", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      }).format(new Date(bt.date))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Slide-out panel */}
+      <SlidePanel open={!!selectedId} onClose={handleClosePanel}>
+        {selectedId && <BattleTicketPanel battleTicketId={selectedId} />}
+      </SlidePanel>
+    </div>
+  );
+}
+
+/* ── Local components ── */
+function SegmentBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "h-6 px-2 rounded-[5px] text-[11px] font-medium transition-all duration-150 flex items-center justify-center",
+        active
+          ? "bg-white text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }

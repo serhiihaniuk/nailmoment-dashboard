@@ -31,11 +31,13 @@ import { useEditTicketDialog } from "../model/use-edit-ticket-dialog";
 type EditTicketDialogProps = {
   ticket: Ticket;
   ticketId: string;
+  trigger?: React.ReactNode;
 };
 
 export function EditTicketDialog({
   ticket,
   ticketId,
+  trigger,
 }: EditTicketDialogProps) {
   const formId = useId();
   const { form, handleOpenChange, handleSubmit, isPending, open } =
@@ -47,9 +49,11 @@ export function EditTicketDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1">
-          <Pencil size={14} /> Редагувати
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="gap-1">
+            <Pencil size={14} /> Редагувати
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-[420px] top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">

@@ -133,7 +133,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
 
   /* ---------------- RENDER ---------------- */
   return (
-    <section className="space-y-4 border-t pt-4 mt-4">
+    <section className="space-y-4 border-t border-border/60 pt-4 mt-4">
       <header className="flex items-center justify-between gap-4">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <CreditCard size={18} /> Платежі ({payments?.length || 0})
@@ -167,7 +167,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
           return (
             <li
               key={p.id}
-              className="rounded-lg border bg-muted/30 p-4"
+              className="rounded-lg border border-border/60 bg-muted/20 p-4 transition-colors hover:bg-muted/30"
             >
               <div className="flex items-start justify-between gap-4">
                 {/* details */}
@@ -189,14 +189,14 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                   {/* status */}
                   <div className="flex items-center gap-2">
                     {p.is_paid ? (
-                      <CheckCircle size={14} className="text-emerald-600" />
+                      <CheckCircle size={14} className="text-success" />
                     ) : (
-                      <XCircle size={14} className="text-amber-600" />
+                      <XCircle size={14} className="text-warning" />
                     )}
                     <span className="font-medium">Статус:</span>
                     <span
                       className={cn(
-                        p.is_paid ? "text-emerald-600" : "text-amber-600",
+                        p.is_paid ? "text-success" : "text-warning",
                       )}
                     >
                       {p.is_paid ? "Оплачено" : "Не оплачено"}
@@ -251,7 +251,7 @@ export const TicketPayments: React.FC<TicketPaymentsProps> = ({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 p-1 text-red-600 hover:bg-red-50"
+                          className="h-6 w-6 p-1 text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 size={14} />
                         </Button>

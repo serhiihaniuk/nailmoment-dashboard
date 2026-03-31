@@ -1,9 +1,7 @@
-// app/(admin)/vote-results/_components/vote-results-table.tsx
 "use client";
 
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -56,51 +54,92 @@ export function VoteResultsTable() {
       .sort((a, b) => b.total - a.total);
   }, [raw]);
 
+  const totalVotes = results.reduce((sum, r) => sum + r.total, 0);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Результати голосування народний Спікер</CardTitle>
-      </CardHeader>
+    <div className="flex flex-col gap-4 w-full">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-heading-1">Результати голосування: Спікер</h2>
+      </div>
 
-      <CardContent className="flex flex-col gap-6">
-        {isError && (
-          <p className="text-destructive font-medium">Помилка: {error?.message}</p>
-        )}
-        {isLoading && <Skeleton className="h-24 w-full" />}
+      {/* Stats */}
+      {results.length > 0 && (
+        <div className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+          <span>{totalVotes} голосів</span>
+          <span className="text-border">·</span>
+          <span>{results.length} спікерів</span>
+        </div>
+      )}
 
-        {results.length > 0 && (
-          <div className="w-full">
+      {isError && (
+        <p className="text-destructive font-medium">Помилка: {error?.message}</p>
+      )}
+      {isLoading && <Skeleton className="h-[200px] w-full rounded-xl" />}
+
+      {results.length > 0 && (
+        <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
+          {/* Desktop table */}
+          <div className="hidden md:block [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-10">#</TableHead>
                   <TableHead>Спікер</TableHead>
-                  {/* <TableHead>Відео</TableHead> */}
                   <TableHead className="text-center">Голосів</TableHead>
                   <TableHead className="text-center">%</TableHead>
+                  <TableHead className="w-[200px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {results.map((r, i) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} className="hover:bg-muted/30">
                     <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
-                    <TableCell>{r.name}</TableCell>
-                    {/* <TableCell>{r.id}</TableCell> */}
-                    <TableCell className="text-center font-semibold">
-                      {r.total}
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell className="text-center font-semibold tabular-nums">{r.total}</TableCell>
+                    <TableCell className="text-center text-muted-foreground tabular-nums">{r.pct}%</TableCell>
+                    <TableCell>
+                      <div className="w-full bg-muted/50 rounded-full h-1.5">
+                        <div
+                          className="bg-foreground/20 h-1.5 rounded-full transition-all duration-500"
+                          style={{ width: `${r.pct}%` }}
+                        />
+                      </div>
                     </TableCell>
-                    <TableCell className="text-center">{r.pct}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-        )}
 
-        {!isLoading && !results.length && !isError && (
-          <p className="text-muted-foreground">Дані відсутні.</p>
-        )}
-      </CardContent>
-    </Card>
+          {/* Mobile list */}
+          <div className="md:hidden flex flex-col">
+            {results.map((r, i) => (
+              <div key={r.id} className="px-4 py-3 border-b border-border/40 last:border-b-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[11px] text-muted-foreground/60 tabular-nums w-5">{i + 1}</span>
+                    <span className="text-[13px] font-medium truncate">{r.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[13px] font-semibold tabular-nums">{r.total}</span>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">{r.pct}%</span>
+                  </div>
+                </div>
+                <div className="mt-2 w-full bg-muted/50 rounded-full h-1">
+                  <div
+                    className="bg-foreground/20 h-1 rounded-full transition-all duration-500"
+                    style={{ width: `${r.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !results.length && !isError && (
+        <p className="text-muted-foreground">Дані відсутні.</p>
+      )}
+    </div>
   );
 }

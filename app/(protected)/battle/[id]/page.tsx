@@ -1,31 +1,28 @@
-import { Button } from "@/components/ui/button";
-import { BattleTicketCard } from "@/widgets/battle-ticket-card";
+"use client";
+
+import { BattleTicketPanel } from "@/widgets/battle-ticket-panel";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+export default function BattleTicketPage() {
+  const { id } = useParams<{ id: string }>();
 
-export const dynamic = "force-dynamic";
-
-export default async function TicketPage({ params }: PageProps) {
-  const { id } = await params;
   return (
-    <div className="page-container py-8 px-4 pb-16 flex flex-col gap-6">
-      <BattleTicketCard battleTicketId={id} />
-
-      <Button
-        className="mt-6 w-28 max-w-md mx-auto block"
-        variant="secondary"
-        size="sm"
-        asChild
+    <div className="page-container py-6 max-w-lg">
+      <Link
+        href="/battle"
+        className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors mb-4"
       >
-        <Link href="/battle" className="flex items-center gap-1">
-          <ArrowLeft className="h-4 w-4" />
-          Назад
-        </Link>
-      </Button>
+        <ArrowLeft size={13} />
+        Учасники Батлу
+      </Link>
+
+      <div className="bg-white rounded-xl border border-border/60 shadow-surface overflow-hidden">
+        <div className="px-6 pb-6">
+          <BattleTicketPanel battleTicketId={id} />
+        </div>
+      </div>
     </div>
   );
 }

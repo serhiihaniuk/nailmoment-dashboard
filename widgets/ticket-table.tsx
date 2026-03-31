@@ -1,9 +1,8 @@
 "use client";
 
-import React, { FC, useMemo, useState } from "react";
-import Link from "next/link";
+import React, { FC, useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useSearchParams } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -13,8 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -23,15 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Ticket } from "@/shared/db/schema";
-import { TICKET_TYPE_LIST } from "@/shared/const";
-import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
+import { TICKET_TYPE, TICKET_TYPE_LIST } from "@/shared/const";
+import { cn } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
-import { Check, Instagram, Loader, Mail, Phone, X } from "lucide-react";
+import { Loader, Search } from "lucide-react";
 import { AddTicketDialog } from "@/features/add-ticket";
-import { Label } from "@radix-ui/react-label";
-
-import { CheckedState } from "@radix-ui/react-checkbox";
+import { TicketPanelWrapper } from "@/widgets/ticket-panel";
 
 async function fetchTickets(): Promise<Ticket[]> {
   const res = await fetch("/api/ticket");
@@ -52,12 +46,22 @@ export function TicketsTable() {
   });
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
-  const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>(
-    "all",
-  );
+  const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>("all");
   const [buyType, setBuyType] = useState<"all" | "stripe" | "manual">("all");
   const [query, setQuery] = useState("");
-  const [showDeleted, setShowDeleted] = useState<CheckedState>(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  // Run once on mount only — avoids reopening panel after user closes it
+  useEffect(() => {
+    const ticketParam = searchParams.get("ticket");
+    if (ticketParam) setSelectedTicketId(ticketParam);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleClosePanel = useCallback(() => setSelectedTicketId(null), []);
+  const handleSelectTicket = useCallback((id: string) => setSelectedTicketId(id), []);
 
   const filtered = useMemo(() => {
     if (!tickets) return [];
@@ -88,232 +92,382 @@ export function TicketsTable() {
       });
   }, [tickets, arrived, grade, buyType, query, showDeleted]);
 
+  const stats = useMemo(() => {
+    if (!tickets) return null;
+    const active = tickets.filter((t) => !t.archived);
+    return {
+      total: active.length,
+      arrived: active.filter((t) => t.arrived).length,
+      remaining: active.filter((t) => !t.arrived).length,
+      vip: active.filter((t) => (t.updated_grade ?? t.grade)?.toLowerCase() === "vip").length,
+    };
+  }, [tickets]);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          Квитки
-          <AddTicketDialog />
-        </CardTitle>
-      </CardHeader>
+    <div className="flex flex-col gap-4 w-full">
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-heading-1">
+          Квитки{" "}
+          {stats && (
+            <span className="text-muted-foreground font-normal text-base">{stats.total}</span>
+          )}
+        </h2>
+        <AddTicketDialog />
+      </div>
 
-      <CardContent className="flex flex-col gap-6">
-        {isError && (
-          <p className="text-destructive font-medium">Помилка завантаження квитків</p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
-          <Input
-            placeholder="Пошук: ім'я, email, insta, телефон"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs flex-grow border-0 bg-background shadow-none"
-          />
-
-          <Label className="flex gap-2 items-center text-body-medium">
-            Прибув(ла)
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={arrived}
-              onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
-              className="gap-1 bg-background"
-            >
-              <ToggleGroupItem value="all" className="h-8 px-3">Всі</ToggleGroupItem>
-              <ToggleGroupItem className="h-8 px-2" value="yes">
-                <Check size={16} className="text-success" />
-              </ToggleGroupItem>
-              <ToggleGroupItem className="h-8 px-2" value="no">
-                <X size={14} className="text-destructive" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </Label>
-
-          <Label className="flex gap-2 items-center text-body-medium">
-            Тип
-            <Select
-              value={grade}
-              onValueChange={(v) => setGrade((v as typeof grade) || "all")}
-            >
-              <SelectTrigger className="h-8 w-32 px-3 bg-background">
-                <SelectValue placeholder="Всі" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Всі</SelectItem>
-                {TICKET_TYPE_LIST.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    <TicketTypeBadge type={t} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Label>
-
-          <Label className="flex gap-2 items-center text-body-medium">
-            Оплата
-            <Select
-              value={buyType}
-              onValueChange={(v) => setBuyType((v as typeof buyType) || "all")}
-            >
-              <SelectTrigger className="h-8 w-28 px-3 bg-background">
-                <SelectValue placeholder="Всі" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Всі</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
-                <SelectItem value="manual">Direct</SelectItem>
-              </SelectContent>
-            </Select>
-          </Label>
-
-          <Label className="flex gap-2 items-center text-body-medium">
-            Показати видалені
-            <Checkbox
-              checked={showDeleted}
-              onCheckedChange={setShowDeleted}
-              id="chkDeleted"
-            />
-          </Label>
+      {/* Stats row — all uniform muted color */}
+      {stats && (
+        <div className="text-[12px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+          <span>{stats.total} всього</span>
+          <span className="text-border">·</span>
+          <span>{stats.arrived} прибули</span>
+          <span className="text-border">·</span>
+          <span>{stats.remaining} не прибули</span>
+          {stats.vip > 0 && (
+            <>
+              <span className="text-border">·</span>
+              <span>{stats.vip} VIP</span>
+            </>
+          )}
         </div>
+      )}
 
-        {isLoading && <Skeleton className="h-[400px] w-full rounded-md" />}
-        {!filtered.length && !isError && !isLoading && (
-          <p className="text-muted-foreground">Квитків не знайдено.</p>
-        )}
+      {isError && (
+        <p className="text-destructive font-medium">Помилка завантаження квитків</p>
+      )}
 
-        {filtered.length > 0 && (
-          <div className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Ім&apos;я</TableHead>
-                  <TableHead className="text-center">
-                    Прибув(ла)
-                  </TableHead>
-                  <TableHead className="text-center">Тип</TableHead>
-                  <TableHead className="text-center">Stripe</TableHead>
-                  <TableHead>
-                    <div className="flex gap-2 items-center">
-                      <Mail size={14} className="opacity-70" />
-                      E-mail
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex gap-2 items-center">
-                      <Instagram size={14} className="opacity-70" />
-                      Instagram
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex gap-2 items-center">
-                      <Phone size={14} className="opacity-70" />
-                      Телефон
-                    </div>
-                  </TableHead>
-                  <TableHead>Дата покупки</TableHead>
-                </TableRow>
-              </TableHeader>
+      {isLoading && <Skeleton className="h-[400px] w-full rounded-xl" />}
 
-              <TableBody>
-                {filtered.map((t, i) => (
-                  <TableRow
+      {!isLoading && (
+        <>
+          {/* ── DESKTOP ─────────────────────────────────────────────── */}
+          <div className="hidden md:block rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
+              <div className="relative flex-grow max-w-[220px]">
+                <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <Input
+                  placeholder="Пошук..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-7 h-8 border-0 bg-transparent shadow-none text-[13px] placeholder:text-muted-foreground/40"
+                />
+              </div>
+
+              <div className="h-4 w-px bg-border/50 mx-1" />
+
+              {/* Arrived — text segmented control */}
+              <ArrivedSegment value={arrived} onChange={setArrived} />
+
+              <div className="h-4 w-px bg-border/50 mx-1" />
+
+              {/* Grade — segmented control */}
+              <GradeSegment value={grade} onChange={setGrade} />
+
+              <Select
+                value={buyType}
+                onValueChange={(v) => setBuyType((v as typeof buyType) || "all")}
+              >
+                <SelectTrigger className="h-8 gap-1 px-2 text-[12px] bg-transparent border-0 shadow-none hover:bg-muted/50 transition-colors rounded-md">
+                  <span className="text-muted-foreground">Оплата:</span>
+                  <SelectValue placeholder="Всі" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі</SelectItem>
+                  <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="manual">Direct</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="h-4 w-px bg-border/50 mx-1" />
+
+              <button
+                type="button"
+                onClick={() => setShowDeleted((p) => !p)}
+                className={cn(
+                  "h-8 px-2 rounded-md text-[12px] transition-colors",
+                  showDeleted
+                    ? "bg-destructive/10 text-destructive"
+                    : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                Видалені
+              </button>
+            </div>
+
+            {!filtered.length && !isError && (
+              <p className="text-muted-foreground text-center py-12">Квитків не знайдено.</p>
+            )}
+
+            {filtered.length > 0 && (
+              <div className="[&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Ім&apos;я</TableHead>
+                      <TableHead className="w-12 text-center">Stripe</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead>Instagram</TableHead>
+                      <TableHead>Телефон</TableHead>
+                      <TableHead>Дата</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((t) => (
+                      <TableRow
+                        key={t.id}
+                        className={cn(
+                          "cursor-pointer",
+                          t.archived && "bg-destructive/10 hover:bg-destructive/15",
+                          selectedTicketId === t.id && "bg-muted/60",
+                        )}
+                        onClick={() => handleSelectTicket(t.id)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                t.arrived ? "bg-[#1a7f37]" : "bg-[#cccccc]",
+                              )}
+                            />
+                            <span className="max-w-[160px] truncate inline-block font-medium">
+                              {t.name}
+                            </span>
+                            {(t.updated_grade ?? t.grade)?.toLowerCase() === "vip" && (
+                              <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
+                                vip
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground/50 text-[11px]">
+                          {!t.stripe_event_id.startsWith("manual") && "S"}
+                        </TableCell>
+                        <TableCell>
+                          {t.email ? (
+                            <span className="text-muted-foreground">{t.email}</span>
+                          ) : (
+                            <span className="text-muted-foreground/30">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {t.instagram ? (
+                            <span className="text-muted-foreground">{t.instagram}</span>
+                          ) : (
+                            <span className="text-muted-foreground/30">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {t.phone ? (
+                            <span className="text-muted-foreground">{t.phone.replace(/\s+/g, "")}</span>
+                          ) : (
+                            <span className="text-muted-foreground/30">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground tabular-nums">
+                          {new Intl.DateTimeFormat("uk-UA", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }).format(new Date(t.date))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {isFetching && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          <Loader size={16} className="animate-spin text-muted-foreground inline-block" />{" "}
+                          Оновлення…
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* ── MOBILE ──────────────────────────────────────────────── */}
+          <div className="md:hidden flex flex-col gap-2 animate-in-fade">
+            {/* Sticky search + filter — stacks above the card list */}
+            <div className="sticky top-12 z-40 bg-white border border-border/60 rounded-xl shadow-surface">
+              <div className="relative px-3 pt-2.5 pb-2 border-b border-border/40">
+                <Search size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <Input
+                  placeholder="Пошук..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-7 h-8 border-0 bg-transparent shadow-none text-[13px] placeholder:text-muted-foreground/40"
+                />
+              </div>
+              <div className="px-3 py-2 flex flex-col gap-2">
+                <ArrivedSegment value={arrived} onChange={setArrived} fullWidth />
+                <GradeSegment value={grade} onChange={setGrade} />
+                <PaymentSegment value={buyType} onChange={setBuyType} />
+                <button
+                  type="button"
+                  onClick={() => setShowDeleted((prev) => !prev)}
+                  className={cn(
+                    "h-8 rounded-md border border-border/60 px-3 text-[12px] text-left transition-colors",
+                    showDeleted
+                      ? "border-destructive/30 bg-destructive/10 text-destructive"
+                      : "text-muted-foreground hover:bg-muted/40",
+                  )}
+                >
+                  {showDeleted ? "Приховати видалені" : "Показати видалені"}
+                </button>
+              </div>
+            </div>
+
+            {/* Cards */}
+            {!filtered.length && !isError && (
+              <p className="text-muted-foreground text-center py-12">Квитків не знайдено.</p>
+            )}
+            {filtered.length > 0 && (
+              <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden">
+                {filtered.map((t) => (
+                  <button
                     key={t.id}
+                    type="button"
+                    onClick={() => handleSelectTicket(t.id)}
                     className={cn(
-                      t.archived && "bg-destructive/10 hover:bg-destructive/15",
+                      "w-full text-left px-4 py-3 border-b border-border/40 last:border-b-0 transition-colors hover:bg-muted/30 active:bg-muted/50",
+                      t.archived && "bg-destructive/5",
+                      selectedTicketId === t.id && "bg-muted/40",
                     )}
                   >
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {i + 1}
-                    </TableCell>
-                    <TableCell>
-                      <TableLink href={`/ticket/${t.id}`}>{t.name}</TableLink>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {t.arrived ? (
-                        <Check size={16} className="text-success mx-auto" />
-                      ) : (
-                        <X size={16} className="text-destructive mx-auto" />
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <TicketTypeBadge type={t.updated_grade ?? t.grade} />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {!t.stripe_event_id.startsWith("manual") && (
-                        <Check size={18} className="text-success mx-auto" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.email ? (
-                        <TableLink href={`mailto:${t.email}`}>
-                          {t.email}
-                        </TableLink>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.instagram ? (
-                        <TableLink
-                          target="_blank"
-                          href={formatInstagramLink(t.instagram)}
-                        >
-                          {t.instagram}
-                        </TableLink>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.phone ? (
-                        <TableLink href={`tel:${t.phone.replace(/\s+/g, "")}`}>
-                          {t.phone.replace(/\s+/g, "")}
-                        </TableLink>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Intl.DateTimeFormat("uk-UA", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      }).format(new Date(t.date))}
-                    </TableCell>
-                  </TableRow>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            t.arrived ? "bg-[#1a7f37]" : "bg-[#cccccc]",
+                          )}
+                        />
+                        <span className="text-[13px] font-medium truncate">{t.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!t.stripe_event_id.startsWith("manual") && (
+                          <span className="text-[10px] text-muted-foreground/50 font-medium bg-muted/60 px-1.5 py-0.5 rounded">
+                            S
+                          </span>
+                        )}
+                        {(t.updated_grade ?? t.grade)?.toLowerCase() === "vip" && (
+                          <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
+                            vip
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {t.email && (
+                      <div className="mt-1 text-[12px] text-muted-foreground truncate pl-[14px]">
+                        {t.email}
+                      </div>
+                    )}
+                  </button>
                 ))}
-                {isFetching && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      <Loader
-                        size={16}
-                        className="animate-spin text-muted-foreground inline-block"
-                      />{" "}
-                      Оновлення…
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </>
+      )}
+
+      {/* Slide-out panel */}
+      <TicketPanelWrapper ticketId={selectedTicketId} onClose={handleClosePanel} />
+    </div>
   );
 }
 
-const TableLink: FC<{
-  href: string;
-  children: React.ReactNode;
-  target?: string;
-}> = ({ href, children, target }) => (
-  <Link
-    prefetch={false}
-    target={target}
-    href={href}
-    className={linkStyles}
+/* ── Shared segmented control for arrived filter ── */
+
+const ArrivedSegment: FC<{
+  value: "all" | "yes" | "no";
+  onChange: (v: "all" | "yes" | "no") => void;
+  fullWidth?: boolean;
+}> = ({ value, onChange, fullWidth }) => (
+  <div
+    className={cn(
+      "flex items-center h-8 rounded-md border border-border/60 overflow-hidden",
+      fullWidth && "w-full",
+    )}
   >
-    {children}
-  </Link>
+    {(["all", "yes", "no"] as const).map((v) => (
+      <button
+        key={v}
+        type="button"
+        onClick={() => onChange(v)}
+        className={cn(
+          "flex-1 h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
+          value === v
+            ? "bg-[#f5f5f5] text-foreground font-medium"
+            : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
+          v !== "all" && "border-l border-border/60",
+        )}
+      >
+        {v === "all" ? "Всі" : v === "yes" ? "Прибули" : "Не прибули"}
+      </button>
+    ))}
+  </div>
+);
+
+const GRADE_OPTIONS = [
+  { value: "all", label: "Всі" },
+  { value: TICKET_TYPE.STANDARD, label: "Standard" },
+  { value: TICKET_TYPE.VIP, label: "VIP" },
+] as const;
+
+const PAYMENT_OPTIONS = [
+  { value: "all", label: "Всі" },
+  { value: "stripe", label: "Stripe" },
+  { value: "manual", label: "Direct" },
+] as const;
+
+const GradeSegment: FC<{
+  value: "all" | (typeof TICKET_TYPE_LIST)[number];
+  onChange: (v: "all" | (typeof TICKET_TYPE_LIST)[number]) => void;
+}> = ({ value, onChange }) => (
+  <div className="flex items-center h-8 rounded-md border border-border/60 overflow-hidden">
+    {GRADE_OPTIONS.map((opt) => (
+      <button
+        key={opt.value}
+        type="button"
+        onClick={() => onChange(opt.value as "all" | (typeof TICKET_TYPE_LIST)[number])}
+        className={cn(
+          "h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
+          value === opt.value
+            ? "bg-[#f5f5f5] text-foreground font-medium"
+            : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
+          opt.value !== "all" && "border-l border-border/60",
+        )}
+      >
+        {opt.label}
+      </button>
+    ))}
+  </div>
+);
+
+const PaymentSegment: FC<{
+  value: "all" | "stripe" | "manual";
+  onChange: (v: "all" | "stripe" | "manual") => void;
+}> = ({ value, onChange }) => (
+  <div className="flex items-center h-8 rounded-md border border-border/60 overflow-hidden">
+    {PAYMENT_OPTIONS.map((opt) => (
+      <button
+        key={opt.value}
+        type="button"
+        onClick={() => onChange(opt.value)}
+        className={cn(
+          "flex-1 h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
+          value === opt.value
+            ? "bg-[#f5f5f5] text-foreground font-medium"
+            : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
+          opt.value !== "all" && "border-l border-border/60",
+        )}
+      >
+        {opt.label}
+      </button>
+    ))}
+  </div>
 );

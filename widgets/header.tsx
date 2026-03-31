@@ -4,18 +4,18 @@ import Link from "next/link";
 
 export const Header = () => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border h-14 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <header className="sticky top-0 z-50 w-full h-12 bg-white border-b border-border/60">
       <div className="page-container h-full flex items-center gap-6">
-        <Link href="/dashboard" className="flex items-center space-x-2 mr-4">
-          <NailIcon className="w-20" />
+        <Link href="/dashboard" className="flex items-center mr-4">
+          <NailIcon className="w-16" />
         </Link>
-        <NavLink href="/dashboard" className="flex items-center space-x-2 text-body-medium">
+        <NavLink href="/dashboard">
           Квитки
         </NavLink>
-        <NavLink href="/battle" className="flex items-center space-x-2 text-body-medium">
+        <NavLink href="/battle">
           Батл
         </NavLink>
-        <NavLink href="/speaker_vote" className="flex items-center space-x-2 text-body-medium">
+        <NavLink href="/speaker_vote">
           Спікер
         </NavLink>
       </div>
@@ -43,7 +43,7 @@ export const NailIcon: React.FC<any> = ({ size = 30, className, ...props }) => {
       focusable="false"
       {...props}
     >
-      <rect width="230" height="60" rx="10" fill="#F07706" />
+      <rect width="230" height="60" rx="10" fill="#111111" />
 
       <path
         d="M60.1796 51.5L36.9216 28.3V51.5H19.6376V8.348H37.6176L59.7736 30.446V8.348H77.0576V51.5H60.1796ZM116.114 34.216L110.198 21.108L104.224 34.216H116.114ZM124.002 51.5L121.044 45.062H99.2942L96.3362 51.5H78.6462L99.1202 8.348H122.03L142.736 51.5H124.002ZM161.998 8.348V51.5H144.308V8.348H161.998ZM168.949 8.348H186.639V38.044H212.159V51.5H168.949V8.348Z"
