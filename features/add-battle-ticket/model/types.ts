@@ -1,7 +1,13 @@
 import { z } from "zod";
-import { InsertBattleTicketClientInput } from "@/shared/db/schema.zod";
+import { insertBattleTicketClientSchema } from "@/shared/db/schema.zod";
 
-export type AddBattleTicketFormValues = InsertBattleTicketClientInput;
+export type AddBattleTicketFormInputValues = z.input<
+  typeof insertBattleTicketClientSchema
+>;
+
+export type AddBattleTicketFormValues = z.output<
+  typeof insertBattleTicketClientSchema
+>;
 
 export type AddBattleTicketFieldErrors = Partial<
   Record<keyof AddBattleTicketFormValues, string>

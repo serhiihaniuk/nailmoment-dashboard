@@ -10,13 +10,21 @@ import {
   createAddBattleTicketDefaultValues,
   mapAddBattleTicketApiErrors,
 } from "./lib";
-import { AddBattleTicketApiError, AddBattleTicketFormValues } from "./types";
+import {
+  AddBattleTicketApiError,
+  AddBattleTicketFormInputValues,
+  AddBattleTicketFormValues,
+} from "./types";
 
 export function useAddBattleTicketDialog() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const form = useForm<AddBattleTicketFormValues>({
+  const form = useForm<
+    AddBattleTicketFormInputValues,
+    undefined,
+    AddBattleTicketFormValues
+  >({
     resolver: zodResolver(insertBattleTicketClientSchema),
     defaultValues: createAddBattleTicketDefaultValues(),
   });
@@ -34,7 +42,7 @@ export function useAddBattleTicketDialog() {
           return;
         }
 
-        form.setError(fieldName as keyof AddBattleTicketFormValues, {
+        form.setError(fieldName as keyof AddBattleTicketFormInputValues, {
           type: "server",
           message,
         });
