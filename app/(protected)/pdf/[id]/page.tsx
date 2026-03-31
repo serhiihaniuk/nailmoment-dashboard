@@ -7,7 +7,7 @@ export default async function TicketPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params; // (params isn’t a promise in Next 14+)
+  const { id } = await params;
   const html = await getTicketHtml(id);
 
   if (!html) return <p className="p-6 text-center">Ticket not found 🫤</p>;
@@ -16,7 +16,7 @@ export default async function TicketPage({
     <iframe
       srcDoc={html}
       className="min-h-screen w-full border-0 bg-gray-100"
-      sandbox="" /* optional: restrict JS, etc. */
+      sandbox=""
     />
   );
 }
