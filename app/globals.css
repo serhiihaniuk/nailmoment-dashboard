@@ -133,6 +133,17 @@
 }
 
 /* ── Panel slide-in animation ── */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select,
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"] {
+    font-size: 16px !important;
+  }
+}
+
 @keyframes panel-slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
