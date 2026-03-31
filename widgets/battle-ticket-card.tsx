@@ -30,7 +30,7 @@ import {
   CameraOff,
 } from "lucide-react";
 import Link from "next/link";
-import { EditBattleTicketDialog } from "@/blocks/edit-battle-ticket-dialog";
+import { EditBattleTicketDialog } from "@/features/edit-battle-ticket";
 
 async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
   const r = await fetch(`/api/battle-ticket/${id}`);

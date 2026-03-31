@@ -18,7 +18,7 @@ import { BattleTicket } from "@/shared/db/schema";
 import { formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Camera, CameraOff } from "lucide-react";
-import { AddBattleTicketDialog } from "./add-battle-ticket-dialog";
+import { AddBattleTicketDialog } from "@/features/add-battle-ticket";
 
 async function fetchBattleTickets(): Promise<BattleTicket[]> {
   const res = await fetch("/api/battle-ticket");

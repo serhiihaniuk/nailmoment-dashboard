@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   normalizeEditableNominationQuantity,
   useEditBattleTicketDialog,
-} from "@/features/edit-battle-ticket";
+} from "../index";
 
 interface EditBattleTicketDialogProps {
   battleTicket: BattleTicket;

@@ -24,7 +24,7 @@ import { Loader2, Plus } from "lucide-react";
 import {
   normalizeNominationQuantity,
   useAddBattleTicketDialog,
-} from "@/features/add-battle-ticket";
+} from "../index";
 
 export function AddBattleTicketDialog() {
   const {
