@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export const Header = () => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b h-12 bg-card/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex items-center gap-4 h-full w-full max-w-xl px-2 mx-auto">
         <Link href="/dashboard" className="flex items-center space-x-2">
           <NailIcon className="w-20" />

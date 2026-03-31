@@ -12,11 +12,11 @@ export const dynamic = "force-dynamic";
 export default async function TicketPage({ params }: PageProps) {
   const { id } = await params;
   return (
-    <div className="container mx-auto pt-6 px-4 pb-32 border border-dashed border-gray-200">
+    <div className="container mx-auto pt-6 px-4 pb-16">
       <TicketCard ticketId={id} />
 
       <Button
-        className="mx-auto mt-6 block shadow-md w-28"
+        className="mt-6 w-28 max-w-md mx-auto block"
         variant="secondary"
         size="sm"
         asChild

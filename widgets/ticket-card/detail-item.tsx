@@ -12,10 +12,10 @@ export const DetailItem: React.FC<DetailItemProps> = ({
   value,
 }) => (
   <>
-    <span className="font-medium flex items-center gap-2">
+    <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
       {icon} {label}
     </span>
-    <span className="col-span-1 break-words flex items-center text-ellipsis overflow-hidden">
+    <span className="text-sm col-span-1 break-words flex items-center text-ellipsis overflow-hidden">
       {value}
     </span>
   </>

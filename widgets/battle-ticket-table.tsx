@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { BattleTicket } from "@/shared/db/schema";
-import { formatInstagramLink } from "@/shared/utils";
+import { formatInstagramLink, linkStyles } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Camera, CameraOff } from "lucide-react";
 import { AddBattleTicketDialog } from "@/features/add-battle-ticket";
@@ -82,17 +82,17 @@ export function BattleTicketsTable() {
       <CardContent className="px-0 min-h-20">
         <div>
           {isError && (
-            <p className="px-4 text-red-500">
+            <p className="px-4 text-red-600">
               Помилка завантаження учасників: {error?.message}
             </p>
           )}
 
-          <div className="flex flex-wrap gap-4 mb-4 px-4">
+          <div className="flex flex-wrap items-center gap-3 mb-4 mx-4 rounded-lg border bg-muted/30 px-3 py-2.5">
             <Input
               placeholder="Пошук: імʼя, email, insta, телефон, коментар"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="sm:max-w-xs text-[16px] flex-grow"
+              className="sm:max-w-xs text-[16px] flex-grow border-0 bg-background shadow-none"
             />
 
             <ToggleGroup
@@ -110,7 +110,7 @@ export function BattleTicketsTable() {
                 value="yes"
                 aria-label="Фото надіслано"
               >
-                <Camera size={16} className="mr-1 text-green-600" />
+                <Camera size={16} className="mr-1 text-emerald-600" />
               </ToggleGroupItem>
               <ToggleGroupItem
                 className="px-2"
@@ -129,18 +129,18 @@ export function BattleTicketsTable() {
         </div>
 
         {filteredBattleTickets.length > 0 && (
-          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto mx-4 rounded-lg border">
             <Table>
-              <TableHeader className="bg-muted dark:bg-muted/50">
-                <TableRow>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
                   <TableHead>#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
                   <TableHead>Номінації</TableHead>
-                  <TableHead>Фото Надіслано</TableHead>
-                  <TableHead>Електронна пошта</TableHead>
+                  <TableHead>Фото</TableHead>
+                  <TableHead>E-mail</TableHead>
                   <TableHead>Instagram</TableHead>
                   <TableHead>Телефон</TableHead>
-                  <TableHead>Дата Реєстрації</TableHead>
+                  <TableHead>Дата</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,7 +150,7 @@ export function BattleTicketsTable() {
                     <TableCell>
                       <Link
                         href={`/battle/${bt.id}`}
-                        className="text-blue-600 hover:underline dark:text-blue-400"
+                        className={linkStyles}
                       >
                         {bt.name}
                       </Link>
@@ -162,7 +162,7 @@ export function BattleTicketsTable() {
                       {bt.photos_sent ? (
                         <Camera
                           size={18}
-                          className="text-green-600 inline-block"
+                          className="text-emerald-600 inline-block"
                         />
                       ) : (
                         <CameraOff
@@ -175,12 +175,12 @@ export function BattleTicketsTable() {
                       {bt.email ? (
                         <Link
                           href={`mailto:${bt.email}`}
-                          className="text-blue-500 hover:underline dark:text-blue-400"
+                          className={linkStyles}
                         >
                           {bt.email}
                         </Link>
                       ) : (
-                        "-"
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -189,24 +189,24 @@ export function BattleTicketsTable() {
                           href={formatInstagramLink(bt.instagram)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline dark:text-blue-400"
+                          className={linkStyles}
                         >
                           {bt.instagram}
                         </a>
                       ) : (
-                        "-"
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {bt.phone ? (
                         <Link
                           href={`tel:${bt.phone.replace(/\s+/g, "")}`}
-                          className="text-blue-500 hover:underline dark:text-blue-400"
+                          className={linkStyles}
                         >
                           {bt.phone.replace(/\s+/g, "")}
                         </Link>
                       ) : (
-                        "-"
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>

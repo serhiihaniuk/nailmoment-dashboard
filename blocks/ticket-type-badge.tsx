@@ -24,7 +24,7 @@ export const TicketTypeBadge = ({ type }: { type: string }) => (
   <Badge
     variant="outline"
     className={cn(
-      "py-0.5 px-2 w-18 uppercase text-[10px] font-bold",
+      "py-0.5 px-2.5 uppercase text-[11px] font-semibold tracking-wide",
       getClasses(type)
     )}
   >

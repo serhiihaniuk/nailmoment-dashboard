@@ -64,15 +64,15 @@ export function VoteResultsTable() {
 
       <CardContent className="px-0 min-h-20">
         {isError && (
-          <p className="px-4 text-red-500">Помилка: {error?.message}</p>
+          <p className="px-4 text-red-600">Помилка: {error?.message}</p>
         )}
         {isLoading && <Skeleton className="h-24 w-full" />}
 
         {results.length > 0 && (
-          <div className="overflow-x-auto mx-2 rounded-md border border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto mx-4 rounded-lg border">
             <Table>
-              <TableHeader className="bg-muted dark:bg-muted/50">
-                <TableRow>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
                   <TableHead>#</TableHead>
                   <TableHead>Спікер</TableHead>
                   {/* <TableHead>Відео</TableHead> */}
