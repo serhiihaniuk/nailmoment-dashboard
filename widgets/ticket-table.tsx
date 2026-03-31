@@ -62,7 +62,9 @@ export function TicketsTable() {
   });
 
   const [arrived, setArrived] = useState<"all" | "yes" | "no">("all");
-  const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>("all");
+  const [grade, setGrade] = useState<"all" | (typeof TICKET_TYPE_LIST)[number]>(
+    "all",
+  );
   const [buyType, setBuyType] = useState<"all" | "stripe" | "manual">("all");
   const [query, setQuery] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
@@ -73,11 +75,14 @@ export function TicketsTable() {
   useEffect(() => {
     const ticketParam = searchParams.get("ticket");
     if (ticketParam) setSelectedTicketId(ticketParam);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleClosePanel = useCallback(() => setSelectedTicketId(null), []);
-  const handleSelectTicket = useCallback((id: string) => setSelectedTicketId(id), []);
+  const handleSelectTicket = useCallback(
+    (id: string) => setSelectedTicketId(id),
+    [],
+  );
 
   const filtered = useMemo(() => {
     if (!tickets) return [];
@@ -118,7 +123,9 @@ export function TicketsTable() {
       total: active.length,
       arrived: active.filter((t) => t.arrived).length,
       remaining: active.filter((t) => !t.arrived).length,
-      vip: active.filter((t) => (t.updated_grade ?? t.grade)?.toLowerCase() === "vip").length,
+      vip: active.filter(
+        (t) => (t.updated_grade ?? t.grade)?.toLowerCase() === "vip",
+      ).length,
     };
   }, [tickets]);
 
@@ -129,7 +136,9 @@ export function TicketsTable() {
         <h2 className="text-heading-1">
           Квитки{" "}
           {stats && (
-            <span className="text-muted-foreground font-normal text-base">{stats.total}</span>
+            <span className="text-muted-foreground font-normal text-base">
+              {stats.total}
+            </span>
           )}
         </h2>
         <AddTicketDialog />
@@ -153,7 +162,9 @@ export function TicketsTable() {
       )}
 
       {isError && (
-        <p className="text-destructive font-medium">Помилка завантаження квитків</p>
+        <p className="text-destructive font-medium">
+          Помилка завантаження квитків
+        </p>
       )}
 
       {isLoading && <Skeleton className="h-[400px] w-full rounded-xl" />}
@@ -162,10 +173,13 @@ export function TicketsTable() {
         <>
           {/* ── DESKTOP ─────────────────────────────────────────────── */}
           <div className="hidden md:block rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
-            {/* Toolbar */}
+            {/* Toolbar  */}
             <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
               <div className="relative flex-grow max-w-[220px]">
-                <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <Search
+                  size={14}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+                />
                 <Input
                   placeholder="Пошук..."
                   value={query}
@@ -186,7 +200,9 @@ export function TicketsTable() {
 
               <Select
                 value={buyType}
-                onValueChange={(v) => setBuyType((v as typeof buyType) || "all")}
+                onValueChange={(v) =>
+                  setBuyType((v as typeof buyType) || "all")
+                }
               >
                 <SelectTrigger className="h-8 gap-1 px-2 text-[12px] bg-transparent border-0 shadow-none hover:bg-muted/50 transition-colors rounded-md">
                   <span className="text-muted-foreground">Оплата:</span>
@@ -216,7 +232,9 @@ export function TicketsTable() {
             </div>
 
             {!filtered.length && !isError && (
-              <p className="text-muted-foreground text-center py-12">Квитків не знайдено.</p>
+              <p className="text-muted-foreground text-center py-12">
+                Квитків не знайдено.
+              </p>
             )}
 
             {filtered.length > 0 && (
@@ -238,7 +256,8 @@ export function TicketsTable() {
                         key={t.id}
                         className={cn(
                           "cursor-pointer",
-                          t.archived && "bg-destructive/10 hover:bg-destructive/15",
+                          t.archived &&
+                            "bg-destructive/10 hover:bg-destructive/15",
                           selectedTicketId === t.id && "bg-muted/60",
                         )}
                         onClick={() => handleSelectTicket(t.id)}
@@ -254,7 +273,8 @@ export function TicketsTable() {
                             <span className="max-w-[160px] truncate inline-block font-medium">
                               {t.name}
                             </span>
-                            {(t.updated_grade ?? t.grade)?.toLowerCase() === "vip" && (
+                            {(t.updated_grade ?? t.grade)?.toLowerCase() ===
+                              "vip" && (
                               <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
                                 vip
                               </span>
@@ -266,21 +286,27 @@ export function TicketsTable() {
                         </TableCell>
                         <TableCell>
                           {t.email ? (
-                            <span className="text-muted-foreground">{t.email}</span>
+                            <span className="text-muted-foreground">
+                              {t.email}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground/30">—</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {t.instagram ? (
-                            <span className="text-muted-foreground">{t.instagram}</span>
+                            <span className="text-muted-foreground">
+                              {t.instagram}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground/30">—</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {t.phone ? (
-                            <span className="text-muted-foreground">{t.phone.replace(/\s+/g, "")}</span>
+                            <span className="text-muted-foreground">
+                              {t.phone.replace(/\s+/g, "")}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground/30">—</span>
                           )}
@@ -297,7 +323,10 @@ export function TicketsTable() {
                     {isFetching && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center">
-                          <Loader size={16} className="animate-spin text-muted-foreground inline-block" />{" "}
+                          <Loader
+                            size={16}
+                            className="animate-spin text-muted-foreground inline-block"
+                          />{" "}
                           Оновлення…
                         </TableCell>
                       </TableRow>
@@ -313,7 +342,10 @@ export function TicketsTable() {
             {/* Sticky search + filter — stacks above the card list */}
             <div className="sticky top-12 z-40 bg-white border border-border/60 rounded-xl shadow-surface">
               <div className="relative px-3 pt-2.5 pb-2 border-b border-border/40">
-                <Search size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <Search
+                  size={14}
+                  className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+                />
                 <Input
                   placeholder="Пошук..."
                   value={query}
@@ -322,13 +354,19 @@ export function TicketsTable() {
                 />
               </div>
               <div className="px-3 py-2">
-                <ArrivedSegment value={arrived} onChange={setArrived} fullWidth />
+                <ArrivedSegment
+                  value={arrived}
+                  onChange={setArrived}
+                  fullWidth
+                />
               </div>
             </div>
 
             {/* Cards */}
             {!filtered.length && !isError && (
-              <p className="text-muted-foreground text-center py-12">Квитків не знайдено.</p>
+              <p className="text-muted-foreground text-center py-12">
+                Квитків не знайдено.
+              </p>
             )}
             {filtered.length > 0 && (
               <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden">
@@ -351,7 +389,9 @@ export function TicketsTable() {
                             t.arrived ? "bg-[#1a7f37]" : "bg-[#cccccc]",
                           )}
                         />
-                        <span className="text-[13px] font-medium truncate">{t.name}</span>
+                        <span className="text-[13px] font-medium truncate">
+                          {t.name}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {!t.stripe_event_id.startsWith("manual") && (
@@ -359,7 +399,8 @@ export function TicketsTable() {
                             S
                           </span>
                         )}
-                        {(t.updated_grade ?? t.grade)?.toLowerCase() === "vip" && (
+                        {(t.updated_grade ?? t.grade)?.toLowerCase() ===
+                          "vip" && (
                           <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
                             vip
                           </span>
@@ -380,7 +421,10 @@ export function TicketsTable() {
       )}
 
       {/* Slide-out panel */}
-      <TicketPanelWrapper ticketId={selectedTicketId} onClose={handleClosePanel} />
+      <TicketPanelWrapper
+        ticketId={selectedTicketId}
+        onClose={handleClosePanel}
+      />
     </div>
   );
 }
@@ -432,7 +476,9 @@ const GradeSegment: FC<{
       <button
         key={opt.value}
         type="button"
-        onClick={() => onChange(opt.value as "all" | (typeof TICKET_TYPE_LIST)[number])}
+        onClick={() =>
+          onChange(opt.value as "all" | (typeof TICKET_TYPE_LIST)[number])
+        }
         className={cn(
           "h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
           value === opt.value
