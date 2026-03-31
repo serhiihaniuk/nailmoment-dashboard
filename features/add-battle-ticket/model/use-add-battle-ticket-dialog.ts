@@ -57,6 +57,10 @@ export function useAddBattleTicketDialog() {
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      resetDialogState();
+    }
+
     setOpen(nextOpen);
 
     if (!nextOpen) {
@@ -64,24 +68,16 @@ export function useAddBattleTicketDialog() {
     }
   };
 
-  const submitForm = form.handleSubmit((values) => {
+  const handleSubmit = form.handleSubmit((values) => {
     form.clearErrors();
     mutation.mutate(values);
   });
 
-  const handlePrimaryAction = () => {
-    if (mutation.isSuccess) {
-      handleOpenChange(false);
-      return;
-    }
-
-    void submitForm();
-  };
-
   return {
+    closeDialog: () => handleOpenChange(false),
     form,
     handleOpenChange,
-    handlePrimaryAction,
+    handleSubmit,
     isPending: mutation.isPending,
     isSuccess: mutation.isSuccess,
     isLocked: mutation.isPending || mutation.isSuccess,

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useId } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,10 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Pencil, Camera, CameraOff } from "lucide-react";
 import { BattleTicket } from "@/shared/db/schema";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  normalizeEditableNominationQuantity,
-  useEditBattleTicketDialog,
-} from "../index";
+import { normalizeEditableNominationQuantity } from "../model/lib";
+import { useEditBattleTicketDialog } from "../model/use-edit-battle-ticket-dialog";
 
 interface EditBattleTicketDialogProps {
   battleTicket: BattleTicket;
@@ -31,6 +30,7 @@ export function EditBattleTicketDialog({
   battleTicket,
   battleTicketId,
 }: EditBattleTicketDialogProps) {
+  const formId = useId();
   const { form, handleOpenChange, handleSubmit, isPending, open } =
     useEditBattleTicketDialog({
       battleTicket,
@@ -51,10 +51,8 @@ export function EditBattleTicketDialog({
 
         <Form {...form}>
           <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleSubmit();
-            }}
+            id={formId}
+            onSubmit={handleSubmit}
             className="grid gap-4 py-4"
           >
             <FormField
@@ -195,7 +193,7 @@ export function EditBattleTicketDialog({
         </Form>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button type="submit" form={formId} disabled={isPending}>
             {isPending ? (
               <Loader2 className="animate-spin" size={16} />
             ) : (

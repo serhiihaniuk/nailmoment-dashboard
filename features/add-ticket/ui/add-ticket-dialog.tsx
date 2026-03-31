@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useId } from "react";
+import React, { useId } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +18,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
-import { normalizeNominationQuantity } from "../model/lib";
-import { useAddBattleTicketDialog } from "../model/use-add-battle-ticket-dialog";
+import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
+import { TICKET_TYPE_LIST } from "@/shared/const";
+import { useAddTicketDialog } from "../model/use-add-ticket-dialog";
+import { StatusBanner } from "./status-banner";
 
-export function AddBattleTicketDialog() {
+export function AddTicketDialog() {
   const formId = useId();
   const {
     closeDialog,
@@ -36,27 +43,24 @@ export function AddBattleTicketDialog() {
     isSuccess,
     isLocked,
     open,
-  } = useAddBattleTicketDialog();
+    serverStatus,
+  } = useAddTicketDialog();
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" variant="default" className="gap-1">
-          <Plus size={14} /> Додати Учасника
+          <Plus size={14} /> Додати квиток
         </Button>
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-[420px] top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
         <DialogHeader>
-          <DialogTitle>Новий Учасник Батлу</DialogTitle>
+          <DialogTitle>Новий квиток</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form
-            id={formId}
-            onSubmit={handleSubmit}
-            className="grid gap-4 py-4"
-          >
+          <form id={formId} onSubmit={handleSubmit} className="grid gap-4 py-4">
             <FormField
               control={form.control}
               name="name"
@@ -67,7 +71,7 @@ export function AddBattleTicketDialog() {
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="Ім’я учасника"
+                        placeholder="Ім’я користувача"
                         disabled={isLocked}
                       />
                     </FormControl>
@@ -129,7 +133,7 @@ export function AddBattleTicketDialog() {
                       <Input
                         {...field}
                         value={field.value ?? ""}
-                        placeholder="battle_participant_insta"
+                        placeholder="nail_moment_pl"
                         disabled={isLocked}
                       />
                     </FormControl>
@@ -141,50 +145,29 @@ export function AddBattleTicketDialog() {
 
             <FormField
               control={form.control}
-              name="nomination_quantity"
+              name="grade"
               render={({ field }) => (
                 <FormItem className="grid grid-cols-4 items-center gap-4">
-                  <FormLabel className="text-left">
-                    Кількість номінацій
-                  </FormLabel>
+                  <FormLabel className="text-left">Тип квитка</FormLabel>
                   <div className="col-span-3">
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={field.value}
-                        onChange={(event) =>
-                          field.onChange(
-                            normalizeNominationQuantity(event.target.value),
-                          )
-                        }
-                        disabled={isLocked}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="comment"
-              render={({ field }) => (
-                <FormItem className="grid grid-cols-4 items-center gap-4">
-                  <FormLabel className="text-left">
-                    Коментар (опціонально)
-                  </FormLabel>
-                  <div className="col-span-3">
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        value={field.value ?? ""}
-                        placeholder="Додаткова інформація..."
-                        className="h-24"
-                        disabled={isLocked}
-                      />
-                    </FormControl>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={isLocked}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {TICKET_TYPE_LIST.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            <TicketTypeBadge type={type} />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage className="text-xs" />
                   </div>
                 </FormItem>
@@ -192,6 +175,8 @@ export function AddBattleTicketDialog() {
             />
           </form>
         </Form>
+
+        <StatusBanner status={serverStatus} />
 
         <DialogFooter>
           <Button
@@ -205,7 +190,7 @@ export function AddBattleTicketDialog() {
             ) : isSuccess ? (
               "Закрити"
             ) : (
-              "Створити Учасника"
+              "Створити"
             )}
           </Button>
         </DialogFooter>

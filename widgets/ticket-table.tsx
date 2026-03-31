@@ -28,7 +28,7 @@ import { cn, formatInstagramLink } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import { Check, Instagram, Loader, Mail, Phone, X } from "lucide-react";
-import { AddTicketDialog } from "./add-ticket-dialog";
+import { AddTicketDialog } from "@/features/add-ticket";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
 import { CheckedState } from "@radix-ui/react-checkbox";

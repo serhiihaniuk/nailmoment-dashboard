@@ -31,7 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
-import { EditTicketDialog } from "@/blocks/edit-ticket-dialog";
+import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import Link from "next/link";
 import { TicketWithPayments } from "@/shared/db/service/ticket-service";
@@ -244,14 +244,6 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
     },
   });
 
-  const editMutation = useMutation({
-    mutationFn: (patch: UpdateTicketInput) => patchTicket(ticketId, patch),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
-    },
-  });
-
   const renderContent = () => {
     if (isLoading) return <LoadingState />;
     if (isError)
@@ -295,7 +287,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
 
       {data && (
         <CardFooter className="pt-4 flex gap-2 border-t flex-col md:flex-row items-stretch">
-          <EditTicketDialog ticket={data} mutation={editMutation} />
+          <EditTicketDialog ticket={data} ticketId={ticketId} />
           {!data.archived && (
             <Button
               variant={data.arrived ? "outline" : "default"}
