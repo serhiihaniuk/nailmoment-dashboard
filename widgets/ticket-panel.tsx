@@ -4,13 +4,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
-import {
-  Loader2,
-  AlertTriangle,
-  Ghost,
-  ArrowRight,
-  Check,
-} from "lucide-react";
+import { Loader2, AlertTriangle, Ghost, ArrowRight, Check } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
@@ -26,7 +20,10 @@ async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
   return r.json();
 }
 
-async function patchArrived(id: string, arrived: boolean): Promise<TicketWithPayments> {
+async function patchArrived(
+  id: string,
+  arrived: boolean,
+): Promise<TicketWithPayments> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -36,7 +33,13 @@ async function patchArrived(id: string, arrived: boolean): Promise<TicketWithPay
   return r.json();
 }
 
-export function TicketPanelWrapper({ ticketId, onClose }: { ticketId: string | null; onClose: () => void }) {
+export function TicketPanelWrapper({
+  ticketId,
+  onClose,
+}: {
+  ticketId: string | null;
+  onClose: () => void;
+}) {
   return (
     <SlidePanel
       open={!!ticketId}
@@ -103,10 +106,11 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
   );
 }
 
-/* ── Scrollable panel body ── */
-
 export function TicketPanelContent({ ticketId }: { ticketId: string }) {
-  const { data, isLoading, isError, error } = useQuery<TicketWithPayments | null, Error>({
+  const { data, isLoading, isError, error } = useQuery<
+    TicketWithPayments | null,
+    Error
+  >({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
@@ -126,7 +130,9 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
     return (
       <div className="flex flex-col items-center gap-2 pt-16 text-destructive">
         <AlertTriangle size={20} />
-        <span className="text-sm font-medium">{error?.message || "Помилка завантаження"}</span>
+        <span className="text-sm font-medium">
+          {error?.message || "Помилка завантаження"}
+        </span>
       </div>
     );
   }
@@ -149,7 +155,10 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
       {/* Identity */}
       <div className="pt-4 pb-4">
         {ticket.archived && (
-          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 mb-2 inline-flex">
+          <Badge
+            variant="destructive"
+            className="text-[10px] px-1.5 py-0 mb-2 inline-flex"
+          >
             DELETED
           </Badge>
         )}
@@ -171,12 +180,12 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
 
       {/* Status strip — the hero element */}
       {!ticket.archived && (
-        <div className={cn(
-          "rounded-lg px-4 py-4 mb-4",
-          ticket.arrived
-            ? "bg-[#1a7f37]/15"
-            : "bg-muted/50",
-        )}>
+        <div
+          className={cn(
+            "rounded-lg px-4 py-4 mb-4",
+            ticket.arrived ? "bg-[#1a7f37]/15" : "bg-muted/50",
+          )}
+        >
           {ticket.arrived ? (
             <span className="flex items-center gap-2.5 text-[20px] font-semibold text-[#1a7f37]">
               <Check size={22} strokeWidth={2.5} />
@@ -195,21 +204,50 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
       <div className="border-t border-border/60 py-5">
         <h3 className="text-label-caps mb-3">Контакти</h3>
         <div className="flex flex-col gap-2.5">
-          <PanelRow label="E-mail" value={
-            ticket.email
-              ? <Link href={`mailto:${ticket.email}`} className={linkStyles}>{ticket.email}</Link>
-              : "—"
-          } />
-          <PanelRow label="Телефон" value={
-            ticket.phone
-              ? <Link href={`tel:${ticket.phone.replace(/\s+/g, "")}`} className={linkStyles}>{ticket.phone.replace(/\s+/g, "")}</Link>
-              : "—"
-          } />
-          <PanelRow label="Instagram" value={
-            ticket.instagram
-              ? <a href={formatInstagramLink(ticket.instagram)} target="_blank" rel="noopener noreferrer" className={linkStyles}>@{ticket.instagram}</a>
-              : "—"
-          } />
+          <PanelRow
+            label="E-mail"
+            value={
+              ticket.email ? (
+                <Link href={`mailto:${ticket.email}`} className={linkStyles}>
+                  {ticket.email}
+                </Link>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <PanelRow
+            label="Телефон"
+            value={
+              ticket.phone ? (
+                <Link
+                  href={`tel:${ticket.phone.replace(/\s+/g, "")}`}
+                  className={linkStyles}
+                >
+                  {ticket.phone.replace(/\s+/g, "")}
+                </Link>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <PanelRow
+            label="Instagram"
+            value={
+              ticket.instagram ? (
+                <a
+                  href={formatInstagramLink(ticket.instagram)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={linkStyles}
+                >
+                  @{ticket.instagram}
+                </a>
+              ) : (
+                "—"
+              )
+            }
+          />
         </div>
       </div>
 
@@ -226,11 +264,19 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
             })}
           />
           <PanelRow label="Коментар" value={ticket.comment || "—"} />
-          <PanelRow label="QR квиток" value={
-            <Link href={`/pdf/${ticket.id}`} target="_blank" rel="noopener noreferrer" className={linkStyles}>
-              Переглянути / Завантажити
-            </Link>
-          } />
+          <PanelRow
+            label="QR квиток"
+            value={
+              <Link
+                href={`/pdf/${ticket.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkStyles}
+              >
+                Переглянути / Завантажити
+              </Link>
+            }
+          />
         </div>
 
         <div className="mt-4">
@@ -238,7 +284,10 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
             ticket={ticket}
             ticketId={ticketId}
             trigger={
-              <button type="button" className="text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                type="button"
+                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
                 Редагувати
               </button>
             }
@@ -252,8 +301,12 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
 function PanelRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline gap-3">
-      <span className="text-[12px] text-muted-foreground w-28 shrink-0">{label}</span>
-      <span className="text-[13px] text-foreground min-w-0 break-words">{value}</span>
+      <span className="text-[12px] text-muted-foreground w-28 shrink-0">
+        {label}
+      </span>
+      <span className="text-[13px] text-foreground min-w-0 break-words">
+        {value}
+      </span>
     </div>
   );
 }
