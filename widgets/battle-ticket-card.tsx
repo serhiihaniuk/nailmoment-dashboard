@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardHeader,
@@ -13,7 +13,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatInstagramLink } from "@/shared/utils";
 import { BattleTicket } from "@/shared/db/schema";
-import { UpdateBattleTicketInput } from "@/shared/db/schema.zod";
 import {
   Loader2,
   AlertTriangle,
@@ -44,47 +43,11 @@ async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
   return r.json();
 }
 
-async function patchBattleTicket(
-  id: string,
-  patch: UpdateBattleTicketInput,
-): Promise<BattleTicket> {
-  const r = await fetch(`/api/battle-ticket/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!r.ok) {
-    let errorMessage = `Failed to update battle ticket: ${r.statusText}`;
-    try {
-      const errorResponse = await r.json();
-      if (errorResponse && errorResponse.message) {
-        errorMessage = errorResponse.message;
-        if (errorResponse.errors) {
-          const fieldErrors = Object.entries(errorResponse.errors)
-            .map(
-              ([field, errors]) =>
-                `${field}: ${(errors as string[]).join(", ")}`,
-            )
-            .join("; ");
-          errorMessage += ` (${fieldErrors})`;
-        }
-      }
-    } catch (e) {
-      console.error("Error parsing error response for patchBattleTicket:", e);
-    }
-    console.error("Patch battle ticket error:", r.status, errorMessage);
-    throw new Error(errorMessage);
-  }
-  return r.json();
-}
-
 interface BattleTicketCardProps {
   battleTicketId: string;
 }
 
 export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
-  const queryClient = useQueryClient();
-
   const {
     data: battleTicket,
     isLoading,
@@ -93,24 +56,6 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
   } = useQuery<BattleTicket | null, Error>({
     queryKey: ["battleTicket", battleTicketId],
     queryFn: () => fetchBattleTicket(battleTicketId),
-  });
-
-  const editMutation = useMutation<
-    BattleTicket,
-    Error,
-    UpdateBattleTicketInput
-  >({
-    mutationFn: (patchData) => patchBattleTicket(battleTicketId, patchData),
-    onSuccess: (updatedData) => {
-      queryClient.invalidateQueries({
-        queryKey: ["battleTicket", battleTicketId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["battleTickets"] });
-      console.log(`Battle ticket "${updatedData.name}" updated successfully.`);
-    },
-    onError: (error) => {
-      console.error("Failed to update battle ticket:", error.message);
-    },
   });
 
   if (isError && !isLoading) {
@@ -287,7 +232,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
         <CardFooter className="pt-4 flex justify-start">
           <EditBattleTicketDialog
             battleTicket={battleTicket}
-            mutation={editMutation}
+            battleTicketId={battleTicketId}
           />
         </CardFooter>
       )}
