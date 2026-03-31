@@ -136,7 +136,7 @@ export function BattleTicketsTable() {
                 placeholder="Пошук..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-7 h-8 border-0 bg-transparent shadow-none text-[13px] placeholder:text-muted-foreground/40"
+                className="pl-7 h-8 border-0 bg-transparent shadow-none text-base md:text-[13px] placeholder:text-muted-foreground/40"
               />
             </div>
 
