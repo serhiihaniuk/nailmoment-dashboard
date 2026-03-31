@@ -33,6 +33,22 @@ async function fetchTickets(): Promise<Ticket[]> {
   return res.json();
 }
 
+function matchesSubsequence(query: string, value?: string | null) {
+  if (!value) return false;
+
+  let queryIndex = 0;
+  const normalizedValue = value.toLowerCase();
+
+  for (const char of normalizedValue) {
+    if (char === query[queryIndex]) {
+      queryIndex += 1;
+      if (queryIndex === query.length) return true;
+    }
+  }
+
+  return false;
+}
+
 export function TicketsTable() {
   const {
     data: tickets,
@@ -84,8 +100,11 @@ export function TicketsTable() {
         if (!query.trim()) return true;
         const q = query.toLowerCase();
         return (
+          t.id?.toLowerCase().includes(q) ||
+          matchesSubsequence(q, t.id) ||
           t.name?.toLowerCase().includes(q) ||
           t.email?.toLowerCase().includes(q) ||
+          matchesSubsequence(q, t.email) ||
           t.phone?.toLowerCase().includes(q) ||
           t.instagram?.toLowerCase().includes(q)
         );

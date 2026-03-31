@@ -26,6 +26,22 @@ async function fetchBattleTickets(): Promise<BattleTicket[]> {
   return res.json();
 }
 
+function matchesSubsequence(query: string, value?: string | null) {
+  if (!value) return false;
+
+  let queryIndex = 0;
+  const normalizedValue = value.toLowerCase();
+
+  for (const char of normalizedValue) {
+    if (char === query[queryIndex]) {
+      queryIndex += 1;
+      if (queryIndex === query.length) return true;
+    }
+  }
+
+  return false;
+}
+
 export function BattleTicketsTable() {
   const {
     data: battleTickets,
@@ -67,8 +83,11 @@ export function BattleTicketsTable() {
         if (!query.trim()) return true;
         const q = query.toLowerCase();
         return (
+          bt.id?.toLowerCase().includes(q) ||
+          matchesSubsequence(q, bt.id) ||
           bt.name?.toLowerCase().includes(q) ||
           bt.email?.toLowerCase().includes(q) ||
+          matchesSubsequence(q, bt.email) ||
           bt.phone?.toLowerCase().includes(q) ||
           bt.instagram?.toLowerCase().includes(q) ||
           bt.comment?.toLowerCase().includes(q)
