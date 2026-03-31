@@ -222,7 +222,7 @@ export async function POST(req: Request) {
 
           const qrCodeUrl = await generateAndStoreQRCode(
             `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
-            `moment-qr/festival/qr-code-${ticketId}.png`
+            `moment-qr/festival_2026/qr-code-${ticketId}.png`
           );
 
           await db.insert(ticketTable).values({

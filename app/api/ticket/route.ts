@@ -43,7 +43,7 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
 
   const qr_code = await generateAndStoreQRCode(
     `https://dashboard.nailmoment.pl/ticket/${id}`,
-    `moment-qr/festival/qr-code-${id}.png`
+    `moment-qr/festival_2026/qr-code-${id}.png`
   );
 
   return insertTicketSchema.parse({
