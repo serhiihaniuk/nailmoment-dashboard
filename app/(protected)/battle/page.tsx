@@ -5,7 +5,7 @@ import React from "react";
 
 export default function BattlePage() {
   return (
-    <div className="w-full flex flex-col gap-4 max-w-screen-lg mx-auto p-4 pb-10">
+    <div className="page-container py-8 flex flex-col gap-6">
       <BattleTicketsTable />
     </div>
   );

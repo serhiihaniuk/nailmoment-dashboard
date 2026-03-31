@@ -35,9 +35,9 @@ import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import Link from "next/link";
 import { TicketWithPayments } from "@/shared/db/service/ticket-service";
-import { DetailItem } from "./detail-item";
 import { TicketPayments } from "./ticket-payment";
 import { Badge } from "@/components/ui/badge";
+import { DetailGrid, DetailItem } from "@/components/ui/detail-grid";
 
 async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
   const r = await fetch(`/api/ticket/${id}`);
@@ -71,16 +71,16 @@ interface TicketDetailsProps {
 }
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
-  <div className="space-y-3">
-    <h3 className="text-sm font-semibold">Деталі квитка</h3>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-sm">
+  <div className="flex flex-col gap-6 w-full">
+    <h3 className="text-heading-2 border-b border-border pb-2">Деталі квитка</h3>
+    <DetailGrid>
       <DetailItem
-        icon={<User size={14} className="text-muted-foreground" />}
+        icon={<User />}
         label="Імʼя"
         value={ticket.name}
       />
       <DetailItem
-        icon={<Mail size={14} className="text-muted-foreground" />}
+        icon={<Mail />}
         label="Електронна пошта"
         value={
           <Link
@@ -93,7 +93,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         }
       />
       <DetailItem
-        icon={<Instagram size={14} className="text-muted-foreground" />}
+        icon={<Instagram />}
         label="Instagram"
         value={
           ticket.instagram ? (
@@ -111,7 +111,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         }
       />
       <DetailItem
-        icon={<Phone size={14} className="text-muted-foreground" />}
+        icon={<Phone />}
         label="Телефон"
         value={
           <Link
@@ -123,7 +123,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         }
       />
       <DetailItem
-        icon={<BadgeCheck size={14} className="text-muted-foreground" />}
+        icon={<BadgeCheck />}
         label="Тип"
         value={
           <span className="flex items-center gap-2">
@@ -138,7 +138,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         }
       />
       <DetailItem
-        icon={<CalendarClock size={14} className="text-muted-foreground" />}
+        icon={<CalendarClock />}
         label="Дата покупки"
         value={new Date(ticket.date).toLocaleDateString("uk-UA", {
           year: "numeric",
@@ -148,24 +148,24 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
       />
       <DetailItem
         icon={
-          <ArrowBigDownDashIcon size={14} className="text-muted-foreground" />
+          <ArrowBigDownDashIcon />
         }
         label="Прибув(ла)"
         value={
           ticket.arrived ? (
-            <Check size={18} className="text-emerald-600" />
+            <Check size={18} className="text-success" />
           ) : (
-            <X size={18} className="text-red-600" />
+            <X size={18} className="text-destructive" />
           )
         }
       />
       <DetailItem
-        icon={<Text size={14} className="text-muted-foreground" />}
+        icon={<Text />}
         label="Коментар"
         value={ticket.comment || "-"}
       />
       <DetailItem
-        icon={<FileText size={14} className="text-muted-foreground" />}
+        icon={<FileText />}
         label="QR Квиток"
         value={
           <Link
@@ -178,7 +178,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
           </Link>
         }
       />
-    </div>
+    </DetailGrid>
   </div>
 );
 
@@ -202,7 +202,7 @@ const ErrorState: React.FC<{ message: string; height?: string }> = ({
 }) => (
   <div
     className={cn(
-      "flex items-center gap-2 text-red-600 justify-center",
+      "flex items-center gap-2 text-destructive font-medium justify-center",
       height
     )}
   >
@@ -268,21 +268,21 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
   return (
     <Card className="max-w-md mx-auto">
       <CardHeader
-        className={cn("py-6 transition-colors duration-300", {
-          "bg-emerald-50": data?.arrived && !data?.archived,
-          "bg-muted": !data?.arrived || data === null || isLoading || isError,
-          "!bg-destructive/10": data?.archived,
+        className={cn("transition-colors duration-300", {
+          "bg-success/15": data?.arrived && !data?.archived,
+          "bg-muted/30": !data?.arrived || data === null || isLoading || isError,
+          "bg-destructive/10": data?.archived,
         })}
       >
-        <CardTitle className="text-lg flex items-center gap-2">
-          Квиток {data?.name || "..."}{" "}
-          {data?.arrived && <Check size={16} className="text-emerald-600" />}
-          {data?.archived && <Badge className="bg-destructive">DELETED</Badge>}
+        <CardTitle className="flex items-center gap-2">
+          Квиток {data?.name ? <span className="font-bold underline">{data.name}</span> : "..."}{" "}
+          {data?.arrived && <Check size={18} className="text-success" />}
+          {data?.archived && <Badge variant="destructive">DELETED</Badge>}
         </CardTitle>
         <CardDescription>#{ticketId.slice(-6)}</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6 pt-6">{renderContent()}</CardContent>
+      <CardContent className="flex flex-col gap-6 pt-6">{renderContent()}</CardContent>
 
       {data && (
         <CardFooter className="pt-4 flex gap-2 border-t flex-col md:flex-row items-stretch">

@@ -79,20 +79,20 @@ export function BattleTicketsTable() {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="px-0 min-h-20">
+      <CardContent className="flex flex-col gap-6">
         <div>
           {isError && (
-            <p className="px-4 text-red-600">
+            <p className="text-destructive font-medium">
               Помилка завантаження учасників: {error?.message}
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 mb-4 mx-4 rounded-lg border bg-muted/30 px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
             <Input
               placeholder="Пошук: імʼя, email, insta, телефон, коментар"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="sm:max-w-xs text-[16px] flex-grow border-0 bg-background shadow-none"
+              className="sm:max-w-xs flex-grow border-0 bg-background shadow-none"
             />
 
             <ToggleGroup
@@ -103,40 +103,41 @@ export function BattleTicketsTable() {
                 setPhotosSentFilter((v as typeof photosSentFilter) || "all")
               }
               aria-label="Фільтр по статусу відправки фото"
+              className="gap-1 bg-background"
             >
-              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
+              <ToggleGroupItem value="all" className="h-8 px-3">Всі</ToggleGroupItem>
               <ToggleGroupItem
-                className="px-2"
+                className="h-8 px-2"
                 value="yes"
                 aria-label="Фото надіслано"
               >
-                <Camera size={16} className="mr-1 text-emerald-600" />
+                <Camera size={16} className="text-success" />
               </ToggleGroupItem>
               <ToggleGroupItem
-                className="px-2"
+                className="h-8 px-2"
                 value="no"
                 aria-label="Фото не надіслано"
               >
-                <CameraOff size={16} className="mr-1 text-red-600" />
+                <CameraOff size={16} className="text-destructive" />
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
 
-          {isLoading && <Skeleton className="h-36 w-full" />}
+          {isLoading && <Skeleton className="h-[400px] w-full rounded-md mt-6" />}
           {!filteredBattleTickets.length && !isError && !isLoading && (
-            <p className="px-4">Учасників не знайдено.</p>
+            <p className="text-muted-foreground mt-4">Учасників не знайдено.</p>
           )}
         </div>
 
         {filteredBattleTickets.length > 0 && (
-          <div className="overflow-x-auto mx-4 rounded-lg border">
+          <div className="w-full">
             <Table>
-              <TableHeader className="bg-muted/50">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>#</TableHead>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
-                  <TableHead>Номінації</TableHead>
-                  <TableHead>Фото</TableHead>
+                  <TableHead className="text-center">Номінації</TableHead>
+                  <TableHead className="text-center">Фото</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Instagram</TableHead>
                   <TableHead>Телефон</TableHead>
@@ -162,12 +163,12 @@ export function BattleTicketsTable() {
                       {bt.photos_sent ? (
                         <Camera
                           size={18}
-                          className="text-emerald-600 inline-block"
+                          className="text-success inline-block"
                         />
                       ) : (
                         <CameraOff
                           size={18}
-                          className="text-red-600 inline-block"
+                          className="text-destructive inline-block"
                         />
                       )}
                     </TableCell>

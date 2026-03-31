@@ -62,18 +62,18 @@ export function VoteResultsTable() {
         <CardTitle>Результати голосування народний Спікер</CardTitle>
       </CardHeader>
 
-      <CardContent className="px-0 min-h-20">
+      <CardContent className="flex flex-col gap-6">
         {isError && (
-          <p className="px-4 text-red-600">Помилка: {error?.message}</p>
+          <p className="text-destructive font-medium">Помилка: {error?.message}</p>
         )}
         {isLoading && <Skeleton className="h-24 w-full" />}
 
         {results.length > 0 && (
-          <div className="overflow-x-auto mx-4 rounded-lg border">
+          <div className="w-full">
             <Table>
-              <TableHeader className="bg-muted/50">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>#</TableHead>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Спікер</TableHead>
                   {/* <TableHead>Відео</TableHead> */}
                   <TableHead className="text-center">Голосів</TableHead>
@@ -83,7 +83,7 @@ export function VoteResultsTable() {
               <TableBody>
                 {results.map((r, i) => (
                   <TableRow key={r.id}>
-                    <TableCell>{i + 1}</TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
                     <TableCell>{r.name}</TableCell>
                     {/* <TableCell>{r.id}</TableCell> */}
                     <TableCell className="text-center font-semibold">
@@ -98,7 +98,7 @@ export function VoteResultsTable() {
         )}
 
         {!isLoading && !results.length && !isError && (
-          <p className="px-4">Дані відсутні.</p>
+          <p className="text-muted-foreground">Дані відсутні.</p>
         )}
       </CardContent>
     </Card>

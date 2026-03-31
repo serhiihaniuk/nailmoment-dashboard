@@ -4,18 +4,18 @@ import Link from "next/link";
 
 export const Header = () => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b h-12 bg-card/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="flex items-center gap-4 h-full w-full max-w-xl px-2 mx-auto">
-        <Link href="/dashboard" className="flex items-center space-x-2">
+    <header className="sticky top-0 z-50 w-full border-b border-border h-14 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="page-container h-full flex items-center gap-6">
+        <Link href="/dashboard" className="flex items-center space-x-2 mr-4">
           <NailIcon className="w-20" />
         </Link>
-        <NavLink href="/dashboard" className="flex items-center space-x-2">
+        <NavLink href="/dashboard" className="flex items-center space-x-2 text-body-medium">
           Квитки
         </NavLink>
-        <NavLink href="/battle" className="flex items-center space-x-2">
+        <NavLink href="/battle" className="flex items-center space-x-2 text-body-medium">
           Батл
         </NavLink>
-        <NavLink href="/speaker_vote" className="flex items-center space-x-2">
+        <NavLink href="/speaker_vote" className="flex items-center space-x-2 text-body-medium">
           Спікер
         </NavLink>
       </div>

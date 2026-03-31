@@ -97,44 +97,45 @@ export function TicketsTable() {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="px-0 min-h-20">
+      <CardContent className="flex flex-col gap-6">
         {isError && (
-          <p className="p-4 text-red-600">Помилка завантаження квитків</p>
+          <p className="text-destructive font-medium">Помилка завантаження квитків</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 mb-4 mx-4 rounded-lg border bg-muted/30 px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
           <Input
             placeholder="Пошук: ім'я, email, insta, телефон"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs text-[16px] flex-grow border-0 bg-background shadow-none"
+            className="sm:max-w-xs flex-grow border-0 bg-background shadow-none"
           />
 
-          <Label className="flex gap-2 items-center text-sm">
+          <Label className="flex gap-2 items-center text-body-medium">
             Прибув(ла)
             <ToggleGroup
               type="single"
               variant="outline"
               value={arrived}
               onValueChange={(v) => setArrived((v as typeof arrived) || "all")}
+              className="gap-1 bg-background"
             >
-              <ToggleGroupItem value="all">Всі</ToggleGroupItem>
-              <ToggleGroupItem className="px-2" value="yes">
-                <Check size={16} className="text-emerald-600" />
+              <ToggleGroupItem value="all" className="h-8 px-3">Всі</ToggleGroupItem>
+              <ToggleGroupItem className="h-8 px-2" value="yes">
+                <Check size={16} className="text-success" />
               </ToggleGroupItem>
-              <ToggleGroupItem className="px-2" value="no">
-                <X size={14} className="text-red-600" />
+              <ToggleGroupItem className="h-8 px-2" value="no">
+                <X size={14} className="text-destructive" />
               </ToggleGroupItem>
             </ToggleGroup>
           </Label>
 
-          <Label className="flex gap-2 items-center text-sm">
+          <Label className="flex gap-2 items-center text-body-medium">
             Тип
             <Select
               value={grade}
               onValueChange={(v) => setGrade((v as typeof grade) || "all")}
             >
-              <SelectTrigger className="h-8 w-32 px-2">
+              <SelectTrigger className="h-8 w-32 px-3 bg-background">
                 <SelectValue placeholder="Всі" />
               </SelectTrigger>
               <SelectContent>
@@ -148,13 +149,13 @@ export function TicketsTable() {
             </Select>
           </Label>
 
-          <Label className="flex gap-2 items-center text-sm">
+          <Label className="flex gap-2 items-center text-body-medium">
             Оплата
             <Select
               value={buyType}
               onValueChange={(v) => setBuyType((v as typeof buyType) || "all")}
             >
-              <SelectTrigger className="h-8 w-28 px-2">
+              <SelectTrigger className="h-8 w-28 px-3 bg-background">
                 <SelectValue placeholder="Всі" />
               </SelectTrigger>
               <SelectContent>
@@ -165,7 +166,7 @@ export function TicketsTable() {
             </Select>
           </Label>
 
-          <Label className="flex gap-2 items-center text-sm">
+          <Label className="flex gap-2 items-center text-body-medium">
             Показати видалені
             <Checkbox
               checked={showDeleted}
@@ -175,41 +176,38 @@ export function TicketsTable() {
           </Label>
         </div>
 
-        {isLoading && <Skeleton className="h-[2000px] mx-2 rounded-md" />}
+        {isLoading && <Skeleton className="h-[400px] w-full rounded-md" />}
         {!filtered.length && !isError && !isLoading && (
-          <p className="px-4 rounded-md">Квитків не знайдено.</p>
+          <p className="text-muted-foreground">Квитків не знайдено.</p>
         )}
 
         {filtered.length > 0 && (
-          <div className="overflow-x-auto mx-4 rounded-lg border">
+          <div className="w-full">
             <Table>
-              <TableHeader className="bg-muted/50">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="sticky left-0 z-10 bg-muted/50">#</TableHead>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Ім&apos;я</TableHead>
                   <TableHead className="text-center">
                     Прибув(ла)
                   </TableHead>
                   <TableHead className="text-center">Тип</TableHead>
-                  <TableHead>Stripe</TableHead>
+                  <TableHead className="text-center">Stripe</TableHead>
                   <TableHead>
-                    <div className="flex gap-1 items-center">
-                      <Mail
-                        size={14}
-                        className="text-muted-foreground mt-[2px]"
-                      />
+                    <div className="flex gap-2 items-center">
+                      <Mail size={14} className="opacity-70" />
                       E-mail
                     </div>
                   </TableHead>
                   <TableHead>
-                    <div className="flex gap-1 items-center">
-                      <Instagram size={14} className="text-muted-foreground" />
+                    <div className="flex gap-2 items-center">
+                      <Instagram size={14} className="opacity-70" />
                       Instagram
                     </div>
                   </TableHead>
                   <TableHead>
-                    <div className="flex gap-1 items-center">
-                      <Phone size={14} className="text-muted-foreground" />
+                    <div className="flex gap-2 items-center">
+                      <Phone size={14} className="opacity-70" />
                       Телефон
                     </div>
                   </TableHead>
@@ -222,15 +220,10 @@ export function TicketsTable() {
                   <TableRow
                     key={t.id}
                     className={cn(
-                      t.archived && "bg-destructive/5",
+                      t.archived && "bg-destructive/10 hover:bg-destructive/15",
                     )}
                   >
-                    <TableCell
-                      className={cn(
-                        "sticky left-0 z-10 bg-card text-muted-foreground tabular-nums",
-                        t.archived && "bg-destructive/10",
-                      )}
-                    >
+                    <TableCell className="text-muted-foreground tabular-nums">
                       {i + 1}
                     </TableCell>
                     <TableCell>
@@ -238,20 +231,17 @@ export function TicketsTable() {
                     </TableCell>
                     <TableCell className="text-center">
                       {t.arrived ? (
-                        <Check size={16} className="text-emerald-600 mx-auto" />
+                        <Check size={16} className="text-success mx-auto" />
                       ) : (
-                        <X size={16} className="text-red-600 mx-auto" />
+                        <X size={16} className="text-destructive mx-auto" />
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
                       <TicketTypeBadge type={t.updated_grade ?? t.grade} />
                     </TableCell>
                     <TableCell className="text-center">
                       {!t.stripe_event_id.startsWith("manual") && (
-                        <Check
-                          size={18}
-                          className="text-emerald-900 inline-block"
-                        />
+                        <Check size={18} className="text-success mx-auto" />
                       )}
                     </TableCell>
                     <TableCell>

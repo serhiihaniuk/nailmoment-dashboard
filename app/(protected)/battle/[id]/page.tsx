@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function TicketPage({ params }: PageProps) {
   const { id } = await params;
   return (
-    <div className="container mx-auto pt-6 px-4 pb-16">
+    <div className="page-container py-8 px-4 pb-16 flex flex-col gap-6">
       <BattleTicketCard battleTicketId={id} />
 
       <Button
