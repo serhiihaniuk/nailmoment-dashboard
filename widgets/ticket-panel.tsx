@@ -41,12 +41,15 @@ export function TicketPanelWrapper({
   onClose: () => void;
 }) {
   return (
-    <SlidePanel
-      open={!!ticketId}
-      onClose={onClose}
-      footer={ticketId ? <ArrivalFooter ticketId={ticketId} /> : undefined}
-    >
-      {ticketId && <TicketPanelContent ticketId={ticketId} />}
+    <SlidePanel open={!!ticketId} onClose={onClose}>
+      {ticketId && (
+        <div className="flex flex-col">
+          <TicketPanelContent ticketId={ticketId} />
+          <div className="border-t border-border/60 py-5">
+            <ArrivalFooter ticketId={ticketId} />
+          </div>
+        </div>
+      )}
     </SlidePanel>
   );
 }
