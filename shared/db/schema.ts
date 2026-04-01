@@ -69,6 +69,11 @@ export const paymentTypeEnum = pgEnum("payment_type_enum", [
   "sponsor",
 ]);
 
+export const stripeWebhookEventStatusEnum = pgEnum(
+  "stripe_webhook_event_status_enum",
+  ["processing", "processed", "ignored", "failed"]
+);
+
 export const battleTicketTable = pgTable("battle_ticket", {
   id: text("id").primaryKey(),
   stripe_event_id: text("stripe_event_id").notNull(),
@@ -134,6 +139,33 @@ export const paymentInstallmentTable = pgTable("payment_installment", {
     .$onUpdate(() => new Date()),
 });
 
+export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  stripe_session_id: text("stripe_session_id"),
+  status: stripeWebhookEventStatusEnum("status").notNull().default("processing"),
+  status_reason: text("status_reason"),
+  last_error: text("last_error"),
+  attempt_count: integer("attempt_count").notNull().default(1),
+  processed_at: timestamp("processed_at", {
+    withTimezone: true,
+    mode: "date",
+  }),
+  created_at: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow(),
+  updated_at: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const ticketTableRelations = relations(ticketTable, ({ many }) => ({
   paymentInstallments: many(paymentInstallmentTable),
 }));
@@ -149,6 +181,7 @@ export const paymentInstallmentTableRelations = relations(
 );
 
 export type PaymentInstallment = typeof paymentInstallmentTable.$inferSelect;
+export type StripeWebhookEvent = typeof stripeWebhookEventTable.$inferSelect;
 
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
