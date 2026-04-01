@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import type { StripeWebhookVerificationResult } from "./types";
 
-const STRIPE_API_VERSION = "2026-03-25.dahlia";
+const STRIPE_API_VERSION = "2025-03-31.basil";
 
 export interface StripeWebhookConfig {
   allowedCurrencies: string[];
@@ -78,6 +78,23 @@ export async function validateCheckoutSessionCompletedEvent(
   >,
   stripe: Pick<Stripe, "checkout">
 ): Promise<StripeCheckoutValidationResult> {
+  if (session.mode !== "payment") {
+    return {
+      ok: false,
+      rejection: {
+        kind: "rejected",
+        status: 200,
+        body: { received: true },
+        logContext: {
+          mode: session.mode,
+          stripeSessionId: session.id,
+        },
+        logLevel: "error",
+        logMessage: "Ignoring Stripe session with unexpected checkout mode",
+      },
+    };
+  }
+
   if (session.livemode !== config.expectedLivemode) {
     return {
       ok: false,
@@ -192,7 +209,8 @@ export function createStripeWebhookVerifier(
         status: 400,
         body: { error: "Missing signature" },
         logContext: {
-          headers: Object.fromEntries(request.headers.entries()),
+          contentType: request.headers.get("content-type"),
+          userAgent: request.headers.get("user-agent"),
         },
         logLevel: "error",
         logMessage: "Webhook without signature",

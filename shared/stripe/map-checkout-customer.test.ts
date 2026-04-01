@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
 import type Stripe from "stripe";
+import { expect, test } from "vitest";
 import { mapCheckoutCustomer } from "./map-checkout-customer";
 
 test("mapCheckoutCustomer extracts custom fields and customer details", () => {
@@ -23,7 +22,7 @@ test("mapCheckoutCustomer extracts custom fields and customer details", () => {
     metadata: {},
   } as Stripe.Checkout.Session;
 
-  assert.deepEqual(mapCheckoutCustomer(session), {
+  expect(mapCheckoutCustomer(session)).toEqual({
     email: "anna@example.com",
     instagram: "anna_example",
     name: "Anna Example",
@@ -44,7 +43,7 @@ test("mapCheckoutCustomer falls back to metadata and customer defaults", () => {
     },
   } as unknown as Stripe.Checkout.Session;
 
-  assert.deepEqual(mapCheckoutCustomer(session), {
+  expect(mapCheckoutCustomer(session)).toEqual({
     email: "fallback@example.com",
     instagram: "profile_name",
     name: "Customer Name",

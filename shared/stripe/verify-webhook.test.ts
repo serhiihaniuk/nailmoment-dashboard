@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
 import Stripe from "stripe";
+import { expect, test } from "vitest";
 import {
   createStripeWebhookVerifier,
   readStripeWebhookConfig,
@@ -15,15 +14,15 @@ test("readStripeWebhookConfig parses optional guards and infers livemode", () =>
     STRIPE_WEBHOOK_SECRET: "whsec_123",
   } as unknown as NodeJS.ProcessEnv);
 
-  assert.equal(result.ok, true);
+  expect(result.ok).toBe(true);
 
   if (!result.ok) {
     return;
   }
 
-  assert.deepEqual(result.config.allowedCurrencies, ["pln", "eur"]);
-  assert.deepEqual(result.config.allowedPriceIds, ["price_a", "price_b"]);
-  assert.equal(result.config.expectedLivemode, false);
+  expect(result.config.allowedCurrencies).toEqual(["pln", "eur"]);
+  expect(result.config.allowedPriceIds).toEqual(["price_a", "price_b"]);
+  expect(result.config.expectedLivemode).toBe(false);
 });
 
 test("validateCheckoutSessionCompletedEvent rejects unexpected currency", async () => {
@@ -31,6 +30,7 @@ test("validateCheckoutSessionCompletedEvent rejects unexpected currency", async 
     currency: "usd",
     id: "cs_test_currency",
     livemode: false,
+    mode: "payment",
   } as Stripe.Checkout.Session;
   const stripe = {
     checkout: {
@@ -50,14 +50,52 @@ test("validateCheckoutSessionCompletedEvent rejects unexpected currency", async 
     stripe
   );
 
-  assert.equal(result.ok, false);
+  expect(result.ok).toBe(false);
 
   if (result.ok) {
     return;
   }
 
-  assert.equal(result.rejection.status, 200);
-  assert.equal(result.rejection.logMessage, "Ignoring Stripe session with unexpected currency");
+  expect(result.rejection.status).toBe(200);
+  expect(result.rejection.logMessage).toBe(
+    "Ignoring Stripe session with unexpected currency"
+  );
+});
+
+test("validateCheckoutSessionCompletedEvent rejects non-payment checkout mode", async () => {
+  const session = {
+    id: "cs_test_subscription",
+    livemode: false,
+    mode: "subscription",
+  } as Stripe.Checkout.Session;
+  const stripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async () => ({ data: [] }),
+      },
+    },
+  } as unknown as Pick<Stripe, "checkout">;
+
+  const result = await validateCheckoutSessionCompletedEvent(
+    session,
+    {
+      allowedCurrencies: [],
+      allowedPriceIds: [],
+      expectedLivemode: false,
+    },
+    stripe
+  );
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) {
+    return;
+  }
+
+  expect(result.rejection.status).toBe(200);
+  expect(result.rejection.logMessage).toBe(
+    "Ignoring Stripe session with unexpected checkout mode"
+  );
 });
 
 test("verifyStripeWebhookRequest rejects invalid signatures", async () => {
@@ -79,15 +117,47 @@ test("verifyStripeWebhookRequest rejects invalid signatures", async () => {
 
   const result = await verifyStripeWebhookRequest(request);
 
-  assert.equal(result.kind, "rejected");
+  expect(result.kind).toBe("rejected");
 
   if (result.kind !== "rejected") {
     return;
   }
 
-  assert.deepEqual(result.body, { error: "Bad signature" });
-  assert.equal(result.logLevel, "error");
-  assert.equal(result.logMessage, "Signature verification failed");
-  assert.equal(result.status, 400);
-  assert.ok(result.logContext?.error instanceof Error);
+  expect(result.body).toEqual({ error: "Bad signature" });
+  expect(result.logLevel).toBe("error");
+  expect(result.logMessage).toBe("Signature verification failed");
+  expect(result.status).toBe(400);
+  expect(result.logContext?.error).toBeInstanceOf(Error);
+});
+
+test("verifyStripeWebhookRequest does not log full headers when signature is missing", async () => {
+  const verifyStripeWebhookRequest = createStripeWebhookVerifier({
+    env: {
+      STRIPE_SECRET_KEY: "sk_test_123",
+      STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
+    } as unknown as NodeJS.ProcessEnv,
+  });
+
+  const request = new Request("https://example.com/api/webhooks/stripe", {
+    body: JSON.stringify({ ok: true }),
+    headers: {
+      "content-type": "application/json",
+      cookie: "session=secret",
+      "user-agent": "test-agent",
+    },
+    method: "POST",
+  });
+
+  const result = await verifyStripeWebhookRequest(request);
+
+  expect(result.kind).toBe("rejected");
+
+  if (result.kind !== "rejected") {
+    return;
+  }
+
+  expect(result.logContext).toEqual({
+    contentType: "application/json",
+    userAgent: "test-agent",
+  });
 });

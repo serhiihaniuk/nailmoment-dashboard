@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
 import type Stripe from "stripe";
+import { expect, test } from "vitest";
 import { createStripeWebhookRoute } from "./route-handler";
 
 test("createStripeWebhookRoute returns 200 for duplicate deliveries", async () => {
@@ -35,6 +34,6 @@ test("createStripeWebhookRoute returns 200 for duplicate deliveries", async () =
     new Request("https://example.com/api/webhooks/stripe", { method: "POST" })
   );
 
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { received: true });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ received: true });
 });

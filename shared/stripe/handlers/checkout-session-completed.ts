@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type Stripe from "stripe";
 import { db } from "@/shared/db";
@@ -6,6 +6,7 @@ import {
   battleTicketTable,
   stripeWebhookEventTable,
   ticketTable,
+  type StripeWebhookEvent,
 } from "@/shared/db/schema";
 import { TICKET_TYPE_LIST, type TicketGrade } from "@/shared/const";
 import {
@@ -31,6 +32,8 @@ type StripeWebhookClaim =
       reason: string;
       stripeSessionId?: string;
     };
+
+const PROCESSING_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function getEventContext(
   event: Pick<Stripe.Event, "id" | "type">,
@@ -74,6 +77,22 @@ async function markStripeWebhookEvent(
     .where(eq(stripeWebhookEventTable.id, eventId));
 }
 
+export function shouldReclaimStripeWebhookEvent(
+  event: Pick<StripeWebhookEvent, "status" | "updated_at">,
+  now: Date = new Date(),
+): boolean {
+  if (event.status === "failed") {
+    return true;
+  }
+
+  if (event.status !== "processing") {
+    return false;
+  }
+
+  const staleBefore = new Date(now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS);
+  return event.updated_at <= staleBefore;
+}
+
 async function claimStripeWebhookEvent(
   event: Stripe.Event,
 ): Promise<StripeWebhookClaim> {
@@ -111,7 +130,11 @@ async function claimStripeWebhookEvent(
     };
   }
 
-  if (existing.status === "failed") {
+  const now = new Date();
+  if (shouldReclaimStripeWebhookEvent(existing, now)) {
+    const staleBefore = new Date(
+      now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS,
+    );
     const recovered = await db
       .update(stripeWebhookEventTable)
       .set({
@@ -122,10 +145,16 @@ async function claimStripeWebhookEvent(
         updated_at: new Date(),
       })
       .where(
-        and(
-          eq(stripeWebhookEventTable.id, event.id),
-          eq(stripeWebhookEventTable.status, "failed"),
-        ),
+        existing.status === "failed"
+          ? and(
+              eq(stripeWebhookEventTable.id, event.id),
+              eq(stripeWebhookEventTable.status, "failed"),
+            )
+          : and(
+              eq(stripeWebhookEventTable.id, event.id),
+              eq(stripeWebhookEventTable.status, "processing"),
+              lte(stripeWebhookEventTable.updated_at, staleBefore),
+            ),
       )
       .returning({ id: stripeWebhookEventTable.id });
 
