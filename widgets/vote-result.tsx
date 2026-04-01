@@ -72,7 +72,9 @@ export function VoteResultsTable() {
       )}
 
       {isError && (
-        <p className="text-destructive font-medium">Помилка: {error?.message}</p>
+        <p className="text-destructive font-medium">
+          Помилка: {error?.message}
+        </p>
       )}
       {isLoading && <Skeleton className="h-[200px] w-full rounded-xl" />}
 
@@ -93,10 +95,16 @@ export function VoteResultsTable() {
               <TableBody>
                 {results.map((r, i) => (
                   <TableRow key={r.id} className="hover:bg-muted/30">
-                    <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {i + 1}
+                    </TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-center font-semibold tabular-nums">{r.total}</TableCell>
-                    <TableCell className="text-center text-muted-foreground tabular-nums">{r.pct}%</TableCell>
+                    <TableCell className="text-center font-semibold tabular-nums">
+                      {r.total}
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground tabular-nums">
+                      {r.pct}%
+                    </TableCell>
                     <TableCell>
                       <div className="w-full bg-muted/50 rounded-full h-1.5">
                         <div
@@ -114,15 +122,26 @@ export function VoteResultsTable() {
           {/* Mobile list */}
           <div className="md:hidden flex flex-col">
             {results.map((r, i) => (
-              <div key={r.id} className="px-4 py-3 border-b border-border/40 last:border-b-0">
+              <div
+                key={r.id}
+                className="px-4 py-3 border-b border-border/40 last:border-b-0"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] text-muted-foreground/60 tabular-nums w-5">{i + 1}</span>
-                    <span className="text-[13px] font-medium truncate">{r.name}</span>
+                    <span className="text-[11px] text-muted-foreground/60 tabular-nums w-5">
+                      {i + 1}
+                    </span>
+                    <span className="text-[13px] font-medium truncate">
+                      {r.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[13px] font-semibold tabular-nums">{r.total}</span>
-                    <span className="text-[11px] text-muted-foreground tabular-nums">{r.pct}%</span>
+                    <span className="text-[13px] font-semibold tabular-nums">
+                      {r.total}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                      {r.pct}%
+                    </span>
                   </div>
                 </div>
                 <div className="mt-2 w-full bg-muted/50 rounded-full h-1">
