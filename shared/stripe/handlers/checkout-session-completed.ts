@@ -4,7 +4,6 @@ import type Stripe from "stripe";
 import { db } from "@/shared/db";
 import {
   battleTicketTable,
-  paymentInstallmentTable,
   stripeWebhookEventTable,
   ticketTable,
 } from "@/shared/db/schema";
@@ -42,10 +41,6 @@ function getEventContext(
     stripeSessionId,
     stripeEventType: event.type,
   };
-}
-
-function nowIsoString() {
-  return new Date().toISOString();
 }
 
 function isCheckoutSessionCompletedEvent(
@@ -190,20 +185,18 @@ async function processBattleCheckoutSession(
   const customer = mapCheckoutCustomer(session);
   const battleTicketId = nanoid(10);
 
-  await db.transaction(async (tx) => {
-    await tx.insert(battleTicketTable).values({
-      archived: false,
-      comment: "",
-      date: new Date(),
-      email: customer.email,
-      id: battleTicketId,
-      instagram: customer.instagram,
-      mail_sent: false,
-      name: customer.name,
-      nomination_quantity: 1,
-      phone: customer.phone,
-      stripe_event_id: stripeSessionId,
-    });
+  await db.insert(battleTicketTable).values({
+    archived: false,
+    comment: "",
+    date: new Date(),
+    email: customer.email,
+    id: battleTicketId,
+    instagram: customer.instagram,
+    mail_sent: false,
+    name: customer.name,
+    nomination_quantity: 1,
+    phone: customer.phone,
+    stripe_event_id: stripeSessionId,
   });
 
   await markStripeWebhookEvent(event.id, "processed", {
@@ -244,33 +237,16 @@ async function processTicketCheckoutSession(
     `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
     `moment-qr/festival_2026/qr-code-${ticketId}.png`,
   );
-  
-  // const paymentInstallmentId = nanoid(10);
-  // const paidAt = nowIsoString();
-  // const amountPaid = (session.amount_total || 0) / 100;
 
-  await db.transaction(async (tx) => {
-    await tx.insert(ticketTable).values({
-      email: customer.email,
-      grade: ticketGrade,
-      id: ticketId,
-      instagram: customer.instagram,
-      name: customer.name,
-      phone: customer.phone,
-      qr_code: qrCodeUrl,
-      stripe_event_id: stripeSessionId,
-    });
-
-    // await tx.insert(paymentInstallmentTable).values({
-    //   amount: String(amountPaid),
-    //   due_date: paidAt,
-    //   id: paymentInstallmentId,
-    //   invoice_requested: false,
-    //   invoice_sent: false,
-    //   is_paid: true,
-    //   paid_date: paidAt,
-    //   ticket_id: ticketId,
-    // });
+  await db.insert(ticketTable).values({
+    email: customer.email,
+    grade: ticketGrade,
+    id: ticketId,
+    instagram: customer.instagram,
+    name: customer.name,
+    phone: customer.phone,
+    qr_code: qrCodeUrl,
+    stripe_event_id: stripeSessionId,
   });
 
   await markStripeWebhookEvent(event.id, "processed", {

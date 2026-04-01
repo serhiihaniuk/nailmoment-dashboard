@@ -8,12 +8,12 @@ import type {
 } from "./types";
 
 type VerifyStripeWebhookRequest = (
-  request: Request
+  request: Request,
 ) => Promise<StripeWebhookVerificationResult>;
 
 function getHandler(
   handlers: StripeWebhookHandlers,
-  eventType: Stripe.Event.Type
+  eventType: Stripe.Event.Type,
 ): StripeWebhookHandler | undefined {
   return handlers[eventType];
 }
@@ -31,13 +31,11 @@ export function createStripeWebhookRoute({
 }) {
   return async function POST(request: Request) {
     try {
-      const verification = await verifyRequest(request);
-
-      if (verification.kind === "rejected") {
+      const verification = await verifyRequest(request);      if (verification.kind === "rejected") {
         logger(
           verification.logLevel,
           verification.logMessage,
-          verification.logContext
+          verification.logContext,
         );
         return Response.json(verification.body, {
           status: verification.status,
