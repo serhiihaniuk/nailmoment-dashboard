@@ -33,6 +33,8 @@ type StripeWebhookClaim =
       stripeSessionId?: string;
     };
 
+type FulfillmentResult = "created" | "already_fulfilled";
+
 const PROCESSING_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function getEventContext(
@@ -209,24 +211,36 @@ export function resolveCheckoutSession(
 async function processBattleCheckoutSession(
   session: Stripe.Checkout.Session,
   event: Stripe.Event,
-) {
+): Promise<FulfillmentResult> {
   const stripeSessionId = session.id;
   const customer = mapCheckoutCustomer(session);
   const battleTicketId = nanoid(10);
 
-  await db.insert(battleTicketTable).values({
-    archived: false,
-    comment: "",
-    date: new Date(),
+  const inserted = await db
+    .insert(battleTicketTable)
+    .values({
+      archived: false,
+      comment: "",
+      date: new Date(),
     email: customer.email,
     id: battleTicketId,
     instagram: customer.instagram,
     mail_sent: false,
     name: customer.name,
-    nomination_quantity: 1,
-    phone: customer.phone,
-    stripe_event_id: stripeSessionId,
-  });
+      nomination_quantity: 1,
+      phone: customer.phone,
+      stripe_event_id: stripeSessionId,
+    })
+    .onConflictDoNothing()
+    .returning({ id: battleTicketTable.id });
+
+  if (inserted.length === 0) {
+    await markStripeWebhookEvent(event.id, "processed", {
+      processedAt: new Date(),
+      statusReason: "battle_ticket_already_exists",
+    });
+    return "already_fulfilled";
+  }
 
   await markStripeWebhookEvent(event.id, "processed", {
     processedAt: new Date(),
@@ -237,7 +251,7 @@ async function processBattleCheckoutSession(
     logStripe("error", "Email missing, battle email not sent", {
       ...getEventContext(event, stripeSessionId),
     });
-    return;
+    return "created";
   }
 
   try {
@@ -252,13 +266,15 @@ async function processBattleCheckoutSession(
       error,
     });
   }
+
+  return "created";
 }
 
 async function processTicketCheckoutSession(
   session: Stripe.Checkout.Session,
   event: Stripe.Event,
   ticketGrade: TicketGrade,
-) {
+): Promise<FulfillmentResult> {
   const stripeSessionId = session.id;
   const customer = mapCheckoutCustomer(session);
   const ticketId = nanoid(10);
@@ -267,16 +283,28 @@ async function processTicketCheckoutSession(
     `moment-qr/festival_2026/qr-code-${ticketId}.png`,
   );
 
-  await db.insert(ticketTable).values({
-    email: customer.email,
-    grade: ticketGrade,
-    id: ticketId,
+  const inserted = await db
+    .insert(ticketTable)
+    .values({
+      email: customer.email,
+      grade: ticketGrade,
+      id: ticketId,
     instagram: customer.instagram,
     name: customer.name,
-    phone: customer.phone,
-    qr_code: qrCodeUrl,
-    stripe_event_id: stripeSessionId,
-  });
+      phone: customer.phone,
+      qr_code: qrCodeUrl,
+      stripe_event_id: stripeSessionId,
+    })
+    .onConflictDoNothing()
+    .returning({ id: ticketTable.id });
+
+  if (inserted.length === 0) {
+    await markStripeWebhookEvent(event.id, "processed", {
+      processedAt: new Date(),
+      statusReason: "ticket_already_exists",
+    });
+    return "already_fulfilled";
+  }
 
   await markStripeWebhookEvent(event.id, "processed", {
     processedAt: new Date(),
@@ -287,7 +315,7 @@ async function processTicketCheckoutSession(
     logStripe("error", "Email missing, ticket email not sent", {
       ...getEventContext(event, stripeSessionId),
     });
-    return;
+    return "created";
   }
 
   try {
@@ -307,6 +335,8 @@ async function processTicketCheckoutSession(
       error,
     });
   }
+
+  return "created";
 }
 
 export async function handleCheckoutSessionCompleted(
@@ -352,22 +382,28 @@ export async function handleCheckoutSessionCompleted(
   try {
     switch (resolution.kind) {
       case "battle":
-        await processBattleCheckoutSession(session, event);
         return {
           kind: "processed",
-          reason: "battle_ticket_created",
+          reason:
+            (await processBattleCheckoutSession(session, event)) === "created"
+              ? "battle_ticket_created"
+              : "battle_ticket_already_exists",
           stripeEventId: event.id,
           stripeSessionId,
         };
       case "ticket":
-        await processTicketCheckoutSession(
-          session,
-          event,
-          resolution.ticketGrade,
-        );
         return {
           kind: "processed",
-          reason: "ticket_created",
+          reason:
+            (
+              await processTicketCheckoutSession(
+                session,
+                event,
+                resolution.ticketGrade
+              )
+            ) === "created"
+              ? "ticket_created"
+              : "ticket_already_exists",
           stripeEventId: event.id,
           stripeSessionId,
         };

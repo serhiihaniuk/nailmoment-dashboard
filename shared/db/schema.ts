@@ -74,48 +74,64 @@ export const stripeWebhookEventStatusEnum = pgEnum(
   ["processing", "processed", "ignored", "failed"]
 );
 
-export const battleTicketTable = pgTable("battle_ticket", {
-  id: text("id").primaryKey(),
-  stripe_event_id: text("stripe_event_id").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  instagram: text("instagram").notNull(),
-  phone: text("phone").notNull(),
-  nomination_quantity: integer("nomination_quantity").notNull().default(0),
-  date: timestamp("date", {
-    withTimezone: true,
-    mode: "date",
+export const battleTicketTable = pgTable(
+  "battle_ticket",
+  {
+    id: text("id").primaryKey(),
+    stripe_event_id: text("stripe_event_id").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    instagram: text("instagram").notNull(),
+    phone: text("phone").notNull(),
+    nomination_quantity: integer("nomination_quantity").notNull().default(0),
+    date: timestamp("date", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    archived: boolean("archived").notNull().default(false),
+    mail_sent: boolean("mail_sent").notNull().default(false),
+    photos_sent: boolean("photos_sent").notNull().default(false),
+    comment: text("comment").notNull().default(""),
+    payment_type: paymentTypeEnum("payment_type").notNull().default("full"),
+  },
+  (table) => ({
+    battleTicketStripeEventIdUnique: unique(
+      "battle_ticket_stripe_event_id_unique"
+    ).on(table.stripe_event_id),
   })
-    .notNull()
-    .defaultNow(),
-  archived: boolean("archived").notNull().default(false),
-  mail_sent: boolean("mail_sent").notNull().default(false),
-  photos_sent: boolean("photos_sent").notNull().default(false),
-  comment: text("comment").notNull().default(""),
-  payment_type: paymentTypeEnum("payment_type").notNull().default("full"),
-});
+);
 
-export const ticketTable = pgTable("ticket", {
-  id: text("id").primaryKey(),
-  stripe_event_id: text("stripe_event_id").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  instagram: text("instagram").notNull(),
-  phone: text("phone").notNull(),
-  qr_code: text("qr_code").notNull(),
-  arrived: boolean("arrived").notNull().default(false),
-  grade: text("grade").notNull().default("unknown"),
-  updated_grade: text("updated_grade"),
-  date: timestamp("date", {
-    withTimezone: true,
-    mode: "date",
+export const ticketTable = pgTable(
+  "ticket",
+  {
+    id: text("id").primaryKey(),
+    stripe_event_id: text("stripe_event_id").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    instagram: text("instagram").notNull(),
+    phone: text("phone").notNull(),
+    qr_code: text("qr_code").notNull(),
+    arrived: boolean("arrived").notNull().default(false),
+    grade: text("grade").notNull().default("unknown"),
+    updated_grade: text("updated_grade"),
+    date: timestamp("date", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    archived: boolean("archived").notNull().default(false),
+    mail_sent: boolean("mail_sent").notNull().default(false),
+    comment: text("comment").notNull().default(""),
+  },
+  (table) => ({
+    ticketStripeEventIdUnique: unique("ticket_stripe_event_id_unique").on(
+      table.stripe_event_id
+    ),
   })
-    .notNull()
-    .defaultNow(),
-  archived: boolean("archived").notNull().default(false),
-  mail_sent: boolean("mail_sent").notNull().default(false),
-  comment: text("comment").notNull().default(""),
-});
+);
 
 export const paymentInstallmentTable = pgTable("payment_installment", {
   id: text("id").primaryKey(),
