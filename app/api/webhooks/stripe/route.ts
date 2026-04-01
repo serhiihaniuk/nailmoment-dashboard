@@ -35,7 +35,7 @@ import { TICKET_TYPE_LIST, TicketGrade } from "@/shared/const";
 
 /** Stripe client pinned to a fixed version */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-03-31.basil",
+  apiVersion: "2026-03-25.dahlia",
 });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
