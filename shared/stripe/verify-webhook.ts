@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import type { StripeWebhookVerificationResult } from "./types";
 
-const STRIPE_API_VERSION = "2025-03-31.basil";
+const STRIPE_API_VERSION = "2026-03-25.dahlia";
 
 export interface StripeWebhookConfig {
   allowedCurrencies: string[];
