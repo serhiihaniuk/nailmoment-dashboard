@@ -1,15 +1,4 @@
-import { relations } from "drizzle-orm";
-import {
-  pgTable,
-  text,
-  timestamp,
-  boolean,
-  integer,
-  pgEnum,
-  decimal,
-  bigint,
-  unique,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, pgEnum, bigint, unique } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -133,28 +122,6 @@ export const ticketTable = pgTable(
   })
 );
 
-export const paymentInstallmentTable = pgTable("payment_installment", {
-  id: text("id").primaryKey(),
-  ticket_id: text("ticket_id")
-    .notNull()
-    .references(() => ticketTable.id, { onDelete: "cascade" }),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  due_date: timestamp("due_date", { withTimezone: true, mode: "string" }),
-  is_paid: boolean("is_paid").notNull().default(false),
-  paid_date: timestamp("paid_date", { withTimezone: true, mode: "string" }),
-  invoice_requested: boolean("invoice_requested").notNull().default(false),
-  invoice_sent: boolean("invoice_sent").notNull().default(false),
-  nip: text("nip").default(""),
-  comment: text("comment").default(""),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" })
-    .notNull()
-    .defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
-
 export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
@@ -182,28 +149,12 @@ export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
     .$onUpdate(() => new Date()),
 });
 
-export const ticketTableRelations = relations(ticketTable, ({ many }) => ({
-  paymentInstallments: many(paymentInstallmentTable),
-}));
-
-export const paymentInstallmentTableRelations = relations(
-  paymentInstallmentTable,
-  ({ one }) => ({
-    ticket: one(ticketTable, {
-      fields: [paymentInstallmentTable.ticket_id],
-      references: [ticketTable.id],
-    }),
-  })
-);
-
-export type PaymentInstallment = typeof paymentInstallmentTable.$inferSelect;
 export type StripeWebhookEvent = typeof stripeWebhookEventTable.$inferSelect;
 
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 
 export type Ticket = typeof ticketTable.$inferSelect;
-
 export type InsertTicket = typeof ticketTable.$inferInsert;
 
 export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
@@ -249,15 +200,12 @@ export const battleVoteTGTable = pgTable(
   {
     id: text("id").primaryKey(),
 
-    // Foreign key reference to our new users table.
     telegram_user_id: bigint("telegram_user_id", { mode: "number" })
       .notNull()
       .references(() => telegramUsersTable.telegramUserId),
 
-    // The specific contestant the user voted for (e.g., "poster_contestant_1").
     voted_for_contestant_id: text("voted_for_contestant_id").notNull(),
 
-    // The category this vote belongs to (e.g., "poster", "fantasy").
     category_id: text("category_id").notNull(),
 
     created_at: timestamp("created_at", { withTimezone: true })
@@ -266,10 +214,6 @@ export const battleVoteTGTable = pgTable(
   },
   (table) => {
     return {
-      // This is the CRITICAL part. It enforces that the combination of
-      // a user and a category must be unique.
-      // A user cannot vote twice in the 'poster' category, but they can vote
-      // once in 'poster' and once in 'fantasy'.
       userCategoryUnique: unique("user_category_unique").on(
         table.telegram_user_id,
         table.category_id

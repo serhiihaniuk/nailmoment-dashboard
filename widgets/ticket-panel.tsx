@@ -9,11 +9,11 @@ import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import Link from "next/link";
-import { TicketWithPayments } from "@/shared/db/service/ticket-service";
+import { Ticket } from "@/shared/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { SlidePanel } from "@/components/ui/slide-panel";
 
-async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
+async function fetchTicket(id: string): Promise<Ticket | null> {
   const r = await fetch(`/api/ticket/${id}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(await r.text());
@@ -23,7 +23,7 @@ async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
 async function patchArrived(
   id: string,
   arrived: boolean,
-): Promise<TicketWithPayments> {
+): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -54,11 +54,9 @@ export function TicketPanelWrapper({
   );
 }
 
-/* ── Sticky bottom action ── */
-
 export function ArrivalFooter({ ticketId }: { ticketId: string }) {
   const qc = useQueryClient();
-  const { data, isFetching } = useQuery<TicketWithPayments | null, Error>({
+  const { data, isFetching } = useQuery<Ticket | null, Error>({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
@@ -76,7 +74,6 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
   const isPending = arrivedMutation.isPending || isFetching;
 
   if (data.arrived) {
-    // Arrived — quiet undo link
     return (
       <div className="flex justify-center">
         <button
@@ -92,7 +89,6 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
     );
   }
 
-  // Not arrived — outline button
   return (
     <button
       type="button"
@@ -110,10 +106,7 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 }
 
 export function TicketPanelContent({ ticketId }: { ticketId: string }) {
-  const { data, isLoading, isError, error } = useQuery<
-    TicketWithPayments | null,
-    Error
-  >({
+  const { data, isLoading, isError, error } = useQuery<Ticket | null, Error>({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
@@ -155,7 +148,6 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
 
   return (
     <div className="flex flex-col gap-0 animate-in-fade">
-      {/* Identity */}
       <div className="pt-4 pb-4">
         {ticket.archived && (
           <Badge
@@ -181,7 +173,6 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
         </div>
       </div>
 
-      {/* Status strip — the hero element */}
       {!ticket.archived && (
         <div
           className={cn(
@@ -203,7 +194,6 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
         </div>
       )}
 
-      {/* Контакти */}
       <div className="border-t border-border/60 py-5">
         <h3 className="text-label-caps mb-3">Контакти</h3>
         <div className="flex flex-col gap-2.5">
@@ -254,7 +244,6 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
         </div>
       </div>
 
-      {/* Деталі */}
       <div className="border-t border-border/60 py-5">
         <h3 className="text-label-caps mb-3">Деталі</h3>
         <div className="flex flex-col gap-2.5">

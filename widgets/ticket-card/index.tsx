@@ -34,12 +34,11 @@ import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import Link from "next/link";
-import { TicketWithPayments } from "@/shared/db/service/ticket-service";
-import { TicketPayments } from "./ticket-payment";
+import { Ticket } from "@/shared/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { DetailGrid, DetailItem } from "@/components/ui/detail-grid";
 
-async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
+async function fetchTicket(id: string): Promise<Ticket | null> {
   const r = await fetch(`/api/ticket/${id}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(await r.text());
@@ -49,7 +48,7 @@ async function fetchTicket(id: string): Promise<TicketWithPayments | null> {
 async function patchTicket(
   id: string,
   patch: UpdateTicketInput
-): Promise<TicketWithPayments> {
+): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -62,12 +61,12 @@ async function patchTicket(
 async function patchArrived(
   id: string,
   arrived: boolean
-): Promise<TicketWithPayments> {
+): Promise<Ticket> {
   return patchTicket(id, { arrived });
 }
 
 interface TicketDetailsProps {
-  ticket: TicketWithPayments;
+  ticket: Ticket;
 }
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
@@ -147,9 +146,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket }) => (
         })}
       />
       <DetailItem
-        icon={
-          <ArrowBigDownDashIcon />
-        }
+        icon={<ArrowBigDownDashIcon />}
         label="Прибув(ла)"
         value={
           ticket.arrived ? (
@@ -229,7 +226,7 @@ const EmptyState: React.FC<{ message: string; height?: string }> = ({
 export function TicketCard({ ticketId }: { ticketId: string }) {
   const qc = useQueryClient();
   const { data, isLoading, isFetching, isError, error } = useQuery<
-    TicketWithPayments | null,
+    Ticket | null,
     Error
   >({
     queryKey: ["ticket", ticketId],
@@ -252,15 +249,7 @@ export function TicketCard({ ticketId }: { ticketId: string }) {
       );
     if (data === null) return <EmptyState message="Квиток не знайдено" />;
     if (data) {
-      return (
-        <>
-          <TicketDetails ticket={data} />
-          <TicketPayments
-            ticketId={ticketId}
-            payments={data.paymentInstallments}
-          />
-        </>
-      );
+      return <TicketDetails ticket={data} />;
     }
     return null;
   };

@@ -1,12 +1,12 @@
 "use client";
 
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
-import { TicketWithPayments } from "@/shared/db/service/ticket-service";
+import { Ticket } from "@/shared/db/schema";
 
 export async function patchTicket(
   id: string,
   patch: UpdateTicketInput,
-): Promise<TicketWithPayments> {
+): Promise<Ticket> {
   const response = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
