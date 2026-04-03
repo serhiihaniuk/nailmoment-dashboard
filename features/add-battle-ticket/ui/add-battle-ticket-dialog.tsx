@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useId } from "react";
 import {
   Dialog,
@@ -46,7 +45,7 @@ export function AddBattleTicketDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[420px] top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
+      <DialogContent className="sm:max-w-105 top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
         <DialogHeader>
           <DialogTitle>Новий Учасник Батлу</DialogTitle>
         </DialogHeader>

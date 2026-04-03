@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/shared/utils";
 import { TICKET_TYPE } from "@/shared/const";

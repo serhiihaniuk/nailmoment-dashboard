@@ -9,18 +9,10 @@ export const Header = () => {
         <Link href="/dashboard" className="flex items-center mr-4">
           <NailIcon className="w-16" />
         </Link>
-        <NavLink href="/dashboard">
-          Квитки
-        </NavLink>
-        <NavLink href="/battle">
-          Батл
-        </NavLink>
-        <NavLink href="/speaker_vote">
-          Спікер
-        </NavLink>
-        <NavLink href="/info">
-          Інфо
-        </NavLink>
+        <NavLink href="/dashboard">Квитки</NavLink>
+        <NavLink href="/battle">Батл</NavLink>
+        <NavLink href="/speaker_vote">Спікер</NavLink>
+        <NavLink href="/info">Інфо</NavLink>
       </div>
     </header>
   );

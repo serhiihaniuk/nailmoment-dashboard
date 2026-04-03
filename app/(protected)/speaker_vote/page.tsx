@@ -1,7 +1,6 @@
 "use client";
 
 import { VoteResultsTable } from "@/widgets/vote-result";
-import React from "react";
 
 export default function SpeakerVotePage() {
   return (

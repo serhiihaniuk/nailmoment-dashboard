@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { TicketsTable } from "@/widgets/ticket-table";
 
 export default function DashboardPage() {

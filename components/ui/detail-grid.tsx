@@ -36,7 +36,7 @@ export function DetailItem({
         )}
         <span className="text-label-caps">{label}</span>
       </div>
-      <div className="text-body-base break-words w-full pl-5">
+      <div className="text-body-base wrap-break-word w-full pl-5">
         {value !== undefined && value !== null && value !== "" ? (
           value
         ) : (
