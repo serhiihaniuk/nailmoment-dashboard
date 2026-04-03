@@ -123,8 +123,12 @@ export function TicketsTable() {
       total: active.length,
       arrived: active.filter((t) => t.arrived).length,
       remaining: active.filter((t) => !t.arrived).length,
+      maxi: active.filter(
+        (t) =>
+          (t.updated_grade ?? t.grade)?.toLowerCase() === TICKET_TYPE.MAXI,
+      ).length,
       vip: active.filter(
-        (t) => (t.updated_grade ?? t.grade)?.toLowerCase() === "vip",
+        (t) => (t.updated_grade ?? t.grade)?.toLowerCase() === TICKET_TYPE.VIP,
       ).length,
     };
   }, [tickets]);
@@ -152,6 +156,12 @@ export function TicketsTable() {
           <span>{stats.arrived} прибули</span>
           <span className="text-border">·</span>
           <span>{stats.remaining} не прибули</span>
+          {stats.maxi > 0 && (
+            <>
+              <span className="text-border">Â·</span>
+              <span>{stats.maxi} MAXI</span>
+            </>
+          )}
           {stats.vip > 0 && (
             <>
               <span className="text-border">·</span>
@@ -273,12 +283,7 @@ export function TicketsTable() {
                             <span className="max-w-40 truncate inline-block font-medium">
                               {t.name}
                             </span>
-                            {(t.updated_grade ?? t.grade)?.toLowerCase() ===
-                              "vip" && (
-                              <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
-                                vip
-                              </span>
-                            )}
+                            <GradeMarker grade={t.updated_grade ?? t.grade} />
                           </div>
                         </TableCell>
                         <TableCell className="text-center text-muted-foreground/50 text-[11px]">
@@ -399,12 +404,7 @@ export function TicketsTable() {
                             S
                           </span>
                         )}
-                        {(t.updated_grade ?? t.grade)?.toLowerCase() ===
-                          "vip" && (
-                          <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
-                            vip
-                          </span>
-                        )}
+                        <GradeMarker grade={t.updated_grade ?? t.grade} />
                       </div>
                     </div>
                     {t.email && (
@@ -493,3 +493,25 @@ const GradeSegment: FC<{
     ))}
   </div>
 );
+
+function GradeMarker({ grade }: { grade?: string | null }) {
+  const normalizedGrade = grade?.toLowerCase();
+
+  if (normalizedGrade === TICKET_TYPE.VIP) {
+    return (
+      <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
+        vip
+      </span>
+    );
+  }
+
+  if (normalizedGrade === TICKET_TYPE.MAXI) {
+    return (
+      <span className="text-[9px] uppercase tracking-wider font-semibold text-[#5b3327] border border-[#8a6a3d]/30 bg-[#f3e3b3] px-1 py-0 rounded">
+        maxi
+      </span>
+    );
+  }
+
+  return null;
+}

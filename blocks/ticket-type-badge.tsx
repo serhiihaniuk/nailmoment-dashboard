@@ -11,7 +11,7 @@ const getClasses = (type: string) => {
     case "standard":
       return "border-border text-muted-foreground bg-muted/30";
     case TICKET_TYPE.MAXI:
-      return "border-foreground/15 text-foreground bg-foreground/5";
+      return "border-[#8a6a3d]/30 text-[#5b3327] bg-[#f3e3b3]";
     default:
       return "border-border text-muted-foreground bg-muted/20";
   }
