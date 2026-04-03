@@ -26,6 +26,14 @@ test("resolveCheckoutSession ignores unpaid sessions", () => {
       })
     )
   ).toEqual({
+    context: {
+      expectedPaymentStatus: "paid",
+      metadata: {
+        event: "nailmoment",
+        ticket_grade: "vip",
+      },
+      receivedPaymentStatus: "unpaid",
+    },
     kind: "ignored",
     reason: "unpaid_session",
   });
@@ -57,6 +65,14 @@ test("resolveCheckoutSession rejects invalid ticket grades", () => {
       })
     )
   ).toEqual({
+    context: {
+      allowedTicketGrades: ["standard", "maxi", "vip"],
+      metadata: {
+        event: "nailmoment",
+        ticket_grade: "broken",
+      },
+      receivedTicketGrade: "broken",
+    },
     kind: "invalid",
     reason: "invalid_ticket_grade",
   });
