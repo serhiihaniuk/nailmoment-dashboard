@@ -25,6 +25,21 @@ test("readStripeWebhookConfig parses optional guards and infers livemode", () =>
   expect(result.config.expectedLivemode).toBe(false);
 });
 
+test("readStripeWebhookConfig treats restricted live keys as livemode", () => {
+  const result = readStripeWebhookConfig({
+    STRIPE_SECRET_KEY: "rk_live_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_123",
+  } as unknown as NodeJS.ProcessEnv);
+
+  expect(result.ok).toBe(true);
+
+  if (!result.ok) {
+    return;
+  }
+
+  expect(result.config.expectedLivemode).toBe(true);
+});
+
 test("validateCheckoutSessionCompletedEvent rejects unexpected currency", async () => {
   const session = {
     currency: "usd",

@@ -32,7 +32,9 @@ function parseCsv(value: string | undefined) {
 }
 
 function inferLivemode(secretKey: string) {
-  return secretKey.startsWith("sk_live_");
+  return (
+    secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_")
+  );
 }
 
 export function readStripeWebhookConfig(
