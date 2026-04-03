@@ -5,6 +5,7 @@ type StatusBannerProps = {
   status: AddTicketServerStatus;
 };
 
+// banner
 export function StatusBanner({ status }: StatusBannerProps) {
   if (!status) {
     return null;
