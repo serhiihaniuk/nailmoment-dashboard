@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -76,12 +76,12 @@ export function VoteResultsTable() {
           Помилка: {error?.message}
         </p>
       )}
-      {isLoading && <Skeleton className="h-[200px] w-full rounded-xl" />}
+      {isLoading && <Skeleton className="h-50 w-full rounded-xl" />}
 
       {results.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
           {/* Desktop table */}
-          <div className="hidden md:block [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
+          <div className="hidden md:block **:data-[slot=table-container]:border-0 **:data-[slot=table-container]:rounded-none **:data-[slot=table-container]:bg-transparent">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -89,7 +89,7 @@ export function VoteResultsTable() {
                   <TableHead>Спікер</TableHead>
                   <TableHead className="text-center">Голосів</TableHead>
                   <TableHead className="text-center">%</TableHead>
-                  <TableHead className="w-[200px]"></TableHead>
+                  <TableHead className="w-50"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

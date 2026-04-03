@@ -88,8 +88,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="w-full min-h-[100dvh] flex items-center justify-center bg-background">
-      <div className="w-full max-w-[360px] mx-4 animate-in-scale">
+    <div className="w-full min-h-dvh flex items-center justify-center bg-background">
+      <div className="w-full max-w-90 mx-4 animate-in-scale">
         <div className="flex justify-center mb-8">
           <NailIcon className="w-24" />
         </div>

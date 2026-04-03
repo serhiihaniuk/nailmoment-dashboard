@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -67,9 +66,12 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
     <Card className="max-w-md mx-auto">
       <CardHeader
         className={cn("transition-all duration-500", {
-          "bg-gradient-to-br from-success/10 via-success/5 to-transparent": battleTicket?.photos_sent === true,
-          "bg-gradient-to-br from-warning/10 via-warning/5 to-transparent": battleTicket?.photos_sent === false,
-          "bg-gradient-to-br from-muted/40 to-transparent": battleTicket === undefined,
+          "bg-linear-to-br from-success/10 via-success/5 to-transparent":
+            battleTicket?.photos_sent === true,
+          "bg-linear-to-br from-warning/10 via-warning/5 to-transparent":
+            battleTicket?.photos_sent === false,
+          "bg-linear-to-br from-muted/40 to-transparent":
+            battleTicket === undefined,
         })}
       >
         <CardTitle className="flex items-center gap-2">
@@ -80,9 +82,7 @@ export function BattleTicketCard({ battleTicketId }: BattleTicketCardProps) {
             <CameraOff size={16} className="text-destructive" />
           )}
         </CardTitle>
-        <CardDescription>
-          #{battleTicketId}
-        </CardDescription>
+        <CardDescription>#{battleTicketId}</CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-6 pt-6">

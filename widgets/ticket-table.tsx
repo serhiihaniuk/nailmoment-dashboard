@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useMemo, useState, useCallback, useEffect } from "react";
+import { FC, useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import {
@@ -167,7 +167,7 @@ export function TicketsTable() {
         </p>
       )}
 
-      {isLoading && <Skeleton className="h-[400px] w-full rounded-xl" />}
+      {isLoading && <Skeleton className="h-100 w-full rounded-xl" />}
 
       {!isLoading && (
         <>
@@ -175,7 +175,7 @@ export function TicketsTable() {
           <div className="hidden md:block rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
             {/* Toolbar  */}
             <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
-              <div className="relative flex-grow max-w-[220px]">
+              <div className="relative grow max-w-55">
                 <Search
                   size={14}
                   className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50"
@@ -238,7 +238,7 @@ export function TicketsTable() {
             )}
 
             {filtered.length > 0 && (
-              <div className="[&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
+              <div className="**:data-[slot=table-container]:border-0 **:data-[slot=table-container]:rounded-none **:data-[slot=table-container]:bg-transparent">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
@@ -270,7 +270,7 @@ export function TicketsTable() {
                                 t.arrived ? "bg-[#1a7f37]" : "bg-[#cccccc]",
                               )}
                             />
-                            <span className="max-w-[160px] truncate inline-block font-medium">
+                            <span className="max-w-40 truncate inline-block font-medium">
                               {t.name}
                             </span>
                             {(t.updated_grade ?? t.grade)?.toLowerCase() ===
@@ -408,7 +408,7 @@ export function TicketsTable() {
                       </div>
                     </div>
                     {t.email && (
-                      <div className="mt-1 text-[12px] text-muted-foreground truncate pl-[14px]">
+                      <div className="mt-1 text-[12px] text-muted-foreground truncate pl-3.5">
                         {t.email}
                       </div>
                     )}

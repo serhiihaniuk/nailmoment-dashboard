@@ -296,7 +296,7 @@ function PanelRow({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-[12px] text-muted-foreground w-28 shrink-0">
         {label}
       </span>
-      <span className="text-[13px] text-foreground min-w-0 break-words">
+      <span className="text-[13px] text-foreground min-w-0 wrap-break-word">
         {value}
       </span>
     </div>

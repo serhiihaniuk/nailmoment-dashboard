@@ -1,7 +1,7 @@
 "use client";
 
 import { BattleTicketsTable } from "@/widgets/battle-ticket-table";
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 
 export default function BattlePage() {
   return (

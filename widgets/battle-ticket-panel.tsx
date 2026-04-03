@@ -176,7 +176,7 @@ function PanelRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline gap-3">
       <span className="text-[12px] text-muted-foreground w-32 shrink-0">{label}</span>
-      <span className="text-[13px] text-foreground min-w-0 break-words">{value}</span>
+      <span className="text-[13px] text-foreground min-w-0 wrap-break-word">{value}</span>
     </div>
   );
 }

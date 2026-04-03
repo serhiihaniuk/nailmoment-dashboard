@@ -42,7 +42,7 @@ export function SlidePanel({ open, onClose, children, footer, className }: Slide
       <div
         className={cn(
           "absolute right-0 top-0 h-full bg-white border-l border-border/60 shadow-elevated flex flex-col",
-          "w-full sm:w-[440px] md:w-[480px]",
+          "w-full sm:w-110 md:w-120",
           className,
         )}
         style={{ animation: "panel-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both" }}

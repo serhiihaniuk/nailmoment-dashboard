@@ -139,14 +139,14 @@ export function BattleTicketsTable() {
         </p>
       )}
 
-      {isLoading && <Skeleton className="h-[400px] w-full rounded-xl" />}
+      {isLoading && <Skeleton className="h-100 w-full rounded-xl" />}
 
       {!isLoading && (
         <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
             {/* Search */}
-            <div className="relative flex-grow sm:max-w-[220px]">
+            <div className="relative grow sm:max-w-55">
               <Search
                 size={14}
                 className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50"
@@ -193,7 +193,7 @@ export function BattleTicketsTable() {
 
           {/* Desktop table */}
           {filtered.length > 0 && (
-            <div className="hidden md:block [&_[data-slot=table-container]]:border-0 [&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:bg-transparent">
+            <div className="hidden md:block **:data-[slot=table-container]:border-0 **:data-[slot=table-container]:rounded-none **:data-[slot=table-container]:bg-transparent">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
