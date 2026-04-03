@@ -1,12 +1,15 @@
 export const TICKET_TYPE = {
-  VIP: "vip",
   STANDARD: "standard",
   MAXI: "maxi",
-  GUEST: "guest",
+  VIP: "vip",
 } as const;
 export type TicketGrade = (typeof TICKET_TYPE)[keyof typeof TICKET_TYPE];
 
-export const TICKET_TYPE_LIST: TicketGrade[] = Object.values(TICKET_TYPE);
+export const TICKET_TYPE_LIST: TicketGrade[] = [
+  TICKET_TYPE.STANDARD,
+  TICKET_TYPE.MAXI,
+  TICKET_TYPE.VIP,
+];
 
 export const SPEAKERS = [
   {

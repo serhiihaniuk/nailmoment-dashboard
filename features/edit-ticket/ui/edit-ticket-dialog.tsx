@@ -93,7 +93,7 @@ export function EditTicketDialog({
               render={({ field }) => (
                 <Field label="Тип квитка">
                   <Select
-                    value={field.value ?? "guest"}
+                    value={field.value ?? "standard"}
                     onValueChange={field.onChange}
                   >
                     <FormControl>

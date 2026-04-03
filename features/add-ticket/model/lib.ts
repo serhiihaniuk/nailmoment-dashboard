@@ -6,7 +6,7 @@ export function createAddTicketDefaultValues(): AddTicketFormInputValues {
     email: "",
     phone: "",
     instagram: "",
-    grade: "guest",
+    grade: "standard",
   };
 }
 

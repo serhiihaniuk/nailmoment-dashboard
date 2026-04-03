@@ -464,6 +464,7 @@ const ArrivedSegment: FC<{
 const GRADE_OPTIONS = [
   { value: "all", label: "Всі" },
   { value: TICKET_TYPE.STANDARD, label: "Standard" },
+  { value: TICKET_TYPE.MAXI, label: "Maxi" },
   { value: TICKET_TYPE.VIP, label: "VIP" },
 ] as const;
 

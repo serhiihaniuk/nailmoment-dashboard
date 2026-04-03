@@ -54,7 +54,7 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
     phone: body.phone,
     instagram,
     qr_code,
-    grade: (body.grade ?? "guest").toLowerCase(),
+    grade: (body.grade ?? "standard").toLowerCase(),
     mail_sent: false,
   });
 };
