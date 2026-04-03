@@ -14,7 +14,7 @@ import {
   sendBattleEmail,
   sendTicketEmail,
 } from "@/shared/email/send-email";
-import { logStripe } from "../log";
+import { logStripe, logStripeStep } from "../log";
 import { mapCheckoutCustomer } from "../map-checkout-customer";
 import type { StripeWebhookHandlerResult } from "../types";
 
@@ -23,7 +23,11 @@ type StripeEventStatus = "failed" | "ignored" | "processed" | "processing";
 type CheckoutResolution =
   | { kind: "battle" }
   | { kind: "ticket"; ticketGrade: TicketGrade }
-  | { kind: "ignored" | "invalid"; reason: string };
+  | {
+      kind: "ignored" | "invalid";
+      reason: string;
+      context?: Record<string, unknown>;
+    };
 
 type StripeWebhookClaim =
   | { kind: "claimed" }
@@ -39,7 +43,7 @@ const PROCESSING_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function getEventContext(
   event: Pick<Stripe.Event, "id" | "type">,
-  stripeSessionId: string,
+  stripeSessionId?: string,
 ) {
   return {
     stripeEventId: event.id,
@@ -101,6 +105,11 @@ async function claimStripeWebhookEvent(
   const stripeSessionId = isCheckoutSessionCompletedEvent(event)
     ? event.data.object.id
     : undefined;
+  const eventContext = getEventContext(event, stripeSessionId);
+
+  logStripeStep("info", "CLAIM", "Attempting to claim Stripe webhook event", {
+    ...eventContext,
+  });
 
   const inserted = await db
     .insert(stripeWebhookEventTable)
@@ -115,6 +124,9 @@ async function claimStripeWebhookEvent(
     .returning({ id: stripeWebhookEventTable.id });
 
   if (inserted.length > 0) {
+    logStripeStep("info", "CLAIM", "Claimed new Stripe webhook event row", {
+      ...eventContext,
+    });
     return { kind: "claimed" };
   }
 
@@ -125,6 +137,10 @@ async function claimStripeWebhookEvent(
     .limit(1);
 
   if (!existing) {
+    logStripeStep("warn", "CLAIM", "Stripe webhook claim race lost", {
+      ...eventContext,
+      reason: "event_claim_race_lost",
+    });
     return {
       kind: "ignored",
       reason: "event_claim_race_lost",
@@ -134,6 +150,12 @@ async function claimStripeWebhookEvent(
 
   const now = new Date();
   if (shouldReclaimStripeWebhookEvent(existing, now)) {
+    logStripeStep("warn", "CLAIM", "Found stale Stripe webhook row, attempting reclaim", {
+      ...eventContext,
+      existingStatus: existing.status,
+      existingUpdatedAt: existing.updated_at,
+    });
+
     const staleBefore = new Date(
       now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS,
     );
@@ -161,9 +183,19 @@ async function claimStripeWebhookEvent(
       .returning({ id: stripeWebhookEventTable.id });
 
     if (recovered.length > 0) {
+      logStripeStep("info", "CLAIM", "Reclaimed stale Stripe webhook row", {
+        ...eventContext,
+        previousStatus: existing.status,
+      });
       return { kind: "claimed" };
     }
   }
+
+  logStripeStep("warn", "CLAIM", "Stripe webhook event already handled", {
+    ...eventContext,
+    existingStatus: existing.status,
+    reason: `duplicate_${existing.status}`,
+  });
 
   return {
     kind: "ignored",
@@ -177,6 +209,11 @@ export function resolveCheckoutSession(
 ): CheckoutResolution {
   if (session.payment_status !== "paid") {
     return {
+      context: {
+        expectedPaymentStatus: "paid",
+        metadata: session.metadata ?? {},
+        receivedPaymentStatus: session.payment_status,
+      },
       kind: "ignored",
       reason: "unpaid_session",
     };
@@ -184,6 +221,11 @@ export function resolveCheckoutSession(
 
   if (session.metadata?.event !== "nailmoment") {
     return {
+      context: {
+        expectedEventMetadata: "nailmoment",
+        metadata: session.metadata ?? {},
+        receivedEventMetadata: session.metadata?.event ?? null,
+      },
       kind: "ignored",
       reason: "unexpected_event_metadata",
     };
@@ -197,6 +239,11 @@ export function resolveCheckoutSession(
 
   if (!isTicketGrade(ticketGrade)) {
     return {
+      context: {
+        allowedTicketGrades: TICKET_TYPE_LIST,
+        metadata: session.metadata ?? {},
+        receivedTicketGrade: session.metadata?.ticket_grade ?? null,
+      },
       kind: "invalid",
       reason: "invalid_ticket_grade",
     };
@@ -216,17 +263,22 @@ async function processBattleCheckoutSession(
   const customer = mapCheckoutCustomer(session);
   const battleTicketId = nanoid(10);
 
+  logStripeStep("info", "PROCESS", "Starting battle ticket fulfillment", {
+    ...getEventContext(event, stripeSessionId),
+    customerEmail: customer.email,
+  });
+
   const inserted = await db
     .insert(battleTicketTable)
     .values({
       archived: false,
       comment: "",
       date: new Date(),
-    email: customer.email,
-    id: battleTicketId,
-    instagram: customer.instagram,
-    mail_sent: false,
-    name: customer.name,
+      email: customer.email,
+      id: battleTicketId,
+      instagram: customer.instagram,
+      mail_sent: false,
+      name: customer.name,
       nomination_quantity: 1,
       phone: customer.phone,
       stripe_event_id: stripeSessionId,
@@ -235,12 +287,21 @@ async function processBattleCheckoutSession(
     .returning({ id: battleTicketTable.id });
 
   if (inserted.length === 0) {
+    logStripeStep("warn", "DB", "Battle ticket already exists for Stripe session", {
+      ...getEventContext(event, stripeSessionId),
+      battleTicketId,
+    });
     await markStripeWebhookEvent(event.id, "processed", {
       processedAt: new Date(),
       statusReason: "battle_ticket_already_exists",
     });
     return "already_fulfilled";
   }
+
+  logStripeStep("info", "DB", "Battle ticket created", {
+    ...getEventContext(event, stripeSessionId),
+    battleTicketId,
+  });
 
   await markStripeWebhookEvent(event.id, "processed", {
     processedAt: new Date(),
@@ -255,11 +316,21 @@ async function processBattleCheckoutSession(
   }
 
   try {
+    logStripeStep("info", "EMAIL", "Sending battle ticket email", {
+      ...getEventContext(event, stripeSessionId),
+      battleTicketId,
+      customerEmail: customer.email,
+    });
     await sendBattleEmail(customer.email, customer.name, battleTicketId);
     await db
       .update(battleTicketTable)
       .set({ mail_sent: true })
       .where(eq(battleTicketTable.id, battleTicketId));
+    logStripeStep("info", "EMAIL", "Battle ticket email sent", {
+      ...getEventContext(event, stripeSessionId),
+      battleTicketId,
+      customerEmail: customer.email,
+    });
   } catch (error) {
     logStripe("error", "Battle email send failed", {
       ...getEventContext(event, stripeSessionId),
@@ -278,10 +349,28 @@ async function processTicketCheckoutSession(
   const stripeSessionId = session.id;
   const customer = mapCheckoutCustomer(session);
   const ticketId = nanoid(10);
+
+  logStripeStep("info", "PROCESS", "Starting ticket fulfillment", {
+    ...getEventContext(event, stripeSessionId),
+    customerEmail: customer.email,
+    ticketGrade,
+  });
+
+  logStripeStep("info", "QR", "Generating ticket QR code", {
+    ...getEventContext(event, stripeSessionId),
+    ticketId,
+  });
+
   const qrCodeUrl = await generateAndStoreQRCode(
     `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
     `moment-qr/festival_2026/qr-code-${ticketId}.png`,
   );
+
+  logStripeStep("info", "QR", "Ticket QR code stored", {
+    ...getEventContext(event, stripeSessionId),
+    qrCodeUrl,
+    ticketId,
+  });
 
   const inserted = await db
     .insert(ticketTable)
@@ -289,8 +378,8 @@ async function processTicketCheckoutSession(
       email: customer.email,
       grade: ticketGrade,
       id: ticketId,
-    instagram: customer.instagram,
-    name: customer.name,
+      instagram: customer.instagram,
+      name: customer.name,
       phone: customer.phone,
       qr_code: qrCodeUrl,
       stripe_event_id: stripeSessionId,
@@ -299,12 +388,23 @@ async function processTicketCheckoutSession(
     .returning({ id: ticketTable.id });
 
   if (inserted.length === 0) {
+    logStripeStep("warn", "DB", "Ticket already exists for Stripe session", {
+      ...getEventContext(event, stripeSessionId),
+      ticketId,
+    });
     await markStripeWebhookEvent(event.id, "processed", {
       processedAt: new Date(),
       statusReason: "ticket_already_exists",
     });
     return "already_fulfilled";
   }
+
+  logStripeStep("info", "DB", "Ticket created", {
+    ...getEventContext(event, stripeSessionId),
+    qrCodeUrl,
+    ticketGrade,
+    ticketId,
+  });
 
   await markStripeWebhookEvent(event.id, "processed", {
     processedAt: new Date(),
@@ -319,6 +419,12 @@ async function processTicketCheckoutSession(
   }
 
   try {
+    logStripeStep("info", "EMAIL", "Sending ticket email", {
+      ...getEventContext(event, stripeSessionId),
+      customerEmail: customer.email,
+      ticketGrade,
+      ticketId,
+    });
     await sendTicketEmail(
       customer.email,
       customer.name,
@@ -329,6 +435,12 @@ async function processTicketCheckoutSession(
       .update(ticketTable)
       .set({ mail_sent: true })
       .where(eq(ticketTable.id, ticketId));
+    logStripeStep("info", "EMAIL", "Ticket email sent", {
+      ...getEventContext(event, stripeSessionId),
+      customerEmail: customer.email,
+      ticketGrade,
+      ticketId,
+    });
   } catch (error) {
     logStripe("error", "Ticket email send failed", {
       ...getEventContext(event, stripeSessionId),
@@ -344,6 +456,10 @@ export async function handleCheckoutSessionCompleted(
 ): Promise<StripeWebhookHandlerResult> {
   if (!isCheckoutSessionCompletedEvent(event)) {
     return {
+      context: {
+        expectedEventType: "checkout.session.completed",
+        receivedEventType: event.type,
+      },
       kind: "invalid",
       reason: "unexpected_event_type",
       stripeEventId: event.id,
@@ -354,6 +470,12 @@ export async function handleCheckoutSessionCompleted(
   const stripeSessionId = session.id;
   const eventContext = getEventContext(event, stripeSessionId);
   const claim = await claimStripeWebhookEvent(event);
+
+  logStripeStep("info", "HANDLE", "Processing checkout.session.completed event", {
+    ...eventContext,
+    metadata: session.metadata ?? {},
+    paymentStatus: session.payment_status,
+  });
 
   if (claim.kind === "ignored") {
     return {
@@ -367,12 +489,19 @@ export async function handleCheckoutSessionCompleted(
   const resolution = resolveCheckoutSession(session);
 
   if (resolution.kind === "ignored" || resolution.kind === "invalid") {
+    logStripeStep("warn", "RESOLVE", "Checkout session was ignored during resolution", {
+      ...eventContext,
+      ...resolution.context,
+      reason: resolution.reason,
+    });
+
     await markStripeWebhookEvent(event.id, "ignored", {
       statusReason: resolution.reason,
     });
 
     return {
       kind: resolution.kind,
+      context: resolution.context,
       reason: resolution.reason,
       stripeEventId: event.id,
       stripeSessionId,
@@ -382,6 +511,9 @@ export async function handleCheckoutSessionCompleted(
   try {
     switch (resolution.kind) {
       case "battle":
+        logStripeStep("info", "RESOLVE", "Resolved checkout session as battle ticket", {
+          ...eventContext,
+        });
         return {
           kind: "processed",
           reason:
@@ -392,6 +524,10 @@ export async function handleCheckoutSessionCompleted(
           stripeSessionId,
         };
       case "ticket":
+        logStripeStep("info", "RESOLVE", "Resolved checkout session as regular ticket", {
+          ...eventContext,
+          ticketGrade: resolution.ticketGrade,
+        });
         return {
           kind: "processed",
           reason:

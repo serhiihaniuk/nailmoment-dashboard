@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { logStripeStep } from "./log";
 import type { StripeWebhookVerificationResult } from "./types";
 
 const STRIPE_API_VERSION = "2026-03-25.dahlia";
@@ -35,6 +36,16 @@ function inferLivemode(secretKey: string) {
   return (
     secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_")
   );
+}
+
+function getCheckoutSessionLogContext(session: Stripe.Checkout.Session) {
+  return {
+    checkoutMode: session.mode,
+    currency: session.currency,
+    metadata: session.metadata ?? {},
+    paymentStatus: session.payment_status,
+    stripeSessionId: session.id,
+  };
 }
 
 export function readStripeWebhookConfig(
@@ -88,11 +99,12 @@ export async function validateCheckoutSessionCompletedEvent(
         status: 200,
         body: { received: true },
         logContext: {
-          mode: session.mode,
-          stripeSessionId: session.id,
+          ...getCheckoutSessionLogContext(session),
+          expectedCheckoutMode: "payment",
+          receivedCheckoutMode: session.mode,
         },
         logLevel: "error",
-        logMessage: "Ignoring Stripe session with unexpected checkout mode",
+        logMessage: "VERIFY Ignoring Stripe session with unexpected checkout mode",
       },
     };
   }
@@ -105,12 +117,12 @@ export async function validateCheckoutSessionCompletedEvent(
         status: 200,
         body: { received: true },
         logContext: {
+          ...getCheckoutSessionLogContext(session),
           expectedLivemode: config.expectedLivemode,
           receivedLivemode: session.livemode,
-          stripeSessionId: session.id,
         },
         logLevel: "error",
-        logMessage: "Ignoring Stripe session with unexpected livemode",
+        logMessage: "VERIFY Ignoring Stripe session with unexpected livemode",
       },
     };
   }
@@ -128,16 +140,21 @@ export async function validateCheckoutSessionCompletedEvent(
         body: { received: true },
         logContext: {
           allowedCurrencies: config.allowedCurrencies,
-          currency: session.currency,
-          stripeSessionId: session.id,
+          ...getCheckoutSessionLogContext(session),
+          receivedCurrency: session.currency,
         },
         logLevel: "error",
-        logMessage: "Ignoring Stripe session with unexpected currency",
+        logMessage: "VERIFY Ignoring Stripe session with unexpected currency",
       },
     };
   }
 
   if (config.allowedPriceIds.length > 0) {
+    logStripeStep("info", "VERIFY", "Fetching Stripe line items for allow-list validation", {
+      allowedPriceIds: config.allowedPriceIds,
+      stripeSessionId: session.id,
+    });
+
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
       limit: 100,
     });
@@ -152,19 +169,19 @@ export async function validateCheckoutSessionCompletedEvent(
       return {
         ok: false,
         rejection: {
-          kind: "rejected",
-          status: 200,
-          body: { received: true },
-          logContext: {
-            allowedPriceIds: config.allowedPriceIds,
-            priceIds,
-            stripeSessionId: session.id,
-          },
-          logLevel: "error",
-          logMessage: "Ignoring Stripe session with unexpected price ids",
+        kind: "rejected",
+        status: 200,
+        body: { received: true },
+        logContext: {
+          allowedPriceIds: config.allowedPriceIds,
+          ...getCheckoutSessionLogContext(session),
+          priceIds,
         },
-      };
-    }
+        logLevel: "error",
+        logMessage: "VERIFY Ignoring Stripe session with unexpected price ids",
+      },
+    };
+  }
   }
 
   return { ok: true };
@@ -189,6 +206,15 @@ export function createStripeWebhookVerifier(
     request: Request
   ): Promise<StripeWebhookVerificationResult> {
     const configResult = readStripeWebhookConfig(env);
+
+    logStripeStep("info", "VERIFY", "Loaded Stripe webhook config", {
+      allowedCurrencies:
+        configResult.ok ? configResult.config.allowedCurrencies : undefined,
+      allowedPriceIds:
+        configResult.ok ? configResult.config.allowedPriceIds : undefined,
+      expectedLivemode:
+        configResult.ok ? configResult.config.expectedLivemode : undefined,
+    });
 
     if (!configResult.ok) {
       return {
@@ -241,7 +267,24 @@ export function createStripeWebhookVerifier(
       };
     }
 
+    const stripeSessionId =
+      event.type === "checkout.session.completed"
+        ? event.data.object.id
+        : undefined;
+
+    logStripeStep("info", "VERIFY", "Stripe signature accepted", {
+      eventType: event.type,
+      stripeEventId: event.id,
+      stripeSessionId,
+    });
+
     if (event.type === "checkout.session.completed") {
+      logStripeStep("info", "VERIFY", "Validating checkout session payload", {
+        eventType: event.type,
+        stripeEventId: event.id,
+        ...getCheckoutSessionLogContext(event.data.object),
+      });
+
       const sessionValidation = await validateCheckoutSessionCompletedEvent(
         event.data.object,
         configResult.config,

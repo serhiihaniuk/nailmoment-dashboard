@@ -1,6 +1,6 @@
 import { waitUntil } from "@vercel/functions";
 import type Stripe from "stripe";
-import { flushStripeLogs, logStripe } from "./log";
+import { flushStripeLogs, logStripe, logStripeStep } from "./log";
 import type {
   StripeWebhookHandler,
   StripeWebhookHandlers,
@@ -30,8 +30,16 @@ export function createStripeWebhookRoute({
   verifyRequest: VerifyStripeWebhookRequest;
 }) {
   return async function POST(request: Request) {
+    logStripeStep("info", "RECEIVED", "Stripe webhook request received", {
+      contentType: request.headers.get("content-type"),
+      requestMethod: request.method,
+      userAgent: request.headers.get("user-agent"),
+    });
+
     try {
-      const verification = await verifyRequest(request);      if (verification.kind === "rejected") {
+      const verification = await verifyRequest(request);
+
+      if (verification.kind === "rejected") {
         logger(
           verification.logLevel,
           verification.logMessage,
@@ -42,20 +50,36 @@ export function createStripeWebhookRoute({
         });
       }
 
+      const eventContext = {
+        eventType: verification.event.type,
+        stripeEventId: verification.event.id,
+        stripeSessionId:
+          verification.event.type === "checkout.session.completed"
+            ? verification.event.data.object.id
+            : undefined,
+      };
+
+      logStripeStep("info", "VERIFY", "Stripe webhook event verified", {
+        ...eventContext,
+      });
+
       const handler = getHandler(handlers, verification.event.type);
 
       if (!handler) {
-        logger("warn", "Unhandled Stripe event", {
-          stripeEventId: verification.event.id,
-          eventType: verification.event.type,
+        logger("warn", "ROUTE No handler registered for Stripe event", {
+          ...eventContext,
         });
         return Response.json({ received: true }, { status: 200 });
       }
 
+      logStripeStep("info", "ROUTE", "Dispatching Stripe webhook handler", {
+        ...eventContext,
+      });
+
       const result = await handler(verification.event);
       const level = result.kind === "processed" ? "info" : "warn";
 
-      logger(level, `Stripe event ${result.kind}`, {
+      logger(level, `DONE Stripe event ${result.kind}`, {
         stripeEventId: result.stripeEventId,
         stripeSessionId: result.stripeSessionId,
         reason: result.reason,
@@ -64,7 +88,7 @@ export function createStripeWebhookRoute({
 
       return Response.json({ received: true }, { status: 200 });
     } catch (error) {
-      logger("error", "Stripe webhook processing failed", { error });
+      logger("error", "FAIL Stripe webhook processing failed", { error });
       return Response.json({ error: "Internal error" }, { status: 500 });
     } finally {
       waitUntil(flushLogs());

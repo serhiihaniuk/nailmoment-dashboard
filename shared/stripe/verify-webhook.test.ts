@@ -73,7 +73,7 @@ test("validateCheckoutSessionCompletedEvent rejects unexpected currency", async 
 
   expect(result.rejection.status).toBe(200);
   expect(result.rejection.logMessage).toBe(
-    "Ignoring Stripe session with unexpected currency"
+    "VERIFY Ignoring Stripe session with unexpected currency"
   );
 });
 
@@ -109,7 +109,7 @@ test("validateCheckoutSessionCompletedEvent rejects non-payment checkout mode", 
 
   expect(result.rejection.status).toBe(200);
   expect(result.rejection.logMessage).toBe(
-    "Ignoring Stripe session with unexpected checkout mode"
+    "VERIFY Ignoring Stripe session with unexpected checkout mode"
   );
 });
 
