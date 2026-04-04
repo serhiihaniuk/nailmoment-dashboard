@@ -499,7 +499,7 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
   if (normalizedGrade === TICKET_TYPE.VIP) {
     return (
-      <span className="text-[9px] uppercase tracking-wider font-semibold text-[#395500] border border-[#395500]/40 px-1 py-0 rounded">
+      <span className="text-[9px] uppercase tracking-wider font-semibold text-white bg-[#395500] border border-[#395500] px-1 py-0 rounded">
         vip
       </span>
     );
