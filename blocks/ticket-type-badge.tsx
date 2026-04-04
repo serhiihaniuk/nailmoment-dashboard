@@ -7,7 +7,7 @@ import { TICKET_TYPE } from "@/shared/const";
 const getClasses = (type: string) => {
   switch (type?.toLowerCase()) {
     case "vip":
-      return "border-[#395500] text-white bg-[#395500]";
+      return "border-[#395500] text-white bg-[#395500] ring-1 ring-[#395500]/40";
     case "standard":
       return "border-border text-muted-foreground bg-muted/30";
     case TICKET_TYPE.MAXI:
