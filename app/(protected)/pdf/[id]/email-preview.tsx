@@ -40,7 +40,7 @@ export function EmailPreview({ html, text }: { html: string; text: string }) {
           sandbox=""
         />
       ) : (
-        <pre className="mx-auto max-w-[600px] whitespace-pre-wrap bg-white p-8 font-mono text-sm leading-relaxed text-gray-800 shadow-sm">
+        <pre className="mx-auto max-w-150 whitespace-pre-wrap bg-white p-8 font-mono text-sm leading-relaxed text-gray-800 shadow-sm">
           {text}
         </pre>
       )}

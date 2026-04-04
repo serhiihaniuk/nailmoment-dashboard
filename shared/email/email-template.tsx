@@ -21,13 +21,11 @@ interface EmailTemplateProps {
   ticketId?: string;
   logoUrl?: string;
   battleOfMastersLink?: string;
-  instagramLink?: string;
 }
 
 const DEFAULT_LOGO_URL =
   "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/assets/v1/nailmoment-wroclaw/content/2026/nm_logo.png";
 const DEFAULT_BATTLE_LINK = "https://www.nailmoment.pl/battle";
-const DEFAULT_INSTAGRAM_LINK = "https://www.instagram.com/nail_moment_pl";
 const TELEGRAM_CHANNEL_LINK = "https://t.me/+5bQ5eI6x0vIyZTlk";
 
 export const EmailTemplate = ({
@@ -37,7 +35,6 @@ export const EmailTemplate = ({
   ticketId,
   logoUrl = DEFAULT_LOGO_URL,
   battleOfMastersLink = DEFAULT_BATTLE_LINK,
-  instagramLink = DEFAULT_INSTAGRAM_LINK,
 }: EmailTemplateProps) => {
   const shortCode = ticketId
     ? ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(-5).toLowerCase()
