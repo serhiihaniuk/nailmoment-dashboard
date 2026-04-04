@@ -99,7 +99,8 @@ export async function POST(req: NextRequest) {
         ticket.email,
         ticket.name,
         ticket.qr_code,
-        ticket.grade
+        ticket.grade,
+        ticket.id
       );
       await db
         .update(ticketTable)

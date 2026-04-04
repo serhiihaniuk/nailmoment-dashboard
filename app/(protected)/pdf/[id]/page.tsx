@@ -1,4 +1,5 @@
-import { getTicketHtml } from "@/app/_actions/get-email";
+import { getTicketHtml, getTicketText } from "@/app/_actions/get-email";
+import { EmailPreview } from "./email-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -8,15 +9,13 @@ export default async function TicketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const html = await getTicketHtml(id);
+  const [html, text] = await Promise.all([
+    getTicketHtml(id),
+    getTicketText(id),
+  ]);
 
-  if (!html) return <p className="p-6 text-center">Ticket not found 🫤</p>;
+  if (!html || !text)
+    return <p className="p-6 text-center">Ticket not found 🫤</p>;
 
-  return (
-    <iframe
-      srcDoc={html}
-      className="min-h-screen w-full border-0 bg-gray-100"
-      sandbox=""
-    />
-  );
+  return <EmailPreview html={html} text={text} />;
 }

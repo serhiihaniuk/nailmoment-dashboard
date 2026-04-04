@@ -430,6 +430,7 @@ async function processTicketCheckoutSession(
       customer.name,
       qrCodeUrl,
       ticketGrade,
+      ticketId,
     );
     await db
       .update(ticketTable)

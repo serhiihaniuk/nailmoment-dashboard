@@ -27,15 +27,40 @@ export async function sendTicketEmail(
   to: string,
   name: string,
   qrCodeUrl: string,
-  ticketType: string
+  ticketType: string,
+  ticketId?: string
 ) {
   try {
+    const shortCode = ticketId
+      ? ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(-5).toLowerCase()
+      : "";
+
+    const plainText = [
+      `Вітаємо, ${name}!`,
+      ``,
+      `Дякуємо за покупку квитка ${ticketType.toUpperCase()} на фестиваль Nail Moment у Варшаві.`,
+      ``,
+      `Код вашого квитка: #${shortCode}`,
+      ``,
+      `Деталі події:`,
+      `Дата: 7 червня 2026`,
+      `Місце: Uczelnia Biznesu i Nauk Stosowanych "Varsovia"`,
+      `Адреса: Al. Jerozolimskie 133A, 02-304 Warszawa`,
+      ``,
+      `Telegram-канал: https://t.me/+5bQ5eI6x0vIyZTlk`,
+      ``,
+      `З нетерпінням чекаємо на зустріч!`,
+      `Команда Nail Moment`,
+      ``,
+      `nailmoment.pl | Nailmoment.Official@gmail.com`,
+    ].join("\n");
+
     const { data, error } = await resend.emails.send({
       from: "nailmoment-ticket@nailmoment.pl",
       to,
-      subject: "Ваш квиток на конференцію Nail Moment",
-      html: "",
-      react: EmailTemplate({ name, qrCodeUrl, ticketType }),
+      subject: "Ваш квиток на фестиваль Nail Moment у Варшаві",
+      text: plainText,
+      react: EmailTemplate({ name, qrCodeUrl, ticketType, ticketId }),
     });
 
     if (error) {
@@ -58,7 +83,7 @@ export async function sendBattleEmail(
     const { data, error } = await resend.emails.send({
       from: "nailmoment-battle@nailmoment.pl",
       to,
-      subject: "Ваш битва на конференцію Nail Moment",
+      subject: "Ваш квиток учасника Битви Майстрів — Nail Moment",
       html: "",
       react: BattleTicketEmailTemplate({ name, ticketId }),
     });

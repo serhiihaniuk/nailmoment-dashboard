@@ -18,188 +18,219 @@ interface EmailTemplateProps {
   name: string;
   qrCodeUrl: string;
   ticketType: string;
+  ticketId?: string;
   logoUrl?: string;
   battleOfMastersLink?: string;
   instagramLink?: string;
 }
 
 const DEFAULT_LOGO_URL =
-  "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/nailmoment-wroclaw/assets/logo-sYFHGN18H1zPtjucntQDiZXrYdpXQB.png";
+  "https://oet9iwqxtk87xaxw.public.blob.vercel-storage.com/assets/v1/nailmoment-wroclaw/content/2026/nm_logo.png";
 const DEFAULT_BATTLE_LINK = "https://www.nailmoment.pl/battle";
 const DEFAULT_INSTAGRAM_LINK = "https://www.instagram.com/nail_moment_pl";
-const TELEGRAM_CHANNEL_LINK = "https://t.me/+eNoGeJrBIzMyOWQ8";
+const TELEGRAM_CHANNEL_LINK = "https://t.me/+5bQ5eI6x0vIyZTlk";
 
 export const EmailTemplate = ({
   name,
   qrCodeUrl,
   ticketType,
+  ticketId,
   logoUrl = DEFAULT_LOGO_URL,
   battleOfMastersLink = DEFAULT_BATTLE_LINK,
   instagramLink = DEFAULT_INSTAGRAM_LINK,
 }: EmailTemplateProps) => {
+  const shortCode = ticketId
+    ? ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(-5).toLowerCase()
+    : "";
   const eventDetails = {
-    date: "27 липня 2025",
-    locationName: "Concordia Design Wrocław",
-    address: "Wyspa Słodowa 7, 50-266 Wrocław",
+    date: "7 червня 2026",
+    locationName: 'Uczelnia Biznesu i Nauk Stosowanych "Varsovia"',
+    address: "Al. Jerozolimskie 133A, 02-304 Warszawa",
     mapsLink:
-      "https://www.google.com/maps/place/Concordia+Design+Wroc%C5%82aw+I+Wynajem+biur+I+Centrum+Konferencyjno+-+Eventowe/@51.116155,17.039087,18z/data=!4m6!3m5!1s0x470fe9d955a31883:0xe8473c13af04dfb3!8m2!3d51.1161551!4d17.039087!16s%2Fg%2F11h42p_991?hl=pl&entry=ttu&g_ep=EgoyMDI1MDQyMy4wIKXMDSoASAFQAw%3D%3D",
+      "https://www.google.com/maps/place/Al.+Jerozolimskie+133A,+02-304+Warszawa,+Poland",
   };
-  const currentYear = new Date().getFullYear(); // Get current year for footer
+  const currentYear = new Date().getFullYear();
 
-  // Normalize ticket type for comparison
   const normalizedTicketType = ticketType.toLocaleLowerCase();
-  const isVipOrStandard =
-    normalizedTicketType === "vip" ||
-    normalizedTicketType === "standard" ||
-    normalizedTicketType === "maxi";
+  const isMaxiOrVip =
+    normalizedTicketType === "maxi" || normalizedTicketType === "vip";
+  const isVip = normalizedTicketType === "vip";
 
   return (
     <Html>
       <Head />
       <Preview>
-        Ваш квиток на фестиваль Nail Moment + Доступ до Telegram!
-      </Preview>{" "}
-      {/* Updated Preview */}
+        Ваш квиток на Nail Moment у Варшаві — {ticketType.toUpperCase()}
+      </Preview>
       <Body style={main}>
         <Container style={container}>
-          <Section style={logoContainer}>
+          {/* Header with logo */}
+          <Section style={headerSection}>
             <Img
               src={logoUrl}
-              width="150"
+              width="140"
               style={logoImageStyle}
               alt="Nail Moment Logo"
             />
-          </Section>
-
-          <Heading style={h1}>Вітаємо, {name}!</Heading>
-
-          <Text style={text}>
-            Дякуємо за покупку квитка! Ми раді підтвердити ваше запрошення на
-            фестиваль <span style={brandName}>Nail Moment</span> у Вроцлаві. Ваш
-            електронний квиток готовий.
-          </Text>
-
-          <Section style={qrSection}>
-            <Heading style={h2}>Ваш Квиток</Heading>
-            <Text style={subtleText}>
-              Покажіть цей QR-код на вході для реєстрації.
-            </Text>
-            <Img
-              src={qrCodeUrl}
-              width="220"
-              height="220"
-              alt="QR код вашого квитка"
-              style={qrCode}
-            />
-            <Text style={ticketTypeText}>
-              <span style={ticketTypeHighlight}>
-                {ticketType.toUpperCase()}
-              </span>
+            <Text style={headerTagline}>
+              ГОЛОВНИЙ NAIL-ФЕСТИВАЛЬ ПОЛЬЩІ
             </Text>
           </Section>
 
-          <Hr style={hr} />
-
-          <Section style={detailsSection}>
-            <Heading style={h2}>Деталі Події</Heading>
-            <Text style={detailsText}>
-              <strong>Дата:</strong> {eventDetails.date}
-            </Text>
-            <Text style={detailsText}>
-              <strong>Місце:</strong> {eventDetails.locationName}
-              <br />
-              {eventDetails.address}
-            </Text>
-            <Text style={detailsText}>
-              <Link href={eventDetails.mapsLink} style={link}>
-                Знайти на карті
-              </Link>
-            </Text>
-          </Section>
-
-          <Hr style={hr} />
-
-          {/* --- New Telegram Channel Section --- */}
-          <Section style={telegramSection}>
-            <Heading style={h2}>🎁 Ваш Бонус: Закритий Telegram Канал</Heading>
+          {/* Greeting */}
+          <Section style={greetingSection}>
+            <Heading style={h1}>Вітаємо, {name}!</Heading>
             <Text style={text}>
-              Як власник квитка, ви отримуєте ексклюзивний доступ до нашого
-              закритого Telegram-каналу! Приєднуйтесь, щоб отримувати останні
-              оновлення, спеціальні анонси та спілкуватися з іншими учасниками
-              фестивалю.
+              Дякуємо за покупку квитка! Ми раді підтвердити вашу участь у
+              фестивалі <span style={brandName}>Nail Moment</span> у Варшаві.
+            </Text>
+          </Section>
+
+          {/* QR Ticket */}
+          <Section style={qrWrapper}>
+            <table style={qrInnerBox}>
+              <tr>
+                <td style={qrInnerCell}>
+                  <p style={ticketLabel}>ВАШ КВИТОК</p>
+                  <Img
+                    src={qrCodeUrl}
+                    width="200"
+                    height="200"
+                    alt="QR код вашого квитка"
+                    style={qrCode}
+                  />
+                  <p style={ticketTypeBadge}>
+                    {ticketType.toUpperCase()}
+                  </p>
+                  {shortCode && (
+                    <p style={shortCodeText}>#{shortCode}</p>
+                  )}
+                  <p style={subtleText}>
+                    Покажіть цей QR-код на вході для реєстрації
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </Section>
+
+          {/* Event Details */}
+          <Section style={detailsCard}>
+            <Heading style={h2}>Деталі Події</Heading>
+            <table style={detailsTable}>
+              <tr>
+                <td style={detailsIcon}>📅</td>
+                <td style={detailsValue}>{eventDetails.date}</td>
+              </tr>
+              <tr>
+                <td style={detailsIcon}>📍</td>
+                <td style={detailsValue}>
+                  {eventDetails.locationName}
+                  <br />
+                  <span style={addressText}>{eventDetails.address}</span>
+                </td>
+              </tr>
+            </table>
+            <Link href={eventDetails.mapsLink} style={mapLink}>
+              Знайти на карті →
+            </Link>
+          </Section>
+
+          {/* What's Included */}
+          <Section style={includedSection}>
+            <Heading style={h2}>Що включено у ваш квиток</Heading>
+            <table style={featureTable}>
+              <tr>
+                <td style={checkmark}>✓</td>
+                <td style={featureText}>Доступ до nail-маркету</td>
+              </tr>
+              <tr>
+                <td style={checkmark}>✓</td>
+                <td style={featureText}>Усі виступи спікерів</td>
+              </tr>
+              <tr>
+                <td style={checkmark}>✓</td>
+                <td style={featureText}>Нетворкінг з учасниками</td>
+              </tr>
+              <tr>
+                <td style={checkmark}>✓</td>
+                <td style={featureText}>
+                  Доступ до закритого телеграм-каналу
+                </td>
+              </tr>
+              {isMaxiOrVip && (
+                <>
+                  <tr>
+                    <td style={checkmarkVip}>+</td>
+                    <td style={featureTextVip}>Подарунки від брендів</td>
+                  </tr>
+                  <tr>
+                    <td style={checkmarkVip}>+</td>
+                    <td style={featureTextVip}>
+                      Сертифікат про участь у заході
+                    </td>
+                  </tr>
+                </>
+              )}
+              {isVip && (
+                <tr>
+                  <td style={checkmarkVip}>+</td>
+                  <td style={featureTextVip}>Місця у перших рядах</td>
+                </tr>
+              )}
+            </table>
+          </Section>
+
+          {/* Telegram */}
+          <Section style={telegramSection}>
+            <Heading style={h2}>Закритий Telegram Канал</Heading>
+            <Text style={text}>
+              Приєднуйтесь до нашого закритого Telegram-каналу для оновлень,
+              анонсів та спілкування з іншими учасниками фестивалю.
             </Text>
             <Button style={button} href={TELEGRAM_CHANNEL_LINK}>
-              Приєднатися до Каналу в Telegram
+              Приєднатися до Telegram
             </Button>
           </Section>
-          {/* ------------------------------------ */}
+
+          {/* Battle of Masters */}
+          <Section style={battleSection}>
+            <Heading style={h2}>Конкурс «Битва Майстрів»</Heading>
+            <Text style={text}>
+              Хочете взяти участь у конкурсі{" "}
+              <strong>«Битва Майстрів»</strong>? Для участі необхідно
+              додатково придбати окремий квиток конкурсанта.
+            </Text>
+            <Button style={buttonOutline} href={battleOfMastersLink}>
+              Дізнатися більше
+            </Button>
+          </Section>
 
           <Hr style={hr} />
 
-          {isVipOrStandard && (
-            <Section style={competitionSection}>
-              <Heading style={h2}>🔥 Бонус: Битва Майстрів!</Heading>
-              <Text style={text}>
-                Маєте хист до змагань? Після придбання цього квитка ви отримуєте
-                ексклюзивну можливість взяти участь у конкурсі{" "}
-                <strong>&quot;Битва Майстрів&quot;</strong>! Для участі
-                необхідно додатково придбати окремий квиток конкурсанта.
-              </Text>
-              <Button style={button} href={battleOfMastersLink}>
-                Дізнатися більше та купити квиток учасника
-              </Button>
-            </Section>
-          )}
-
-          {!isVipOrStandard && (
-            <Section style={upgradeSectionStyle}>
-              <Heading style={h2}>Хочеш Більшого?</Heading>
-              <Text style={text}>
-                Якщо хочеш <strong>БІЛЬШОГО</strong>, у тебе є шанс: більше
-                побачити, більше навчитися та потрапити на конференцію з
-                виступами наших спікерів: Анастасія Костенко, Юлія Зварич, Яна,
-                Ангеліна Рагоза, Юлія Бельмас та інші.
-              </Text>
-              <Text style={text}>
-                Щоб змінити твій квиток на квиток STANDARD чи VIP,{" "}
-                <Link href={instagramLink} style={link}>
-                  напиши до нас у дірект
-                </Link>
-                📩
-              </Text>
-            </Section>
-          )}
-
-          <Hr style={hr} />
-
+          {/* Footer */}
           <Section style={footerSection}>
             <Text style={footerText}>
-              З нетерпінням чекаємо на зустріч з вами у Вроцлаві!
-              <br />З повагою, Команда Nail Moment
+              З нетерпінням чекаємо на зустріч з вами у Варшаві!
+              <br />
+              Команда Nail Moment
             </Text>
             <Text style={footerInfo}>
-              Якщо у вас виникли запитання, зв&apos;яжіться з нами:
-              <br />
               <Link
                 href="mailto:Nailmoment.Official@gmail.com"
                 style={footerLink}
               >
                 Nailmoment.Official@gmail.com
               </Link>
-              <br />
+              {" · "}
               <Link href="https://www.nailmoment.pl" style={footerLink}>
-                www.nailmoment.pl
+                nailmoment.pl
               </Link>
-              <br />
-              <Link href="https://t.me/nail_moment_pl" style={footerLink}>
-                t.me/nail_moment_pl
-              </Link>
-              <br />
+              {" · "}
               <Link
                 href="https://www.instagram.com/nail_moment_pl"
                 style={footerLink}
               >
-                instagram.com/nail_moment_pl
+                Instagram
               </Link>
             </Text>
             <Text style={footerCopyright}>
@@ -212,20 +243,44 @@ export const EmailTemplate = ({
   );
 };
 
-const telegramSection = {
-  textAlign: "center" as const,
-  margin: "30px 0",
-  padding: "20px",
-  backgroundColor: "#f0f8ff",
-  borderRadius: "5px",
-  border: "1px solid #d6ebff",
+// ---- Colors matching the website theme ----
+const colors = {
+  olive: "#4a5e23",
+  oliveLight: "#5c7a2e",
+  oliveDark: "#3a4a1c",
+  cream: "#f7f5ef",
+  creamDark: "#eee9dd",
+  brown: "#3d2b1f",
+  brownLight: "#5c4033",
+  gold: "#8b7d3c",
+  white: "#ffffff",
+  textDark: "#2d2d2d",
+  textMuted: "#6b6b6b",
+  textLight: "#999999",
+  border: "#e0ddd5",
 };
-// ---------------------------------------
 
 const main = {
-  backgroundColor: "#f6f9fc",
+  backgroundColor: colors.cream,
   fontFamily:
     '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+};
+
+const container = {
+  backgroundColor: colors.white,
+  margin: "0 auto",
+  padding: "0",
+  marginBottom: "64px",
+  borderRadius: "8px",
+  maxWidth: "600px",
+  overflow: "hidden" as const,
+  border: `1px solid ${colors.border}`,
+};
+
+const headerSection = {
+  textAlign: "center" as const,
+  padding: "32px 40px 20px",
+  backgroundColor: colors.cream,
 };
 
 const logoImageStyle = {
@@ -233,161 +288,252 @@ const logoImageStyle = {
   margin: "0 auto",
 };
 
-const container = {
-  backgroundColor: "#ffffff",
-  margin: "0 auto",
-  padding: "20px 40px 48px",
-  marginBottom: "64px",
-  border: "1px solid #eee",
-  borderRadius: "5px",
-  maxWidth: "600px",
+const headerTagline = {
+  color: colors.olive,
+  fontSize: "11px",
+  fontWeight: "600" as const,
+  letterSpacing: "2px",
+  marginTop: "12px",
+  marginBottom: "0",
+  textTransform: "uppercase" as const,
 };
 
-const logoContainer = {
-  textAlign: "center" as const,
-  padding: "20px 0",
-  backgroundColor: "#bcd9f7",
+const greetingSection = {
+  padding: "24px 40px 0",
 };
 
 const h1 = {
-  color: "#333",
-  fontSize: "28px",
+  color: colors.brown,
+  fontSize: "26px",
   fontWeight: "bold" as const,
-  textAlign: "center" as const,
-  margin: "30px 0",
-  padding: "0",
+  textAlign: "left" as const,
+  margin: "0 0 16px 0",
 };
 
 const h2 = {
-  color: "#444",
-  fontSize: "22px",
+  color: colors.brown,
+  fontSize: "18px",
   fontWeight: "bold" as const,
-  margin: "25px 0 15px 0",
+  margin: "0 0 12px 0",
 };
 
 const brandName = {
   fontWeight: "bold" as const,
-  color: "#6a0dad",
+  color: colors.olive,
 };
 
 const text = {
-  color: "#333",
-  fontSize: "16px",
-  lineHeight: "26px",
-  margin: "16px 0",
+  color: colors.textDark,
+  fontSize: "15px",
+  lineHeight: "24px",
+  margin: "0 0 16px 0",
 };
 
 const subtleText = {
-  color: "#555",
-  fontSize: "14px",
-  lineHeight: "22px",
-  margin: "0 0 15px 0",
+  color: colors.textMuted,
+  fontSize: "13px",
+  lineHeight: "20px",
+  margin: "8px 0 0 0",
 };
 
-const qrSection = {
-  backgroundColor: "#f8f8f8",
-  padding: "20px",
-  margin: "30px 0",
+const qrWrapper = {
+  padding: "0 40px 24px",
+};
+
+const qrInnerBox = {
+  width: "100%",
+  backgroundColor: colors.cream,
+  borderRadius: "8px",
+  border: `1px solid ${colors.border}`,
+  borderCollapse: "collapse" as const,
+};
+
+const qrInnerCell = {
+  padding: "24px",
   textAlign: "center" as const,
-  border: "1px dashed #ccc",
-  borderRadius: "5px",
+};
+
+const ticketLabel = {
+  color: colors.olive,
+  fontSize: "11px",
+  fontWeight: "700" as const,
+  letterSpacing: "2px",
+  margin: "0 0 16px 0",
+  textTransform: "uppercase" as const,
 };
 
 const qrCode = {
-  margin: "10px auto",
+  margin: "0 auto",
+  display: "block" as const,
 };
 
-const ticketTypeText = {
-  ...subtleText,
-  marginTop: "15px",
+const shortCodeText = {
+  color: colors.textMuted,
+  fontSize: "13px",
+  fontFamily: "monospace",
+  letterSpacing: "1px",
+  margin: "8px 0 0 0",
+};
+
+const ticketTypeBadge = {
+  display: "inline-block",
+  backgroundColor: colors.olive,
+  color: colors.white,
+  fontSize: "13px",
   fontWeight: "bold" as const,
+  padding: "4px 16px",
+  borderRadius: "4px",
+  marginTop: "16px",
+  marginBottom: "0",
+  letterSpacing: "1px",
 };
 
-const ticketTypeHighlight = {
-  color: "#007bff",
+const detailsCard = {
+  padding: "24px 40px",
+  margin: "0",
 };
 
-const hr = {
-  borderColor: "#cccccc",
-  margin: "30px 0",
+const detailsTable = {
+  width: "100%",
+  borderSpacing: "0",
+  marginBottom: "12px",
 };
 
-const detailsSection = {
-  margin: "20px 0",
+const detailsIcon = {
+  width: "28px",
+  fontSize: "16px",
+  verticalAlign: "top" as const,
+  paddingTop: "2px",
+  paddingBottom: "12px",
 };
 
-const detailsText = {
-  color: "#333",
+const detailsValue = {
+  color: colors.textDark,
   fontSize: "15px",
-  lineHeight: "24px",
-  margin: "8px 0",
+  lineHeight: "22px",
+  paddingBottom: "12px",
 };
 
-const competitionSection = {
-  textAlign: "center" as const,
-  margin: "30px 0",
-  padding: "20px",
-  backgroundColor: "#fff9e6", // Yellowish background for attention
-  borderRadius: "5px",
-  border: "1px solid #ffeeba",
+const addressText = {
+  color: colors.textMuted,
+  fontSize: "14px",
 };
 
-// Style for the new upgrade section
-const upgradeSectionStyle = {
+const mapLink = {
+  color: colors.olive,
+  fontSize: "14px",
+  fontWeight: "600" as const,
+  textDecoration: "none",
+};
+
+const includedSection = {
+  padding: "24px 40px",
+  backgroundColor: colors.cream,
+};
+
+const featureTable = {
+  width: "100%",
+  borderSpacing: "0",
+};
+
+const checkmark = {
+  width: "24px",
+  color: colors.olive,
+  fontSize: "16px",
+  fontWeight: "bold" as const,
+  verticalAlign: "top" as const,
+  paddingTop: "6px",
+  paddingBottom: "6px",
+};
+
+const checkmarkVip = {
+  ...checkmark,
+  color: colors.gold,
+};
+
+const featureText = {
+  color: colors.textDark,
+  fontSize: "14px",
+  lineHeight: "20px",
+  paddingTop: "6px",
+  paddingBottom: "6px",
+  borderBottom: `1px solid ${colors.border}`,
+};
+
+const featureTextVip = {
+  ...featureText,
+  fontWeight: "600" as const,
+};
+
+const telegramSection = {
   textAlign: "center" as const,
-  margin: "30px 0",
-  padding: "20px",
-  backgroundColor: "#eaf6ff", // Light blue background
-  borderRadius: "5px",
-  border: "1px solid #cde7ff",
+  padding: "24px 40px",
 };
 
 const button = {
-  backgroundColor: "#007bff",
-  borderRadius: "5px",
-  color: "#fff",
-  fontSize: "16px",
-  fontWeight: "bold" as const,
+  backgroundColor: colors.olive,
+  borderRadius: "6px",
+  color: colors.white,
+  fontSize: "15px",
+  fontWeight: "600" as const,
   textDecoration: "none",
   textAlign: "center" as const,
-  display: "inline-block", // Changed from block to inline-block for better centering within textAlign:center sections
+  display: "inline-block",
   lineHeight: "100%",
-  padding: "12px 20px",
-  marginTop: "10px", // Ensures some space above the button if text is short
+  padding: "14px 28px",
+};
+
+const battleSection = {
+  textAlign: "center" as const,
+  padding: "24px 40px",
+  backgroundColor: colors.creamDark,
+};
+
+const buttonOutline = {
+  backgroundColor: "transparent",
+  borderRadius: "6px",
+  color: colors.olive,
+  fontSize: "15px",
+  fontWeight: "600" as const,
+  textDecoration: "none",
+  textAlign: "center" as const,
+  display: "inline-block",
+  lineHeight: "100%",
+  padding: "12px 26px",
+  border: `2px solid ${colors.olive}`,
+};
+
+const hr = {
+  borderColor: colors.border,
+  margin: "0",
 };
 
 const footerSection = {
   textAlign: "center" as const,
-  marginTop: "30px",
+  padding: "24px 40px",
 };
 
 const footerText = {
-  color: "#555",
+  color: colors.textMuted,
   fontSize: "14px",
   lineHeight: "22px",
-  margin: "0 0 10px 0",
+  margin: "0 0 12px 0",
 };
 
 const footerInfo = {
-  color: "#8898aa",
+  color: colors.textLight,
   fontSize: "12px",
-  lineHeight: "18px",
-  margin: "0 0 10px 0",
+  lineHeight: "20px",
+  margin: "0 0 8px 0",
 };
 
 const footerLink = {
-  color: "#007bff",
-  textDecoration: "underline",
+  color: colors.olive,
+  textDecoration: "none",
 };
 
 const footerCopyright = {
-  color: "#aaaaaa",
+  color: colors.textLight,
   fontSize: "11px",
-  lineHeight: "16px",
   margin: "0",
-};
-
-const link = {
-  color: "#007bff",
-  textDecoration: "underline",
 };
