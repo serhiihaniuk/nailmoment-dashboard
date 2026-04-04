@@ -4,15 +4,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatInstagramLink, linkStyles } from "@/shared/utils";
-import {
-  Loader2,
-  AlertTriangle,
-  Ghost,
-  ArrowRight,
-  Check,
-  Send,
-  MailCheck,
-} from "lucide-react";
+import { Loader2, AlertTriangle, Ghost, ArrowRight, Check } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
@@ -113,24 +105,10 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
   );
 }
 
-async function resendEmail(id: string): Promise<void> {
-  const r = await fetch(`/api/ticket/${id}`, { method: "POST" });
-  if (!r.ok) throw new Error(await r.text());
-}
-
 export function TicketPanelContent({ ticketId }: { ticketId: string }) {
-  const qc = useQueryClient();
   const { data, isLoading, isError, error } = useQuery<Ticket | null, Error>({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
-  });
-
-  const resendMutation = useMutation({
-    mutationFn: () => resendEmail(ticketId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
-    },
   });
 
   if (isLoading) {
@@ -289,30 +267,6 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
               >
                 Переглянути / Завантажити
               </Link>
-            }
-          />
-          <PanelRow
-            label="Email"
-            value={
-              <button
-                type="button"
-                onClick={() => resendMutation.mutate()}
-                disabled={resendMutation.isPending}
-                className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                {resendMutation.isPending ? (
-                  <Loader2 size={13} className="animate-spin" />
-                ) : resendMutation.isSuccess ? (
-                  <MailCheck size={13} className="text-green-600" />
-                ) : (
-                  <Send size={13} />
-                )}
-                {resendMutation.isPending
-                  ? "Надсилається..."
-                  : resendMutation.isSuccess
-                    ? "Надіслано"
-                    : "Надіслати повторно"}
-              </button>
             }
           />
         </div>
