@@ -107,7 +107,7 @@ function ComposeTab({ ticketId }: { ticketId: string }) {
 
   function handlePreview() {
     startPreview(async () => {
-      const html = await previewCustomEmail("{{name}}", subject, body);
+      const html = await previewCustomEmail(ticketId, subject, body);
       setPreviewHtml(html);
     });
   }

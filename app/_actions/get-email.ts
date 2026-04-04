@@ -61,12 +61,15 @@ export async function getTicketText(id: string): Promise<string | null> {
 }
 
 export async function previewCustomEmail(
-  name: string,
+  ticketId: string,
   subject: string,
   body: string
 ): Promise<string> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("401");
+
+  const ticket = await ticketService.getTicket(ticketId);
+  const name = ticket?.name ?? "{{name}}";
 
   return await pretty(
     await render(CustomEmailTemplate({ name, subject, body }))
