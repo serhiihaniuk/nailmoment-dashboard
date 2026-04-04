@@ -5,7 +5,9 @@ import { createTicketService } from "@/shared/db/service/ticket-service";
 import { auth } from "@/shared/better-auth/auth";
 import { render, pretty } from "@react-email/render";
 import { EmailTemplate } from "@/shared/email/email-template";
+import { CustomEmailTemplate } from "@/shared/email/custom-email-template";
 import { headers } from "next/headers";
+import { Resend } from "resend";
 
 const ticketService = createTicketService(db);
 
@@ -56,4 +58,51 @@ export async function getTicketText(id: string): Promise<string | null> {
     ``,
     `nailmoment.pl | Nailmoment.Official@gmail.com`,
   ].join("\n");
+}
+
+export async function previewCustomEmail(
+  name: string,
+  subject: string,
+  body: string
+): Promise<string> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("401");
+
+  return await pretty(
+    await render(CustomEmailTemplate({ name, subject, body }))
+  );
+}
+
+export async function sendCustomEmail(
+  ticketId: string,
+  subject: string,
+  body: string
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("401");
+
+  const ticket = await ticketService.getTicket(ticketId);
+  if (!ticket) return { success: false, error: "Ticket not found" };
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  const html = await render(
+    CustomEmailTemplate({ name: ticket.name, subject, body })
+  );
+
+  const plainText = `${ticket.name},\n\n${body}\n\nЗ повагою,\nКоманда Nail Moment\nnailmoment.pl | Nailmoment.Official@gmail.com`;
+
+  const { error } = await resend.emails.send({
+    from: "nailmoment-ticket@nailmoment.pl",
+    to: ticket.email,
+    subject,
+    html,
+    text: plainText,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
 }

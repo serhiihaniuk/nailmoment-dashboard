@@ -15,7 +15,7 @@ export default async function TicketPage({
   ]);
 
   if (!html || !text)
-    return <p className="p-6 text-center">Ticket not found 🫤</p>;
+    return <p className="p-6 text-center">Ticket not found</p>;
 
-  return <EmailPreview html={html} text={text} />;
+  return <EmailPreview html={html} text={text} ticketId={id} />;
 }
