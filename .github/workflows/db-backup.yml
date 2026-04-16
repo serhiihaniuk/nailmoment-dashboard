@@ -27,7 +27,7 @@ jobs:
           STAMP=$(date -u +%Y%m%d_%H%M%S)
           echo "STAMP=$STAMP" >> $GITHUB_ENV
           mkdir -p dumps
-          pg_dump "$DATABASE_URL" \
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" \
             --format=custom \
             --no-acl \
             --no-owner \
