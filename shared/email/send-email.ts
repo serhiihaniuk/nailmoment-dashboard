@@ -15,6 +15,8 @@ export async function generateAndStoreQRCode(
     const blob = await put(filename, qrBuffer, {
       access: "public",
       contentType: "image/png",
+      addRandomSuffix: false,
+      allowOverwrite: false,
     });
     return blob.url;
   } catch (error) {
