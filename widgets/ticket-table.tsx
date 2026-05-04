@@ -19,15 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Ticket } from "@/shared/db/schema";
+import { TicketWithFinance } from "@/shared/db/schema";
 import { TICKET_TYPE, TICKET_TYPE_LIST } from "@/shared/const";
 import { cn } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader, Search } from "lucide-react";
-import { AddTicketDialog } from "@/features/add-ticket";
 import { TicketPanelWrapper } from "@/widgets/ticket-panel";
 
-async function fetchTickets(): Promise<Ticket[]> {
+async function fetchTickets(): Promise<TicketWithFinance[]> {
   const res = await fetch("/api/ticket");
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -55,7 +54,7 @@ export function TicketsTable() {
     isLoading,
     isFetching,
     isError,
-  } = useQuery<Ticket[], Error>({
+  } = useQuery<TicketWithFinance[], Error>({
     queryKey: ["tickets"],
     queryFn: fetchTickets,
     staleTime: Infinity,
@@ -145,7 +144,6 @@ export function TicketsTable() {
             </span>
           )}
         </h2>
-        <AddTicketDialog />
       </div>
 
       {/* Stats row — all uniform muted color */}
@@ -255,6 +253,7 @@ export function TicketsTable() {
                       <TableHead>Ім&apos;я</TableHead>
                       <TableHead className="w-12 text-center">Stripe</TableHead>
                       <TableHead>E-mail</TableHead>
+                      <TableHead>Фінанси</TableHead>
                       <TableHead>Instagram</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Дата</TableHead>

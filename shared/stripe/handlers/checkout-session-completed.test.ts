@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { expect, test } from "vitest";
 import {
+  getCheckoutPaidAmount,
   resolveCheckoutSession,
   shouldReclaimStripeWebhookEvent,
 } from "./checkout-session-completed";
@@ -83,6 +84,18 @@ test("resolveCheckoutSession returns ticket branch for valid grades", () => {
     kind: "ticket",
     ticketGrade: "vip",
   });
+});
+
+test("getCheckoutPaidAmount uses Stripe amount_total in major currency units", () => {
+  expect(getCheckoutPaidAmount(createSession({ amount_total: 94900 }), "vip")).toBe(
+    "949.00"
+  );
+});
+
+test("getCheckoutPaidAmount falls back to grade price when Stripe amount is absent", () => {
+  expect(getCheckoutPaidAmount(createSession({ amount_total: null }), "maxi")).toBe(
+    "590.00"
+  );
 });
 
 test("shouldReclaimStripeWebhookEvent reclaims failed events", () => {

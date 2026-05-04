@@ -1,4 +1,14 @@
-import { pgTable, text, timestamp, boolean, integer, pgEnum, bigint, unique } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  pgEnum,
+  bigint,
+  unique,
+  decimal,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -56,6 +66,37 @@ export const paymentTypeEnum = pgEnum("payment_type_enum", [
   "3_rates",
   "free",
   "sponsor",
+]);
+
+export const saleSourceEnum = pgEnum("sale_source_enum", [
+  "site",
+  "direct_transfer",
+  "other",
+]);
+
+export const paymentPlanEnum = pgEnum("payment_plan_enum", [
+  "full",
+  "two_parts",
+  "three_parts",
+  "custom",
+  "free",
+  "sponsor",
+]);
+
+export const paymentMethodEnum = pgEnum("payment_method_enum", [
+  "nail_moment_company",
+  "revolut",
+  "blik",
+  "cash",
+  "bank_transfer",
+  "other",
+]);
+
+export const invoiceStatusEnum = pgEnum("invoice_status_enum", [
+  "not_sent",
+  "requested",
+  "sent",
+  "not_needed",
 ]);
 
 export const stripeWebhookEventStatusEnum = pgEnum(
@@ -122,6 +163,93 @@ export const ticketTable = pgTable(
   })
 );
 
+export const ticketFinanceTable = pgTable(
+  "ticket_finance",
+  {
+    id: text("id").primaryKey(),
+    ticket_id: text("ticket_id")
+      .notNull()
+      .references(() => ticketTable.id, { onDelete: "cascade" }),
+    sale_source: saleSourceEnum("sale_source").notNull().default("site"),
+    payment_plan: paymentPlanEnum("payment_plan").notNull().default("full"),
+    gross_total: decimal("gross_total", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    discount_amount: decimal("discount_amount", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    tax_amount: decimal("tax_amount", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    net_total: decimal("net_total", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    nip: text("nip").notNull().default(""),
+    finance_note: text("finance_note").notNull().default(""),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    ticketFinanceTicketIdUnique: unique("ticket_finance_ticket_id_unique").on(
+      table.ticket_id
+    ),
+  })
+);
+
+export const paymentInstallmentTable = pgTable("payment_installment", {
+  id: text("id").primaryKey(),
+  ticket_id: text("ticket_id")
+    .notNull()
+    .references(() => ticketTable.id, { onDelete: "cascade" }),
+  installment_number: integer("installment_number").notNull().default(1),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  sale_source: saleSourceEnum("sale_source").notNull().default("direct_transfer"),
+  due_date: timestamp("due_date", { withTimezone: true, mode: "date" }),
+  paid_date: timestamp("paid_date", { withTimezone: true, mode: "date" }),
+  payment_method: paymentMethodEnum("payment_method").notNull().default("other"),
+  invoice_status: invoiceStatusEnum("invoice_status")
+    .notNull()
+    .default("not_sent"),
+  invoice_number: text("invoice_number").notNull().default(""),
+  comment: text("comment").notNull().default(""),
+  created_at: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow(),
+  updated_at: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
@@ -156,6 +284,36 @@ export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 
 export type Ticket = typeof ticketTable.$inferSelect;
 export type InsertTicket = typeof ticketTable.$inferInsert;
+
+export type TicketFinance = typeof ticketFinanceTable.$inferSelect;
+export type InsertTicketFinance = typeof ticketFinanceTable.$inferInsert;
+
+export type PaymentInstallment = typeof paymentInstallmentTable.$inferSelect;
+export type InsertPaymentInstallment =
+  typeof paymentInstallmentTable.$inferInsert;
+
+export type FinancePaymentStatus =
+  | "untracked"
+  | "unpaid"
+  | "partial"
+  | "paid"
+  | "overdue";
+
+export interface TicketFinanceSummary {
+  gross_total: string;
+  paid_total: string;
+  remaining_total: string;
+  payment_count: number;
+  payment_status: FinancePaymentStatus;
+  invoice_status: (typeof invoiceStatusEnum.enumValues)[number] | null;
+  next_due_date: Date | null;
+}
+
+export type TicketWithFinance = Ticket & {
+  finance: TicketFinance | null;
+  payments: PaymentInstallment[];
+  finance_summary: TicketFinanceSummary;
+};
 
 export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
   id: text("id").primaryKey(),
