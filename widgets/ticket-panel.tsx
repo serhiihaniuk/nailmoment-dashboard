@@ -9,11 +9,11 @@ import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { EditTicketDialog } from "@/features/edit-ticket";
 import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 import Link from "next/link";
-import { Ticket } from "@/shared/db/schema";
+import { TicketWithFinance } from "@/shared/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { SlidePanel } from "@/components/ui/slide-panel";
 
-async function fetchTicket(id: string): Promise<Ticket | null> {
+async function fetchTicket(id: string): Promise<TicketWithFinance | null> {
   const r = await fetch(`/api/ticket/${id}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(await r.text());
@@ -23,7 +23,7 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 async function patchArrived(
   id: string,
   arrived: boolean,
-): Promise<Ticket> {
+): Promise<TicketWithFinance> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -56,7 +56,7 @@ export function TicketPanelWrapper({
 
 export function ArrivalFooter({ ticketId }: { ticketId: string }) {
   const qc = useQueryClient();
-  const { data, isFetching } = useQuery<Ticket | null, Error>({
+  const { data, isFetching } = useQuery<TicketWithFinance | null, Error>({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
@@ -106,7 +106,10 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 }
 
 export function TicketPanelContent({ ticketId }: { ticketId: string }) {
-  const { data, isLoading, isError, error } = useQuery<Ticket | null, Error>({
+  const { data, isLoading, isError, error } = useQuery<
+    TicketWithFinance | null,
+    Error
+  >({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
@@ -286,6 +289,7 @@ export function TicketPanelContent({ ticketId }: { ticketId: string }) {
           />
         </div>
       </div>
+
     </div>
   );
 }

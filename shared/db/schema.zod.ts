@@ -3,7 +3,12 @@ import {
   createInsertSchema,
   createSelectSchema,
 } from "drizzle-zod";
-import { battleTicketTable, ticketTable } from "./schema";
+import {
+  battleTicketTable,
+  paymentInstallmentTable,
+  ticketFinanceTable,
+  ticketTable,
+} from "./schema";
 import { TICKET_TYPE_LIST } from "../const";
 
 export const selectTicketSchema = createSelectSchema(ticketTable);
@@ -39,6 +44,74 @@ export type InsertTicketOutput = z.output<typeof insertTicketSchema>;
 
 export type UpdateTicketInput = z.input<typeof updateTicketSchema>;
 export type UpdateTicketOutput = z.output<typeof updateTicketSchema>;
+
+const moneyInputSchema = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? 0 : value),
+  z.coerce.number().finite().min(0).max(99999999.99)
+).transform((value) => value.toFixed(2));
+
+const optionalDateInputSchema = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? null : value),
+  z.coerce.date().nullable()
+);
+
+export const selectTicketFinanceSchema = createSelectSchema(ticketFinanceTable);
+
+export const upsertTicketFinanceSchema = createInsertSchema(
+  ticketFinanceTable,
+  {
+    gross_total: moneyInputSchema,
+    discount_amount: moneyInputSchema,
+    tax_amount: moneyInputSchema,
+    net_total: moneyInputSchema,
+    nip: z.string().trim().optional().default(""),
+    finance_note: z.string().trim().optional().default(""),
+  }
+)
+  .omit({
+    id: true,
+    ticket_id: true,
+    created_at: true,
+    updated_at: true,
+  })
+  .partial();
+
+export const selectPaymentInstallmentSchema =
+  createSelectSchema(paymentInstallmentTable);
+
+export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
+  paymentInstallmentTable,
+  {
+    installment_number: z.coerce.number().int().min(1).max(12).default(1),
+    amount: moneyInputSchema,
+    due_date: optionalDateInputSchema,
+    paid_date: optionalDateInputSchema,
+    invoice_number: z.string().trim().optional().default(""),
+    comment: z.string().trim().optional().default(""),
+  }
+)
+  .omit({
+    id: true,
+    ticket_id: true,
+    created_at: true,
+    updated_at: true,
+  })
+  .extend({
+    amount: moneyInputSchema,
+  });
+
+export const patchPaymentInstallmentSchema =
+  insertPaymentInstallmentApiInputSchema.partial();
+
+export type UpsertTicketFinanceInput = z.input<
+  typeof upsertTicketFinanceSchema
+>;
+export type InsertPaymentInstallmentInput = z.input<
+  typeof insertPaymentInstallmentApiInputSchema
+>;
+export type PatchPaymentInstallmentInput = z.input<
+  typeof patchPaymentInstallmentSchema
+>;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);
 

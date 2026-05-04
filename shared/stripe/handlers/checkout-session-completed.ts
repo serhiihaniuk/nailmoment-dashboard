@@ -4,11 +4,17 @@ import type Stripe from "stripe";
 import { db } from "@/shared/db";
 import {
   battleTicketTable,
+  paymentInstallmentTable,
   stripeWebhookEventTable,
+  ticketFinanceTable,
   ticketTable,
   type StripeWebhookEvent,
 } from "@/shared/db/schema";
-import { TICKET_TYPE_LIST, type TicketGrade } from "@/shared/const";
+import {
+  TICKET_PRICE_BY_GRADE,
+  TICKET_TYPE_LIST,
+  type TicketGrade,
+} from "@/shared/const";
 import {
   generateAndStoreQRCode,
   sendBattleEmail,
@@ -60,6 +66,21 @@ function isCheckoutSessionCompletedEvent(
 
 function isTicketGrade(value: string): value is TicketGrade {
   return TICKET_TYPE_LIST.some((grade) => grade === value);
+}
+
+export function getCheckoutPaidAmount(
+  session: Pick<Stripe.Checkout.Session, "amount_total">,
+  ticketGrade: TicketGrade,
+): string {
+  if (
+    typeof session.amount_total === "number" &&
+    Number.isFinite(session.amount_total) &&
+    session.amount_total >= 0
+  ) {
+    return (session.amount_total / 100).toFixed(2);
+  }
+
+  return TICKET_PRICE_BY_GRADE[ticketGrade];
 }
 
 async function markStripeWebhookEvent(
@@ -406,9 +427,11 @@ async function processTicketCheckoutSession(
     ticketId,
   });
 
+  await ensureStripeTicketFinancePayment(ticketId, session, event, ticketGrade);
+
   await markStripeWebhookEvent(event.id, "processed", {
     processedAt: new Date(),
-    statusReason: "ticket_created",
+    statusReason: "ticket_created_with_payment",
   });
 
   if (!customer.email) {
@@ -450,6 +473,74 @@ async function processTicketCheckoutSession(
   }
 
   return "created";
+}
+
+async function ensureStripeTicketFinancePayment(
+  ticketId: string,
+  session: Stripe.Checkout.Session,
+  event: Stripe.Event,
+  ticketGrade: TicketGrade,
+) {
+  const stripeSessionId = session.id;
+  const paidAmount = getCheckoutPaidAmount(session, ticketGrade);
+  const paidAt = new Date();
+
+  logStripeStep("info", "FINANCE", "Ensuring Stripe ticket finance payment", {
+    ...getEventContext(event, stripeSessionId),
+    amount: paidAmount,
+    ticketId,
+  });
+
+  await db
+    .insert(ticketFinanceTable)
+    .values({
+      discount_amount: "0.00",
+      finance_note: "",
+      gross_total: paidAmount,
+      id: nanoid(10),
+      net_total: paidAmount,
+      nip: "",
+      payment_plan: "full",
+      sale_source: "site",
+      tax_amount: "0.00",
+      ticket_id: ticketId,
+    })
+    .onConflictDoNothing({
+      target: ticketFinanceTable.ticket_id,
+    });
+
+  const existingPayments = await db
+    .select({ id: paymentInstallmentTable.id })
+    .from(paymentInstallmentTable)
+    .where(eq(paymentInstallmentTable.ticket_id, ticketId))
+    .limit(1);
+
+  if (existingPayments.length > 0) {
+    logStripeStep("info", "FINANCE", "Payment already exists for ticket", {
+      ...getEventContext(event, stripeSessionId),
+      ticketId,
+    });
+    return;
+  }
+
+  await db.insert(paymentInstallmentTable).values({
+    amount: paidAmount,
+    comment: `Stripe session ${stripeSessionId}`,
+    id: nanoid(10),
+    installment_number: 1,
+    invoice_number: "",
+    invoice_status: "not_sent",
+    paid_date: paidAt,
+    payment_method: "other",
+    sale_source: "site",
+    ticket_id: ticketId,
+  });
+
+  logStripeStep("info", "FINANCE", "Stripe finance payment created", {
+    ...getEventContext(event, stripeSessionId),
+    amount: paidAmount,
+    ticketId,
+  });
 }
 
 export async function handleCheckoutSessionCompleted(

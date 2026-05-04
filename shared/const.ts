@@ -11,6 +11,12 @@ export const TICKET_TYPE_LIST: TicketGrade[] = [
   TICKET_TYPE.VIP,
 ];
 
+export const TICKET_PRICE_BY_GRADE: Record<TicketGrade, string> = {
+  standard: "399.00",
+  maxi: "590.00",
+  vip: "949.00",
+};
+
 export const SPEAKERS = [
   {
     id: "video_1",

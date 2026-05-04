@@ -31,7 +31,10 @@ function LoginForm() {
           setError(undefined);
         },
         onSuccess: () => router.push(from),
-        onError: (ctx) => setError(ctx.error.message),
+        onError: (ctx) => {
+          setLoading(false);
+          setError(ctx.error.message);
+        },
       },
     );
   };
