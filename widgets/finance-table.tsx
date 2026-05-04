@@ -4,7 +4,6 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarIcon,
-  CreditCard,
   Loader2,
   Plus,
   Search,
@@ -151,9 +150,12 @@ type CreateTicketWithFinanceInput = CreateTicketInput & {
   finance_note: string;
 };
 
+type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
+
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>("all");
   const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const { data, isLoading, isFetching, isError } = useQuery<
@@ -356,7 +358,21 @@ export function FinanceTable() {
   });
 
   const tickets = useMemo(() => {
-    const activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
+    let activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
+    
+    // Apply status filter
+    if (statusFilter !== "all") {
+      activeTickets = activeTickets.filter((ticket) => {
+        const status = ticket.finance_summary.payment_status;
+        if (statusFilter === "paid") return status === "paid";
+        if (statusFilter === "partial") return status === "partial";
+        if (statusFilter === "overdue") return status === "overdue";
+        if (statusFilter === "pending") return status === "pending" || status === "not_started";
+        return true;
+      });
+    }
+    
+    // Apply search
     if (!query.trim()) return activeTickets;
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -369,7 +385,7 @@ export function FinanceTable() {
         ticket.finance?.nip,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery))
     );
-  }, [data, query]);
+  }, [data, query, statusFilter]);
 
   const financeTotals = useMemo(() => {
     return tickets.reduce(
@@ -418,34 +434,40 @@ export function FinanceTable() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {/* Page header */}
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-heading-1">
-          Фінанси{" "}
-          <span className="text-muted-foreground font-normal text-base">
-            {tickets.length}
-          </span>
-        </h2>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-heading-1">Фінанси</h2>
+          <p className="text-caption mt-1">{tickets.length} записів</p>
+        </div>
         <NewTicketFinanceDialog
           isPending={createTicketMutation.isPending}
           onCreate={(data) => createTicketMutation.mutateAsync(data)}
         />
       </div>
 
-      {/* Stats row */}
-      <div className="text-[12px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-        <span>{formatZloty(financeTotals.gross)} повна</span>
-        <span className="text-border">·</span>
-        <span>{formatZloty(financeTotals.paid)} оплачено</span>
-        <span className="text-border">·</span>
-        <span>{formatZloty(financeTotals.remaining)} залишок</span>
-        {financeTotals.overdue > 0 && (
-          <>
-            <span className="text-border">·</span>
-            <span className="text-destructive font-medium">{financeTotals.overdue} прострочено</span>
-          </>
-        )}
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SummaryCard
+          label="Загальна сума"
+          value={formatZloty(financeTotals.gross)}
+        />
+        <SummaryCard
+          label="Оплачено"
+          value={formatZloty(financeTotals.paid)}
+          variant="success"
+        />
+        <SummaryCard
+          label="Залишок"
+          value={formatZloty(financeTotals.remaining)}
+          variant={financeTotals.remaining > 0 ? "warning" : "default"}
+        />
+        <SummaryCard
+          label="Прострочено"
+          value={String(financeTotals.overdue)}
+          variant={financeTotals.overdue > 0 ? "danger" : "default"}
+        />
       </div>
 
       {isError && (
@@ -456,122 +478,114 @@ export function FinanceTable() {
 
       <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-2 px-3 py-2 border-b border-border/40">
-          <div className="relative grow max-w-80">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-border/40">
+          <div className="relative w-full max-w-64">
             <Search
               size={14}
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
             />
             <Input
-              placeholder="Пошук..."
+              placeholder="Пошук за ім'ям, email, NIP..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="pl-7 h-8 border-0 bg-transparent shadow-none text-base md:text-[13px] placeholder:text-muted-foreground/40"
+              className="pl-8 h-8 border-border/50 bg-transparent text-base md:text-[13px] placeholder:text-muted-foreground/40"
             />
           </div>
-          <div className="ml-auto text-[11px] text-muted-foreground/60">
-            Натисніть на рядок для редагування
+
+          <div className="h-4 w-px bg-border/50 mx-1 hidden md:block" />
+
+          <PaymentStatusFilter value={statusFilter} onChange={setStatusFilter} />
+
+          <div className="ml-auto text-[11px] text-muted-foreground/50 hidden md:block">
+            Натисніть на рядок для деталей
           </div>
         </div>
 
-        <Table className="w-max min-w-full border-separate border-spacing-0 text-[12px]">
-          <TableHeader className="sticky top-0 z-30">
-            <TableRow>
-                <FinanceHead className="min-w-12 lg:sticky lg:left-0 lg:z-50">
-                  №
-                </FinanceHead>
-                <FinanceHead className="min-w-26 lg:sticky lg:left-12 lg:z-50">
-                  Дата
-                </FinanceHead>
-                <FinanceHead className="min-w-52 lg:sticky lg:left-38 lg:z-50 lg:shadow-[8px_0_12px_-12px_rgba(15,23,42,0.15)]">
-                  Ім&apos;я
-                </FinanceHead>
-                <FinanceHead className="min-w-54">Email</FinanceHead>
-                <FinanceHead className="min-w-34">Телефон</FinanceHead>
-                <FinanceHead className="min-w-42">Інстаграм</FinanceHead>
-                <FinanceHead className="min-w-24">Тариф</FinanceHead>
-                <FinanceHead className="min-w-24">NIP</FinanceHead>
-                <FinanceHead className="min-w-22 text-right">Знижка</FinanceHead>
-                <FinanceHead className="min-w-36">Платежі</FinanceHead>
-                <FinanceHead className="min-w-24 text-right">Оплачено</FinanceHead>
-                <FinanceHead className="min-w-24 text-right">Сума</FinanceHead>
-                <FinanceHead className="min-w-22 text-right">Податок</FinanceHead>
-                <FinanceHead className="min-w-24 text-right">Чисто</FinanceHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-              {tickets.map((ticket, index) => (
-                <TableRow
-                  key={ticket.id}
-                  role="button"
-                  tabIndex={0}
-                  className="group cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-[-2px]"
-                  onClick={(event) => {
-                    const interactiveTarget = (
-                      event.target as HTMLElement
-                    ).closest("button,a,textarea,select");
-                    if (interactiveTarget) return;
-                    openTicketPayments(ticket.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter" && event.key !== " ") return;
-                    event.preventDefault();
-                    openTicketPayments(ticket.id);
-                  }}
-                >
-                  <FinanceCell className="bg-white text-right tabular-nums text-muted-foreground group-hover:bg-muted/30 lg:sticky lg:left-0 lg:z-20">
-                    {index + 1}
-                  </FinanceCell>
-                  <FinanceCell className="bg-white tabular-nums text-muted-foreground group-hover:bg-muted/30 lg:sticky lg:left-12 lg:z-20">
-                    {formatDate(ticket.date)}
-                  </FinanceCell>
-                  <FinanceCell className="bg-white font-medium group-hover:bg-muted/30 lg:sticky lg:left-38 lg:z-20 lg:shadow-[8px_0_12px_-12px_rgba(15,23,42,0.15)]">
-                    <span className="block max-w-48 truncate">{ticket.name}</span>
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground">
-                    <span className="block max-w-48 truncate">{ticket.email || "—"}</span>
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground tabular-nums">
-                    {ticket.phone?.replace(/\s+/g, "") || "—"}
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground">
-                    {ticket.instagram || "—"}
-                  </FinanceCell>
-                  <FinanceCell>
-                    <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground tabular-nums">
-                    {ticket.finance?.nip || "—"}
-                  </FinanceCell>
-                  <FinanceCell className="text-right tabular-nums text-muted-foreground">
-                    {toMoneyNumber(ticket.finance?.discount_amount) > 0
-                      ? formatZloty(toMoneyNumber(ticket.finance?.discount_amount))
-                      : "—"}
-                  </FinanceCell>
-                  <FinanceCell>
-                    <PaymentSummaryButton
-                      ticket={ticket}
-                      onClick={() => openTicketPayments(ticket.id)}
-                    />
-                  </FinanceCell>
-                  <FinanceCell className="text-right tabular-nums font-medium text-success">
-                    {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
-                  </FinanceCell>
-                  <FinanceCell className="text-right tabular-nums">
-                    {formatZloty(toMoneyNumber(ticket.finance?.gross_total))}
-                  </FinanceCell>
-                  <FinanceCell className="text-right tabular-nums text-muted-foreground">
-                    {toMoneyNumber(ticket.finance?.tax_amount) > 0
-                      ? formatZloty(toMoneyNumber(ticket.finance?.tax_amount))
-                      : "—"}
-                  </FinanceCell>
-                  <FinanceCell className="text-right tabular-nums">
-                    {formatZloty(toMoneyNumber(ticket.finance?.net_total))}
-                  </FinanceCell>
+        <div className="overflow-x-auto">
+          <Table className="w-full min-w-[800px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[280px]">Клієнт</TableHead>
+                <TableHead className="w-[100px]">Тариф</TableHead>
+                <TableHead className="w-[120px]">Статус</TableHead>
+                <TableHead className="w-[100px] text-right">Сума</TableHead>
+                <TableHead className="w-[100px] text-right">Оплачено</TableHead>
+                <TableHead className="w-[100px] text-right">Залишок</TableHead>
+                <TableHead className="w-[90px] text-right">Дата</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tickets.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                    {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
+                  </TableCell>
                 </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+              )}
+              {tickets.map((ticket) => {
+                const paidTotal = toMoneyNumber(ticket.finance_summary.paid_total);
+                const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
+                const remaining = toMoneyNumber(ticket.finance_summary.remaining_total);
+                const status = ticket.finance_summary.payment_status;
+
+                return (
+                  <TableRow
+                    key={ticket.id}
+                    role="button"
+                    tabIndex={0}
+                    className={cn(
+                      "cursor-pointer",
+                      openTicketId === ticket.id && "bg-muted/50"
+                    )}
+                    onClick={(event) => {
+                      const interactiveTarget = (
+                        event.target as HTMLElement
+                      ).closest("button,a,textarea,select");
+                      if (interactiveTarget) return;
+                      openTicketPayments(ticket.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      openTicketPayments(ticket.id);
+                    }}
+                  >
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium truncate max-w-[240px]">{ticket.name}</span>
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[240px]">
+                          {ticket.email || ticket.phone || ticket.instagram || "—"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
+                    </TableCell>
+                    <TableCell>
+                      <PaymentStatusBadge status={status} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatZloty(grossTotal)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium text-success">
+                      {formatZloty(paidTotal)}
+                    </TableCell>
+                    <TableCell className={cn(
+                      "text-right tabular-nums",
+                      remaining > 0 && status === "overdue" && "text-destructive font-medium",
+                      remaining > 0 && status !== "overdue" && "text-muted-foreground"
+                    )}>
+                      {remaining > 0 ? formatZloty(remaining) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatDate(ticket.date)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
 
         {(isFetching || isSaving) && (
           <div className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground/70 flex items-center gap-2">
@@ -836,72 +850,6 @@ function NewTicketFinanceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PaymentSummaryButton({
-  ticket,
-  onClick,
-}: {
-  ticket: TicketWithFinance;
-  onClick: () => void;
-}) {
-  const sortedPayments = [...ticket.payments].sort(
-    (a, b) => a.installment_number - b.installment_number
-  );
-  const paidCount = sortedPayments.filter((payment) => payment.paid_date).length;
-  const paidTotal = sortedPayments.reduce(
-    (total, payment) =>
-      payment.paid_date ? total + toMoneyNumber(payment.amount) : total,
-    0
-  );
-  const unpaidScheduledTotal = sortedPayments.reduce(
-    (total, payment) =>
-      payment.paid_date ? total : total + toMoneyNumber(payment.amount),
-    0
-  );
-  const hasUnscheduledRemaining =
-    Math.max(
-      toMoneyNumber(ticket.finance?.gross_total) - paidTotal - unpaidScheduledTotal,
-      0
-    ) >= 0.01;
-  const planPaymentLimit = getExpectedPaymentCount(
-    ticket.finance?.payment_plan ?? "full"
-  );
-  const expectedPaymentCount =
-    planPaymentLimit ?? Math.max(sortedPayments.length, 1);
-  const displayedPaymentCount = Math.max(
-    expectedPaymentCount,
-    sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
-  );
-
-  const isPaid = paidCount === displayedPaymentCount && displayedPaymentCount > 0;
-  const isOverdue = ticket.finance_summary.payment_status === "overdue";
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={cn(
-        "h-7 w-full justify-between gap-2 px-2 text-[11px] font-normal",
-        isPaid && "border-success/30 bg-success/5",
-        isOverdue && "border-destructive/30 bg-destructive/5"
-      )}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-    >
-      <span className={cn(
-        "flex items-center gap-1.5",
-        isPaid && "text-success",
-        isOverdue && "text-destructive"
-      )}>
-        <CreditCard className="h-3.5 w-3.5" />
-        {paidCount}/{displayedPaymentCount}
-      </span>
-    </Button>
   );
 }
 
@@ -1390,6 +1338,110 @@ function DeletePaymentButton({
   );
 }
 
+function SummaryCard({
+  label,
+  value,
+  variant = "default",
+}: {
+  label: string;
+  value: string;
+  variant?: "default" | "success" | "warning" | "danger";
+}) {
+  return (
+    <Card className="shadow-surface">
+      <CardHeader className="p-4 pb-2">
+        <CardDescription className="text-[11px] uppercase tracking-wider">
+          {label}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <span
+          className={cn(
+            "text-xl font-semibold tabular-nums",
+            variant === "success" && "text-success",
+            variant === "warning" && "text-warning",
+            variant === "danger" && "text-destructive"
+          )}
+        >
+          {value}
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentStatusFilter({
+  value,
+  onChange,
+}: {
+  value: PaymentStatusFilter;
+  onChange: (value: PaymentStatusFilter) => void;
+}) {
+  const options: { value: PaymentStatusFilter; label: string }[] = [
+    { value: "all", label: "Всі" },
+    { value: "paid", label: "Оплачені" },
+    { value: "partial", label: "Часткові" },
+    { value: "pending", label: "Очікують" },
+    { value: "overdue", label: "Прострочені" },
+  ];
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-md bg-muted/50 p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
+            value === option.value
+              ? "bg-white text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PaymentStatusBadge({ status }: { status?: string | null }) {
+  if (status === "paid") {
+    return (
+      <Badge variant="success" className="rounded-md px-2 py-0.5 text-[10px]">
+        Оплачено
+      </Badge>
+    );
+  }
+
+  if (status === "partial") {
+    return (
+      <Badge variant="warning" className="rounded-md px-2 py-0.5 text-[10px]">
+        Частково
+      </Badge>
+    );
+  }
+
+  if (status === "overdue") {
+    return (
+      <Badge variant="destructive" className="rounded-md px-2 py-0.5 text-[10px]">
+        Прострочено
+      </Badge>
+    );
+  }
+
+  if (status === "pending" || status === "not_started") {
+    return (
+      <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-[10px]">
+        Очікує
+      </Badge>
+    );
+  }
+
+  return <span className="text-muted-foreground text-[11px]">—</span>;
+}
+
 function GradeMarker({ grade }: { grade?: string | null }) {
   const normalizedGrade = grade?.toLowerCase();
 
@@ -1449,45 +1501,6 @@ function ReadOnlyMoney({ value }: { value?: string | null }) {
     />
   );
 }
-
-function FinanceHead({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <TableHead
-      className={cn(
-        "h-9 border-r border-b border-border/40 bg-muted/30 px-2.5 text-left align-middle text-[11px] font-medium whitespace-nowrap text-muted-foreground",
-        className
-      )}
-    >
-      {children}
-    </TableHead>
-  );
-}
-
-function FinanceCell({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <TableCell
-      className={cn(
-        "h-10 border-r border-b border-border/30 px-2.5 align-middle whitespace-nowrap text-[13px]",
-        className
-      )}
-    >
-      {children}
-    </TableCell>
-  );
-}
-
 function MoneyCell({
   value,
   placeholder = "0.00",
