@@ -483,11 +483,14 @@ async function ensureStripeTicketFinancePayment(
 ) {
   const stripeSessionId = session.id;
   const paidAmount = getCheckoutPaidAmount(session, ticketGrade);
+  const processingFee = calculateDefaultStripeProcessingFee(paidAmount);
+  const netAmount = subtractMoney(paidAmount, processingFee);
   const paidAt = new Date();
 
   logStripeStep("info", "FINANCE", "Ensuring Stripe ticket finance payment", {
     ...getEventContext(event, stripeSessionId),
     amount: paidAmount,
+    processingFee,
     ticketId,
   });
 
@@ -498,11 +501,11 @@ async function ensureStripeTicketFinancePayment(
       finance_note: "",
       gross_total: paidAmount,
       id: nanoid(10),
-      net_total: paidAmount,
+      net_total: netAmount,
       nip: "",
       payment_plan: "full",
       sale_source: "site",
-      tax_amount: "0.00",
+      tax_amount: processingFee,
       ticket_id: ticketId,
     })
     .onConflictDoNothing({
@@ -539,8 +542,27 @@ async function ensureStripeTicketFinancePayment(
   logStripeStep("info", "FINANCE", "Stripe finance payment created", {
     ...getEventContext(event, stripeSessionId),
     amount: paidAmount,
+    processingFee,
     ticketId,
   });
+}
+
+function calculateDefaultStripeProcessingFee(amount: string) {
+  const amountCents = moneyToCents(amount);
+  const feeCents = Math.round(amountCents * 0.015) + 100;
+  return centsToMoney(feeCents);
+}
+
+function subtractMoney(amount: string, subtract: string) {
+  return centsToMoney(Math.max(moneyToCents(amount) - moneyToCents(subtract), 0));
+}
+
+function moneyToCents(value: string) {
+  return Math.round(Number.parseFloat(value || "0") * 100);
+}
+
+function centsToMoney(value: number) {
+  return (value / 100).toFixed(2);
 }
 
 export async function handleCheckoutSessionCompleted(
