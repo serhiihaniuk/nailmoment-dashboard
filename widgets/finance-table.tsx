@@ -247,11 +247,30 @@ export function FinanceTable() {
         );
       }
 
-      await saveFinance(ticket.id, { payment_plan: paymentPlan });
-
       if (expectedPaymentCount === null) {
+        await saveFinance(ticket.id, { payment_plan: paymentPlan });
         return;
       }
+
+      if (expectedPaymentCount === 0) {
+        await saveFinance(ticket.id, {
+          payment_plan: paymentPlan,
+          gross_total: "0.00",
+          discount_amount: "0.00",
+          tax_amount: "0.00",
+          net_total: "0.00",
+        });
+
+        for (const payment of sortedPayments.filter(
+          (payment) => !payment.paid_date
+        )) {
+          await deletePayment(payment.id);
+        }
+
+        return;
+      }
+
+      await saveFinance(ticket.id, { payment_plan: paymentPlan });
 
       const remainingAfterPaid = Math.max(
         toMoneyNumber(ticket.finance?.gross_total) -
@@ -261,13 +280,10 @@ export function FinanceTable() {
           ),
         0
       );
-      const targetPaymentCount =
-        expectedPaymentCount === 0
-          ? 0
-          : Math.max(
-              expectedPaymentCount,
-              paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
-            );
+      const targetPaymentCount = Math.max(
+        expectedPaymentCount,
+        paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
+      );
       const paidPaymentIds = new Set(paidPayments.map((payment) => payment.id));
       const removeCount = Math.max(
         sortedPayments.length - targetPaymentCount,
@@ -473,7 +489,7 @@ export function FinanceTable() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-200">
+          <Table className="w-full min-w-225">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/50">
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-65">
@@ -487,6 +503,9 @@ export function FinanceTable() {
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
+                  Платежі
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
                   Податок
@@ -502,18 +521,25 @@ export function FinanceTable() {
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                     {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
                   </TableCell>
                 </TableRow>
               )}
               {tickets.map((ticket) => {
-                const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
-                const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
+                const grossTotal = toMoneyNumber(
+                  ticket.finance_summary.gross_total
+                );
+                const taxAmount = isZeroPaymentPlan(
+                  ticket.finance?.payment_plan
+                )
+                  ? 0
+                  : toMoneyNumber(ticket.finance?.tax_amount);
                 const paidTotal = toMoneyNumber(ticket.finance_summary.paid_total);
                 const netTotal = toMoneyNumber(calculatedNetTotal(ticket));
                 const status = ticket.finance_summary.payment_status;
                 const isOverdue = status === "overdue";
+                const displayedPaymentCount = getDisplayedPaymentCount(ticket);
 
                 return (
                   <TableRow
@@ -554,6 +580,17 @@ export function FinanceTable() {
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px] text-success">
                       {formatZloty(paidTotal)}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4">
+                      <Badge
+                        variant="outline"
+                        className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                      >
+                        {
+                          ticket.payments.filter((payment) => payment.paid_date)
+                            .length
+                        }/{displayedPaymentCount}
+                      </Badge>
                     </TableCell>
                     <TableCell className={cn(
                       "py-3.5 px-4 text-right tabular-nums text-[13px]",
@@ -643,9 +680,33 @@ function NewTicketFinanceDialog({
   };
 
   const handleGradeChange = (grade: TicketGrade) => {
+    const isZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
     updateForm({
       grade,
-      gross_total: TICKET_PRICE_BY_GRADE[grade],
+      gross_total: isZeroPaymentPlan ? "0.00" : TICKET_PRICE_BY_GRADE[grade],
+    });
+  };
+
+  const handlePaymentPlanChange = (payment_plan: PaymentPlan) => {
+    const isZeroPaymentPlan = getExpectedPaymentCount(payment_plan) === 0;
+    const wasZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
+    updateForm({
+      payment_plan,
+      ...(isZeroPaymentPlan
+        ? {
+            gross_total: "0.00",
+            discount_amount: "0.00",
+            tax_amount: "0.00",
+          }
+        : wasZeroPaymentPlan
+          ? {
+              gross_total: TICKET_PRICE_BY_GRADE[form.grade],
+              discount_amount: "0.00",
+              tax_amount: "0.00",
+            }
+          : {}),
     });
   };
 
@@ -662,11 +723,15 @@ function NewTicketFinanceDialog({
     setError(null);
 
     try {
+      const isZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
       await onCreate({
         ...form,
-        gross_total: normalizeMoney(form.gross_total),
-        discount_amount: normalizeMoney(form.discount_amount),
-        tax_amount: normalizeMoney(form.tax_amount),
+        gross_total: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.gross_total),
+        discount_amount: isZeroPaymentPlan
+          ? "0.00"
+          : normalizeMoney(form.discount_amount),
+        tax_amount: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.tax_amount),
       });
       setOpen(false);
       setForm(createNewTicketFinanceDefaults());
@@ -751,7 +816,7 @@ function NewTicketFinanceDialog({
               <SmallSelect
                 value={form.payment_plan}
                 options={PAYMENT_PLAN_OPTIONS}
-                onChange={(payment_plan) => updateForm({ payment_plan })}
+                onChange={handlePaymentPlanChange}
               />
             </PaymentField>
             <PaymentField label="Повна оплата">
@@ -888,22 +953,11 @@ function PaymentsPanel({
   );
   const hasUnscheduledRemaining = unscheduledRemaining >= 0.01;
   const selectedPaymentPlan = ticket.finance?.payment_plan ?? "full";
+  const hasZeroPaymentPlan = isZeroPaymentPlan(selectedPaymentPlan);
   const planPaymentLimit = getExpectedPaymentCount(selectedPaymentPlan);
-  const expectedPaymentCount =
-    planPaymentLimit ?? Math.max(sortedPayments.length, 1);
-  const displayedPaymentCount =
-    planPaymentLimit === 0
-      ? sortedPayments.length
-      : Math.max(
-          expectedPaymentCount,
-          sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
-        );
-  const allowsUnscheduledPayment =
-    planPaymentLimit === null || planPaymentLimit > 0;
+  const displayedPaymentCount = getDisplayedPaymentCount(ticket);
   const canAddPayment =
-    planPaymentLimit === null ||
-    sortedPayments.length < planPaymentLimit ||
-    (allowsUnscheduledPayment && hasUnscheduledRemaining);
+    planPaymentLimit === null || sortedPayments.length < planPaymentLimit;
   const disabledPaymentPlans = new Set(
     PAYMENT_PLAN_OPTIONS.filter((option) => {
       const optionPaymentCount = getExpectedPaymentCount(option.value);
@@ -919,7 +973,7 @@ function PaymentsPanel({
     });
     onFinanceChange(
       buildFinancePatchWithNet(ticket, {
-        gross_total: TICKET_PRICE_BY_GRADE[grade],
+        gross_total: hasZeroPaymentPlan ? "0.00" : TICKET_PRICE_BY_GRADE[grade],
       })
     );
   };
@@ -1056,7 +1110,8 @@ function PaymentsPanel({
           </PaymentField>
           <PaymentField label="Повна оплата">
             <MoneyCell
-              value={ticket.finance?.gross_total ?? "0.00"}
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.gross_total ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
               onSave={(gross_total) =>
                 onFinanceChange(buildFinancePatchWithNet(ticket, { gross_total }))
               }
@@ -1064,7 +1119,8 @@ function PaymentsPanel({
           </PaymentField>
           <PaymentField label="Податок">
             <MoneyCell
-              value={ticket.finance?.tax_amount ?? "0.00"}
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.tax_amount ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
               onSave={(tax_amount) =>
                 onFinanceChange(buildFinancePatchWithNet(ticket, { tax_amount }))
               }
@@ -1072,7 +1128,8 @@ function PaymentsPanel({
           </PaymentField>
           <PaymentField label="Знижка">
             <MoneyCell
-              value={ticket.finance?.discount_amount ?? "0.00"}
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.discount_amount ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
               onSave={(discount_amount) => onFinanceChange({ discount_amount })}
             />
           </PaymentField>
@@ -1371,6 +1428,8 @@ function StatusIndicator({ status }: { status?: string | null }) {
     paid: { color: "bg-success", label: "Оплачено" },
     partial: { color: "bg-warning", label: "Частково" },
     overdue: { color: "bg-destructive", label: "Прострочено" },
+    unpaid: { color: "bg-muted-foreground/30", label: "Очікує" },
+    untracked: { color: "bg-muted-foreground/20", label: "Без оплат" },
     pending: { color: "bg-muted-foreground/30", label: "Очікує" },
     not_started: { color: "bg-muted-foreground/30", label: "Очікує" },
   };
@@ -1639,6 +1698,10 @@ async function patchTicket(
 async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
 ): Promise<unknown> {
+  const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
+  const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
+  const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;
+  const taxAmount = isZeroPaymentPlan ? "0.00" : data.tax_amount;
   const { ticket } = await createTicket({
     name: data.name,
     email: data.email,
@@ -1647,15 +1710,15 @@ async function createTicketWithFinance(
     grade: data.grade,
   });
   const netTotal = Math.max(
-    toMoneyNumber(data.gross_total) - toMoneyNumber(data.tax_amount),
+    toMoneyNumber(grossTotal) - toMoneyNumber(taxAmount),
     0
   ).toFixed(2);
 
   await saveFinance(ticket.id, {
     payment_plan: data.payment_plan,
-    gross_total: data.gross_total,
-    discount_amount: data.discount_amount,
-    tax_amount: data.tax_amount,
+    gross_total: grossTotal,
+    discount_amount: discountAmount,
+    tax_amount: taxAmount,
     net_total: netTotal,
     nip: data.nip,
     finance_note: data.finance_note,
@@ -1663,7 +1726,7 @@ async function createTicketWithFinance(
 
   const paymentCount = getExpectedPaymentCount(data.payment_plan);
   if (paymentCount && paymentCount > 0) {
-    const amounts = splitMoney(data.gross_total, paymentCount);
+    const amounts = splitMoney(grossTotal, paymentCount);
     for (let index = 0; index < paymentCount; index += 1) {
       await createPayment(ticket.id, {
         installment_number: index + 1,
@@ -1751,6 +1814,15 @@ function getExpectedPaymentCount(plan: PaymentPlan): number | null {
   return null;
 }
 
+function isZeroPaymentPlan(plan: string | null | undefined): boolean {
+  return plan === "free" || plan === "sponsor";
+}
+
+function getDisplayedPaymentCount(ticket: TicketWithFinance): number {
+  const paymentLimit = getExpectedPaymentCount(ticket.finance?.payment_plan ?? "full");
+  return paymentLimit ?? Math.max(ticket.payments.length, 1);
+}
+
 function suggestedPaymentAmount(
   ticket: TicketWithFinance,
   paymentNumber: number
@@ -1784,6 +1856,8 @@ function normalizeMoney(value: string): string {
 }
 
 function calculatedNetTotal(ticket: TicketWithFinance): string {
+  if (isZeroPaymentPlan(ticket.finance?.payment_plan)) return "0.00";
+
   const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
   const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
   return Math.max(grossTotal - taxAmount, 0).toFixed(2);
