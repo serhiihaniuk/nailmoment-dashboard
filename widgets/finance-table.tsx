@@ -167,6 +167,10 @@ type CreateTicketWithFinanceInput = CreateTicketInput & {
   finance_note: string;
 };
 
+type CreatedFinanceTicket = {
+  id: string;
+};
+
 type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
 
 export function FinanceTable() {
@@ -238,7 +242,11 @@ export function FinanceTable() {
 
   const createTicketMutation = useMutation({
     mutationFn: createTicketWithFinance,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+    onSuccess: (ticket) => {
+      setOpenTicketId(ticket.id);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
   });
 
   const syncPlanMutation = useMutation({
@@ -1336,7 +1344,7 @@ function NewTicketFinanceDialog({
   onCreate,
 }: {
   isPending: boolean;
-  onCreate: (data: CreateTicketWithFinanceInput) => Promise<unknown>;
+  onCreate: (data: CreateTicketWithFinanceInput) => Promise<CreatedFinanceTicket>;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CreateTicketWithFinanceInput>(() =>
@@ -1885,23 +1893,23 @@ function PaymentCard({
         isLocked && "bg-muted/20"
       )}
     >
-      <CardHeader className="flex-row items-center justify-between gap-4 p-4">
-        <div className="flex items-center gap-3">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4">
+        <div className="flex min-w-0 items-center gap-3">
           <Badge variant="secondary" className="rounded-md px-2 py-1 text-[13px]">
             #{payment.installment_number}
           </Badge>
-          <div>
+          <div className="min-w-0">
             <CardTitle className="text-[13px] font-medium">
               {formatZloty(toMoneyNumber(payment.amount))}
             </CardTitle>
-            <CardDescription className="text-[11px]">
+            <CardDescription className="truncate text-[11px]">
               {statusText}
             </CardDescription>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-[12px] font-medium">
+        <div className="flex shrink-0 items-center gap-3">
+          <label className="flex items-center gap-2 whitespace-nowrap text-[12px] font-medium">
             Оплачено
             <Switch
               checked={isPaid}
@@ -2371,7 +2379,7 @@ async function patchTicket(
 
 async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
-): Promise<unknown> {
+): Promise<CreatedFinanceTicket> {
   const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
   const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
   const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;

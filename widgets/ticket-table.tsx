@@ -374,7 +374,7 @@ export function TicketsTable() {
             )}
             {filtered.length > 0 && (
               <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden">
-                {filtered.map((t) => (
+                {filtered.map((t, index) => (
                   <button
                     key={t.id}
                     type="button"
@@ -387,6 +387,9 @@ export function TicketsTable() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground/50">
+                          {index + 1}
+                        </span>
                         <div
                           className={cn(
                             "w-1.5 h-1.5 rounded-full shrink-0",
@@ -407,7 +410,7 @@ export function TicketsTable() {
                       </div>
                     </div>
                     {t.email && (
-                      <div className="mt-1 text-[12px] text-muted-foreground truncate pl-3.5">
+                      <div className="mt-1 text-[12px] text-muted-foreground truncate pl-10">
                         {t.email}
                       </div>
                     )}
