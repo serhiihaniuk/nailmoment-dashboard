@@ -1885,23 +1885,23 @@ function PaymentCard({
         isLocked && "bg-muted/20"
       )}
     >
-      <CardHeader className="flex-row items-center justify-between gap-4 p-4">
-        <div className="flex items-center gap-3">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4">
+        <div className="flex min-w-0 items-center gap-3">
           <Badge variant="secondary" className="rounded-md px-2 py-1 text-[13px]">
             #{payment.installment_number}
           </Badge>
-          <div>
+          <div className="min-w-0">
             <CardTitle className="text-[13px] font-medium">
               {formatZloty(toMoneyNumber(payment.amount))}
             </CardTitle>
-            <CardDescription className="text-[11px]">
+            <CardDescription className="truncate text-[11px]">
               {statusText}
             </CardDescription>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-[12px] font-medium">
+        <div className="flex shrink-0 items-center gap-3">
+          <label className="flex items-center gap-2 whitespace-nowrap text-[12px] font-medium">
             Оплачено
             <Switch
               checked={isPaid}
