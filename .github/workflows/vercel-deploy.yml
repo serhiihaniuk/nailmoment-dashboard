@@ -106,6 +106,16 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Validate Vercel Configuration
+        run: |
+          test -n "$VERCEL_TOKEN" || (echo "VERCEL_TOKEN is not available to this GitHub Actions environment" && exit 1)
+          test -n "$VERCEL_ORG_ID" || (echo "VERCEL_ORG_ID is not configured for this GitHub Actions environment" && exit 1)
+          test -n "$VERCEL_PROJECT_ID" || (echo "VERCEL_PROJECT_ID is not configured for this GitHub Actions environment" && exit 1)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
         env:
