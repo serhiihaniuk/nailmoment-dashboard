@@ -17,9 +17,9 @@ const isV0EmbeddedRuntime =
 const shouldUseEmbeddedPreviewCookies =
   isVercelPreviewRuntime || Boolean(isV0EmbeddedRuntime);
 
-const dynamicBaseURLAllowedHosts = [
-  "localhost:3000",
-  "127.0.0.1:3000",
+const baseTrustedHosts = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "dashboard.nailmoment.pl",
   "dev.dashboard.nailmoment.pl",
   "nailmoment-dashboard.vercel.app",
@@ -27,20 +27,12 @@ const dynamicBaseURLAllowedHosts = [
   "nailmoment-dashboard-serhiihaniuks-projects.vercel.app",
   "nailmoment-dashboard-serhiihaniuk-serhiihaniuks-projects.vercel.app",
   process.env.VERCEL_URL,
-  "v0.dev",
-  "*.v0.dev",
-  "v0.app",
-  "*.v0.app",
-  "*.vusercontent.net",
-  "lite.vusercontent.net",
-  "*.lite.vusercontent.net",
-  "generated.vusercontent.net",
 ].filter(Boolean) as string[];
 
 const authBaseURL = isProductionDeployment
   ? (vercelOrigin ?? "https://dashboard.nailmoment.pl")
   : {
-      allowedHosts: dynamicBaseURLAllowedHosts,
+      allowedHosts: ["*"],
       fallback: vercelOrigin ?? "https://dev.dashboard.nailmoment.pl",
     };
 
@@ -58,18 +50,33 @@ const v0PreviewOrigins =
         "https://generated.vusercontent.net",
       ];
 
-const trustedOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://dashboard.nailmoment.pl",
-  "https://dev.dashboard.nailmoment.pl",
-  "https://nailmoment-dashboard.vercel.app",
-  "https://nailmoment-dashboard-*-serhiihaniuks-projects.vercel.app",
-  "https://nailmoment-dashboard-serhiihaniuks-projects.vercel.app",
-  "https://nailmoment-dashboard-serhiihaniuk-serhiihaniuks-projects.vercel.app",
+const staticTrustedOrigins = [
+  ...baseTrustedHosts.map((host) =>
+    host.includes("://") ? host : `https://${host}`,
+  ),
   vercelOrigin,
   ...v0PreviewOrigins,
 ].filter(Boolean) as string[];
+
+function getOriginFromURL(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+const trustedOrigins = isProductionDeployment
+  ? staticTrustedOrigins
+  : (request?: Request) => [
+      ...staticTrustedOrigins,
+      getOriginFromURL(request?.headers.get("origin") ?? null),
+      getOriginFromURL(request?.headers.get("referer") ?? null),
+    ];
 
 export const auth = betterAuth({
   baseURL: authBaseURL,
