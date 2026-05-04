@@ -502,31 +502,43 @@ export function FinanceTable() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-[800px]">
+          <Table className="w-full min-w-[900px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[280px]">Клієнт</TableHead>
-                <TableHead className="w-[100px]">Тариф</TableHead>
-                <TableHead className="w-[120px]">Статус</TableHead>
-                <TableHead className="w-[100px] text-right">Сума</TableHead>
-                <TableHead className="w-[100px] text-right">Оплачено</TableHead>
-                <TableHead className="w-[100px] text-right">Залишок</TableHead>
-                <TableHead className="w-[90px] text-right">Дата</TableHead>
+                <TableHead className="w-[220px]">Клієнт</TableHead>
+                <TableHead className="w-[80px]">Тариф</TableHead>
+                <TableHead className="w-[80px] text-center">Платежі</TableHead>
+                <TableHead className="w-[100px] text-right">Повна оплата</TableHead>
+                <TableHead className="w-[80px] text-right">Податок</TableHead>
+                <TableHead className="w-[100px] text-right">Чиста сума</TableHead>
+                <TableHead className="w-[100px]">Статус</TableHead>
+                <TableHead className="w-[80px] text-right">Дата</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                     {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
                   </TableCell>
                 </TableRow>
               )}
               {tickets.map((ticket) => {
-                const paidTotal = toMoneyNumber(ticket.finance_summary.paid_total);
                 const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
-                const remaining = toMoneyNumber(ticket.finance_summary.remaining_total);
+                const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
+                const netTotal = toMoneyNumber(ticket.finance?.net_total);
                 const status = ticket.finance_summary.payment_status;
+
+                // Calculate payment progress
+                const sortedPayments = [...ticket.payments].sort(
+                  (a, b) => a.installment_number - b.installment_number
+                );
+                const paidCount = sortedPayments.filter((p) => p.paid_date).length;
+                const planPaymentLimit = getExpectedPaymentCount(
+                  ticket.finance?.payment_plan ?? "full"
+                );
+                const expectedPaymentCount =
+                  planPaymentLimit ?? Math.max(sortedPayments.length, 1);
 
                 return (
                   <TableRow
@@ -552,8 +564,8 @@ export function FinanceTable() {
                   >
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium truncate max-w-[240px]">{ticket.name}</span>
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[240px]">
+                        <span className="font-medium truncate max-w-[200px]">{ticket.name}</span>
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
                           {ticket.email || ticket.phone || ticket.instagram || "—"}
                         </span>
                       </div>
@@ -561,21 +573,29 @@ export function FinanceTable() {
                     <TableCell>
                       <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
                     </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={status} />
+                    <TableCell className="text-center">
+                      <span className={cn(
+                        "inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded text-[12px] font-medium tabular-nums",
+                        paidCount === expectedPaymentCount && expectedPaymentCount > 0
+                          ? "bg-success/10 text-success"
+                          : status === "overdue"
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-muted text-muted-foreground"
+                      )}>
+                        {paidCount}/{expectedPaymentCount}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatZloty(grossTotal)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium text-success">
-                      {formatZloty(paidTotal)}
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {taxAmount > 0 ? formatZloty(taxAmount) : "—"}
                     </TableCell>
-                    <TableCell className={cn(
-                      "text-right tabular-nums",
-                      remaining > 0 && status === "overdue" && "text-destructive font-medium",
-                      remaining > 0 && status !== "overdue" && "text-muted-foreground"
-                    )}>
-                      {remaining > 0 ? formatZloty(remaining) : "—"}
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {formatZloty(netTotal)}
+                    </TableCell>
+                    <TableCell>
+                      <PaymentStatusBadge status={status} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatDate(ticket.date)}
