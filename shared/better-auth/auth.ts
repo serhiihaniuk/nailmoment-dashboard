@@ -7,8 +7,45 @@ const vercelOrigin = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : undefined;
 
+const isProductionDeployment = process.env.VERCEL_ENV === "production";
+const isVercelPreviewRuntime =
+  !isProductionDeployment && process.env.VERCEL === "1";
+const isV0EmbeddedRuntime =
+  process.env.VERCEL_URL?.includes("vusercontent.net") ||
+  process.env.VERCEL_URL?.includes("v0.dev") ||
+  process.env.VERCEL_URL?.includes("v0.app");
+const shouldUseEmbeddedPreviewCookies =
+  isVercelPreviewRuntime || Boolean(isV0EmbeddedRuntime);
+
+const dynamicBaseURLAllowedHosts = [
+  "localhost:3000",
+  "127.0.0.1:3000",
+  "dashboard.nailmoment.pl",
+  "dev.dashboard.nailmoment.pl",
+  "nailmoment-dashboard.vercel.app",
+  "nailmoment-dashboard-*-serhiihaniuks-projects.vercel.app",
+  "nailmoment-dashboard-serhiihaniuks-projects.vercel.app",
+  "nailmoment-dashboard-serhiihaniuk-serhiihaniuks-projects.vercel.app",
+  process.env.VERCEL_URL,
+  "v0.dev",
+  "*.v0.dev",
+  "v0.app",
+  "*.v0.app",
+  "*.vusercontent.net",
+  "lite.vusercontent.net",
+  "*.lite.vusercontent.net",
+  "generated.vusercontent.net",
+].filter(Boolean) as string[];
+
+const authBaseURL = isProductionDeployment
+  ? (vercelOrigin ?? "https://dashboard.nailmoment.pl")
+  : {
+      allowedHosts: dynamicBaseURLAllowedHosts,
+      fallback: vercelOrigin ?? "https://dev.dashboard.nailmoment.pl",
+    };
+
 const v0PreviewOrigins =
-  process.env.VERCEL_ENV === "production"
+  isProductionDeployment
     ? []
     : [
         "https://v0.dev",
@@ -35,11 +72,19 @@ const trustedOrigins = [
 ].filter(Boolean) as string[];
 
 export const auth = betterAuth({
-  baseURL: vercelOrigin ?? "https://dashboard.nailmoment.pl",
+  baseURL: authBaseURL,
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
   },
+  advanced: shouldUseEmbeddedPreviewCookies
+    ? {
+        defaultCookieAttributes: {
+          sameSite: "none",
+          secure: true,
+        },
+      }
+    : undefined,
   trustedOrigins,
   database: drizzleAdapter(db, {
     provider: "pg",
