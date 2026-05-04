@@ -2,6 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import {
   CalendarIcon,
   Loader2,
@@ -47,7 +48,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -143,9 +144,82 @@ const GRADE_SELECT_OPTIONS = TICKET_TYPE_LIST.map((value) => ({
   label: value,
 })) as { value: TicketGrade; label: TicketGrade }[];
 
+const saleSourceValues = SALE_SOURCE_OPTIONS.map((option) => option.value) as [
+  SaleSource,
+  ...SaleSource[],
+];
+const paymentPlanValues = PAYMENT_PLAN_OPTIONS.map((option) => option.value) as [
+  PaymentPlan,
+  ...PaymentPlan[],
+];
+
+const moneyFormSchema = z
+  .string()
+  .trim()
+  .refine((value) => value === "" || Number.isFinite(parseMoneyNumber(value)), {
+    message: "Введіть коректну суму",
+  })
+  .refine((value) => parseMoneyNumber(value || 0) >= 0, {
+    message: "Сума не може бути від’ємною",
+  });
+
+const newTicketFinanceSchema = z
+  .object({
+    name: z.string().trim().min(1, "Ім’я обов’язкове"),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Email обов’язковий")
+      .email("Невалідна адреса"),
+    phone: z
+      .string()
+      .trim()
+      .min(9, "Телефон має містити щонайменше 9 символів"),
+    instagram: z.string().trim().optional(),
+    grade: z.enum(TICKET_TYPE_LIST as [TicketGrade, ...TicketGrade[]]),
+    payment_sale_source: z.enum(saleSourceValues),
+    payment_plan: z.enum(paymentPlanValues),
+    gross_total: moneyFormSchema,
+    discount_amount: moneyFormSchema,
+    tax_amount: moneyFormSchema,
+    nip: z.string().trim(),
+    finance_note: z.string().trim(),
+  })
+  .superRefine((value, context) => {
+    if (getExpectedPaymentCount(value.payment_plan) === 0) return;
+
+    const grossTotal = toMoneyNumber(value.gross_total);
+    const taxAmount = toMoneyNumber(value.tax_amount);
+    const discountAmount = toMoneyNumber(value.discount_amount);
+
+    if (grossTotal <= 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Повна оплата має бути більшою за 0",
+        path: ["gross_total"],
+      });
+    }
+
+    if (taxAmount > grossTotal) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Податок не може бути більшим за повну оплату",
+        path: ["tax_amount"],
+      });
+    }
+
+    if (discountAmount > grossTotal) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Знижка не може бути більшою за повну оплату",
+        path: ["discount_amount"],
+      });
+    }
+  });
+
 async function fetchTickets(): Promise<TicketWithFinance[]> {
   const response = await fetch("/api/ticket");
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await readApiError(response);
   return response.json();
 }
 
@@ -170,6 +244,24 @@ type CreateTicketWithFinanceInput = CreateTicketInput & {
 type CreatedFinanceTicket = {
   id: string;
 };
+
+type CreateTicketField = keyof CreateTicketWithFinanceInput;
+type FieldErrors<TField extends string = string> = Partial<Record<TField, string>>;
+
+type ApiIssue = {
+  message?: string;
+  path?: Array<string | number>;
+};
+
+class ApiError extends Error {
+  fieldErrors: FieldErrors;
+
+  constructor(message: string, fieldErrors: FieldErrors = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.fieldErrors = fieldErrors;
+  }
+}
 
 type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
 
@@ -525,7 +617,7 @@ export function FinanceTable() {
                   Клієнт
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-17.5">
-                  Тариф
+                  Дата
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Повна оплата
@@ -555,7 +647,7 @@ export function FinanceTable() {
                   </TableCell>
                 </TableRow>
               )}
-              {tickets.map((ticket) => {
+              {tickets.map((ticket, index) => {
                 const grossTotal = toMoneyNumber(
                   ticket.finance_summary.gross_total
                 );
@@ -595,14 +687,19 @@ export function FinanceTable() {
                   >
                     <TableCell className="py-3.5 px-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-[13px] truncate max-w-60">{ticket.name}</span>
+                        <div className="flex max-w-60 items-center gap-2">
+                          <span className="truncate text-[13px] font-medium">
+                            {index + 1}. {ticket.name}
+                          </span>
+                          <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
+                        </div>
                         <span className="text-[11px] text-muted-foreground/70 truncate max-w-60">
                           {ticket.email || "—"}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-3.5 px-4">
-                      <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
+                    <TableCell className="py-3.5 px-4 text-[12px] text-muted-foreground tabular-nums">
+                      {formatDate(ticket.date)}
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
                       {formatZloty(grossTotal)}
@@ -1350,10 +1447,20 @@ function NewTicketFinanceDialog({
   const [form, setForm] = useState<CreateTicketWithFinanceInput>(() =>
     createNewTicketFinanceDefaults()
   );
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<CreateTicketField>>(
+    {}
+  );
   const [error, setError] = useState<string | null>(null);
 
   const updateForm = (patch: Partial<CreateTicketWithFinanceInput>) => {
     setForm((current) => ({ ...current, ...patch }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      for (const field of Object.keys(patch) as CreateTicketField[]) {
+        delete next[field];
+      }
+      return next;
+    });
   };
 
   const handleGradeChange = (grade: TicketGrade) => {
@@ -1391,28 +1498,47 @@ function NewTicketFinanceDialog({
     setOpen(nextOpen);
     if (nextOpen) {
       setForm(createNewTicketFinanceDefaults());
+      setFieldErrors({});
       setError(null);
     }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const normalizedForm = normalizeNewTicketFinanceForm(form);
+    const validation = newTicketFinanceSchema.safeParse(normalizedForm);
     setError(null);
+    setFieldErrors({});
+
+    if (!validation.success) {
+      setFieldErrors(zodIssuesToFieldErrors(validation.error.issues));
+      setError("Перевірте поля форми.");
+      return;
+    }
 
     try {
-      const isZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+      const isZeroPaymentPlan =
+        getExpectedPaymentCount(validation.data.payment_plan) === 0;
 
       await onCreate({
-        ...form,
-        gross_total: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.gross_total),
+        ...validation.data,
+        gross_total: isZeroPaymentPlan
+          ? "0.00"
+          : normalizeMoney(validation.data.gross_total),
         discount_amount: isZeroPaymentPlan
           ? "0.00"
-          : normalizeMoney(form.discount_amount),
-        tax_amount: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.tax_amount),
+          : normalizeMoney(validation.data.discount_amount),
+        tax_amount: isZeroPaymentPlan
+          ? "0.00"
+          : normalizeMoney(validation.data.tax_amount),
       });
       setOpen(false);
       setForm(createNewTicketFinanceDefaults());
+      setFieldErrors({});
     } catch (createError) {
+      if (createError instanceof ApiError) {
+        setFieldErrors(createError.fieldErrors as FieldErrors<CreateTicketField>);
+      }
       setError(
         createError instanceof Error
           ? createError.message
@@ -1440,47 +1566,55 @@ function NewTicketFinanceDialog({
         <form
           id="new-finance-ticket-form"
           onSubmit={handleSubmit}
+          noValidate
           className="flex-1 overflow-y-auto"
         >
           <div className="grid grid-cols-2 gap-3 px-5 py-4">
-            <PaymentField label="Ім'я">
+            <PaymentField label="Ім'я" error={fieldErrors.name}>
               <Input
                 required
+                aria-invalid={Boolean(fieldErrors.name)}
                 value={form.name}
                 onChange={(event) => updateForm({ name: event.target.value })}
               />
             </PaymentField>
-            <PaymentField label="Email">
+            <PaymentField label="Email" error={fieldErrors.email}>
               <Input
                 required
                 type="email"
+                aria-invalid={Boolean(fieldErrors.email)}
                 value={form.email}
                 onChange={(event) => updateForm({ email: event.target.value })}
               />
             </PaymentField>
-            <PaymentField label="Телефон">
+            <PaymentField label="Телефон" error={fieldErrors.phone}>
               <Input
                 required
+                aria-invalid={Boolean(fieldErrors.phone)}
                 value={form.phone}
                 onChange={(event) => updateForm({ phone: event.target.value })}
               />
             </PaymentField>
-            <PaymentField label="Instagram">
+            <PaymentField label="Instagram" error={fieldErrors.instagram}>
               <Input
+                aria-invalid={Boolean(fieldErrors.instagram)}
                 value={form.instagram ?? ""}
                 onChange={(event) =>
                   updateForm({ instagram: event.target.value })
                 }
               />
             </PaymentField>
-            <PaymentField label="Тариф">
+            <PaymentField label="Тариф" error={fieldErrors.grade}>
               <SmallSelect
                 value={form.grade}
                 options={GRADE_SELECT_OPTIONS}
                 onChange={handleGradeChange}
               />
             </PaymentField>
-            <PaymentField label="Де продаж платежу?">
+            <PaymentField
+              label="Де продаж платежу?"
+              error={fieldErrors.payment_sale_source}
+            >
               <SmallSelect
                 value={form.payment_sale_source}
                 options={SALE_SOURCE_OPTIONS}
@@ -1489,18 +1623,22 @@ function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
-            <PaymentField label="Оплата / розстрочка">
+            <PaymentField
+              label="Оплата / розстрочка"
+              error={fieldErrors.payment_plan}
+            >
               <SmallSelect
                 value={form.payment_plan}
                 options={PAYMENT_PLAN_OPTIONS}
                 onChange={handlePaymentPlanChange}
               />
             </PaymentField>
-            <PaymentField label="Повна оплата">
+            <PaymentField label="Повна оплата" error={fieldErrors.gross_total}>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
+                aria-invalid={Boolean(fieldErrors.gross_total)}
                 value={form.gross_total}
                 onChange={(event) =>
                   updateForm({ gross_total: event.target.value })
@@ -1510,11 +1648,12 @@ function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
-            <PaymentField label="Знижка">
+            <PaymentField label="Знижка" error={fieldErrors.discount_amount}>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
+                aria-invalid={Boolean(fieldErrors.discount_amount)}
                 value={form.discount_amount}
                 onChange={(event) =>
                   updateForm({ discount_amount: event.target.value })
@@ -1526,11 +1665,12 @@ function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
-            <PaymentField label="Податок">
+            <PaymentField label="Податок" error={fieldErrors.tax_amount}>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
+                aria-invalid={Boolean(fieldErrors.tax_amount)}
                 value={form.tax_amount}
                 onChange={(event) =>
                   updateForm({ tax_amount: event.target.value })
@@ -1548,14 +1688,20 @@ function NewTicketFinanceDialog({
                 ).toFixed(2)}
               />
             </PaymentField>
-            <PaymentField label="NIP">
+            <PaymentField label="NIP" error={fieldErrors.nip}>
               <Input
+                aria-invalid={Boolean(fieldErrors.nip)}
                 value={form.nip}
                 onChange={(event) => updateForm({ nip: event.target.value })}
               />
             </PaymentField>
-            <PaymentField label="Коментар" className="col-span-2">
+            <PaymentField
+              label="Коментар"
+              className="col-span-2"
+              error={fieldErrors.finance_note}
+            >
               <Textarea
+                aria-invalid={Boolean(fieldErrors.finance_note)}
                 value={form.finance_note}
                 onChange={(event) =>
                   updateForm({ finance_note: event.target.value })
@@ -2158,17 +2304,20 @@ function PaymentField({
   label,
   children,
   className,
+  error,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  error?: string;
 }) {
   return (
-    <Field className={className}>
+    <Field className={className} data-invalid={Boolean(error) || undefined}>
       <FieldLabel className="text-[11px] text-muted-foreground">
         {label}
       </FieldLabel>
       {children}
+      <FieldError className="text-[11px]" errors={error ? [{ message: error }] : []} />
     </Field>
   );
 }
@@ -2332,6 +2481,94 @@ function SmallSelect<TOption extends readonly { value: string; label: string }[]
   );
 }
 
+function normalizeNewTicketFinanceForm(
+  form: CreateTicketWithFinanceInput
+): CreateTicketWithFinanceInput {
+  return {
+    ...form,
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    instagram: form.instagram?.trim() ?? "",
+    gross_total: form.gross_total.trim(),
+    discount_amount: form.discount_amount.trim(),
+    tax_amount: form.tax_amount.trim(),
+    nip: form.nip.trim(),
+    finance_note: form.finance_note.trim(),
+  };
+}
+
+function zodIssuesToFieldErrors<TField extends string>(
+  issues: ApiIssue[],
+  fieldMap: Partial<Record<string, TField>> = {}
+): FieldErrors<TField> {
+  const fieldErrors: FieldErrors<TField> = {};
+
+  for (const issue of issues) {
+    if (!issue.message) continue;
+
+    const rawField = issue.path?.[0];
+    if (typeof rawField !== "string") continue;
+
+    const field = fieldMap[rawField] ?? (rawField as TField);
+    fieldErrors[field] ??= issue.message;
+  }
+
+  return fieldErrors;
+}
+
+function getFirstIssueMessage(issues: ApiIssue[]): string | undefined {
+  return issues.find((issue) => issue.message)?.message;
+}
+
+async function readApiError(
+  response: Response,
+  fieldMap: Partial<Record<string, string>> = {}
+): Promise<ApiError> {
+  const fallbackMessage = response.statusText || "Запит не вдався.";
+  const payload = await response.json().catch(() => null);
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray(payload.issues)
+  ) {
+    const issues = payload.issues as ApiIssue[];
+    const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
+    return new ApiError(
+      getFirstIssueMessage(issues) ??
+        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+      fieldErrors
+    );
+  }
+
+  if (payload && typeof payload === "object" && Array.isArray(payload.error)) {
+    const issues = payload.error as ApiIssue[];
+    const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
+    return new ApiError(
+      getFirstIssueMessage(issues) ??
+        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+      fieldErrors
+    );
+  }
+
+  if (payload && typeof payload === "object" && Array.isArray(payload.errors)) {
+    const issues = payload.errors as ApiIssue[];
+    const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
+    return new ApiError(
+      getFirstIssueMessage(issues) ??
+        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+      fieldErrors
+    );
+  }
+
+  if (payload && typeof payload === "object" && typeof payload.message === "string") {
+    return new ApiError(payload.message);
+  }
+
+  return new ApiError(fallbackMessage);
+}
+
 async function saveFinance(
   ticketId: string,
   data: UpsertTicketFinanceInput
@@ -2341,7 +2578,7 @@ async function saveFinance(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await readApiError(response);
   return response.json();
 }
 
@@ -2353,7 +2590,15 @@ async function createTicket(body: CreateTicketInput): Promise<{ ticket: { id: st
   });
   const json = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(json?.message || response.statusText);
+    if (json) {
+      throw await readApiError(
+        new Response(JSON.stringify(json), {
+          status: response.status,
+          statusText: response.statusText,
+        })
+      );
+    }
+    throw new ApiError(response.statusText || "Не вдалося створити квиток.");
   }
   return json;
 }
@@ -2372,7 +2617,15 @@ async function patchTicket(
   });
   const json = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(json?.message || response.statusText);
+    if (json) {
+      throw await readApiError(
+        new Response(JSON.stringify(json), {
+          status: response.status,
+          statusText: response.statusText,
+        })
+      );
+    }
+    throw new ApiError(response.statusText || "Не вдалося оновити квиток.");
   }
   return json;
 }
@@ -2436,7 +2689,9 @@ async function createPayment(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) {
+    throw await readApiError(response, { sale_source: "payment_sale_source" });
+  }
   return response.json();
 }
 
@@ -2449,7 +2704,7 @@ async function updatePayment(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await readApiError(response);
   return response.json();
 }
 
@@ -2457,7 +2712,7 @@ async function deletePayment(paymentId: string): Promise<unknown> {
   const response = await fetch(`/api/payments/${paymentId}`, {
     method: "DELETE",
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await readApiError(response);
   return response.json();
 }
 
@@ -2533,7 +2788,7 @@ function splitMoney(value: string, count: number): string[] {
 
 function normalizeMoney(value: string): string {
   if (!value) return "0.00";
-  const parsed = Number(value);
+  const parsed = parseMoneyNumber(value);
   return Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
 }
 
@@ -2563,8 +2818,16 @@ function buildFinancePatchWithNet(
 }
 
 function toMoneyNumber(value: unknown): number {
-  const parsed = Number(value ?? 0);
+  const parsed = parseMoneyNumber(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseMoneyNumber(value: unknown): number {
+  if (typeof value === "string") {
+    return Number(value.trim().replace(",", ".") || 0);
+  }
+
+  return Number(value ?? 0);
 }
 
 function formatZloty(value: number): string {
