@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { isAuthDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { useSession } from "@/shared/better-auth/hooks";
 import QueryProvider from "@/shared/providers/react-query";
 import { Header } from "@/widgets/header";
@@ -10,17 +11,26 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
+  const authDisabled = isAuthDisabledForDev();
   const session = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (authDisabled) {
+      return;
+    }
+
     if (!session.data && !session.isPending) {
       const current = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
       router.replace(`/login?from=${encodeURIComponent(current)}`);
     }
-  }, [session.data, session.isPending, router, pathname, searchParams]);
+  }, [authDisabled, session.data, session.isPending, router, pathname, searchParams]);
+
+  if (authDisabled) {
+    return children;
+  }
 
   if (!session.data && !session.isPending) {
     return null;

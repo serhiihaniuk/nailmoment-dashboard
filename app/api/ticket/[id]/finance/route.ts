@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { auth } from "@/shared/better-auth/auth";
+import { isAuthDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { db } from "@/shared/db";
 import { createFinanceService } from "@/shared/db/service/finance-service";
 import { createTicketService } from "@/shared/db/service/ticket-service";
@@ -14,7 +15,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = isAuthDisabledForDev()
+    ? true
+    : await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
@@ -33,7 +36,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = isAuthDisabledForDev()
+    ? true
+    : await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
