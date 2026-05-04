@@ -3,7 +3,6 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/shared/better-auth/auth";
-import { isAuthDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { db } from "@/shared/db";
 import { createFinanceService } from "@/shared/db/service/finance-service";
 import { patchPaymentInstallmentSchema } from "@/shared/db/schema.zod";
@@ -43,9 +42,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ paymentId: string }> }
 ) {
-  const session = isAuthDisabledForDev()
-    ? true
-    : await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
@@ -94,9 +91,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ paymentId: string }> }
 ) {
-  const session = isAuthDisabledForDev()
-    ? true
-    : await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }

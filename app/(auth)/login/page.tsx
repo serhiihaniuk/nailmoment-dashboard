@@ -1,9 +1,8 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { authClient } from "@/shared/better-auth/auth-client";
-import { isAuthDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +16,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") ?? "/dashboard";
-  const authDisabled = isAuthDisabledForDev();
-
-  useEffect(() => {
-    if (authDisabled) {
-      router.replace(from);
-    }
-  }, [authDisabled, from, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

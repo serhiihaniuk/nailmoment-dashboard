@@ -367,7 +367,7 @@ export function FinanceTable() {
         if (statusFilter === "paid") return status === "paid";
         if (statusFilter === "partial") return status === "partial";
         if (statusFilter === "overdue") return status === "overdue";
-        if (statusFilter === "pending") return status === "pending" || status === "not_started";
+        if (statusFilter === "pending") return status === "unpaid" || status === "untracked";
         return true;
       });
     }
@@ -418,15 +418,6 @@ export function FinanceTable() {
 
   const openTicketPayments = (ticketId: string) => {
     setOpenTicketId(ticketId);
-  };
-
-  const handlePaymentsDialogOpenChange = (open: boolean) => {
-    if (!open) {
-      setOpenTicketId(null);
-      return;
-    }
-
-    if (selectedTicket) setOpenTicketId(selectedTicket.id);
   };
 
   if (isLoading) {
@@ -482,25 +473,28 @@ export function FinanceTable() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-[700px]">
+          <Table className="w-full min-w-200">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/50">
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[260px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-65">
                   Клієнт
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[70px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-17.5">
                   Тариф
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[100px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Повна оплата
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[80px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
+                  Оплачено
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
                   Податок
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[100px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Чиста сума
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[90px]">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-22.5">
                   Статус
                 </TableHead>
               </TableRow>
@@ -508,7 +502,7 @@ export function FinanceTable() {
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                     {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
                   </TableCell>
                 </TableRow>
@@ -516,7 +510,8 @@ export function FinanceTable() {
               {tickets.map((ticket) => {
                 const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
                 const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
-                const netTotal = toMoneyNumber(ticket.finance?.net_total);
+                const paidTotal = toMoneyNumber(ticket.finance_summary.paid_total);
+                const netTotal = toMoneyNumber(calculatedNetTotal(ticket));
                 const status = ticket.finance_summary.payment_status;
                 const isOverdue = status === "overdue";
 
@@ -528,7 +523,7 @@ export function FinanceTable() {
                     className={cn(
                       "cursor-pointer border-b border-border/30 last:border-0",
                       openTicketId === ticket.id && "bg-muted/40",
-                      isOverdue && "bg-destructive/[0.02]"
+                      isOverdue && "bg-destructive/2"
                     )}
                     onClick={(event) => {
                       const interactiveTarget = (
@@ -545,19 +540,20 @@ export function FinanceTable() {
                   >
                     <TableCell className="py-3.5 px-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-[13px] truncate max-w-[240px]">{ticket.name}</span>
-                        <span className="text-[11px] text-muted-foreground/70 truncate max-w-[240px]">
+                        <span className="font-medium text-[13px] truncate max-w-60">{ticket.name}</span>
+                        <span className="text-[11px] text-muted-foreground/70 truncate max-w-60">
                           {ticket.email || "—"}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell className="py-3.5 px-4">
-                      <span className="text-[12px] text-muted-foreground font-medium uppercase">
-                        {(ticket.updated_grade ?? ticket.grade) || "—"}
-                      </span>
+                      <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
                       {formatZloty(grossTotal)}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px] text-success">
+                      {formatZloty(paidTotal)}
                     </TableCell>
                     <TableCell className={cn(
                       "py-3.5 px-4 text-right tabular-nums text-[13px]",
@@ -895,14 +891,19 @@ function PaymentsPanel({
   const planPaymentLimit = getExpectedPaymentCount(selectedPaymentPlan);
   const expectedPaymentCount =
     planPaymentLimit ?? Math.max(sortedPayments.length, 1);
-  const displayedPaymentCount = Math.max(
-    expectedPaymentCount,
-    sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
-  );
+  const displayedPaymentCount =
+    planPaymentLimit === 0
+      ? sortedPayments.length
+      : Math.max(
+          expectedPaymentCount,
+          sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
+        );
+  const allowsUnscheduledPayment =
+    planPaymentLimit === null || planPaymentLimit > 0;
   const canAddPayment =
     planPaymentLimit === null ||
     sortedPayments.length < planPaymentLimit ||
-    hasUnscheduledRemaining;
+    (allowsUnscheduledPayment && hasUnscheduledRemaining);
   const disabledPaymentPlans = new Set(
     PAYMENT_PLAN_OPTIONS.filter((option) => {
       const optionPaymentCount = getExpectedPaymentCount(option.value);
@@ -1454,6 +1455,7 @@ function MoneyCell({
 }) {
   return (
     <Input
+      key={value}
       type="number"
       step="0.01"
       min="0"
@@ -1480,6 +1482,7 @@ function TextCell({
 }) {
   return (
     <Input
+      key={value}
       type="text"
       defaultValue={value}
       disabled={disabled}

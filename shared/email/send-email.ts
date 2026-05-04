@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { EmailTemplate } from "./email-template";
 import { BattleTicketEmailTemplate } from "./battle-email-template";
 
-const resend = new Resend(process.env.RESEND_API_KEY || '123123');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function generateAndStoreQRCode(
   url: string,

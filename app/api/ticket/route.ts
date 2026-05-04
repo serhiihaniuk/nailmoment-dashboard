@@ -5,7 +5,6 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 
 import { auth } from "@/shared/better-auth/auth";
-import { isAuthDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { db } from "@/shared/db";
 import { ticketTable } from "@/shared/db/schema";
 import { createTicketService } from "@/shared/db/service/ticket-service";
@@ -62,9 +61,7 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
 
 export async function GET() {
   try {
-    const session = isAuthDisabledForDev()
-      ? true
-      : await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
       return NextResponse.json(
@@ -85,9 +82,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = isAuthDisabledForDev()
-      ? true
-      : await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: await headers() });
     if (!session)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 

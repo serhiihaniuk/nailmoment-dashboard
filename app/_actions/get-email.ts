@@ -87,7 +87,7 @@ export async function sendCustomEmail(
   const ticket = await ticketService.getTicket(ticketId);
   if (!ticket) return { success: false, error: "Ticket not found" };
 
-  const resend = new Resend(process.env.RESEND_API_KEY || '123123');
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const html = await render(
     CustomEmailTemplate({ name: ticket.name, subject, body })
