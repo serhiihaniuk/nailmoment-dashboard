@@ -162,11 +162,15 @@ function buildFinanceSummary(
   finance: TicketFinance | null,
   payments: PaymentInstallment[]
 ): TicketFinanceSummary {
-  const grossTotal = toMoneyNumber(finance?.gross_total);
-  const paidTotal = payments.reduce((sum, payment) => {
-    if (!payment.paid_date) return sum;
-    return sum + toMoneyNumber(payment.amount);
-  }, 0);
+  const isZeroPaymentPlan =
+    finance?.payment_plan === "free" || finance?.payment_plan === "sponsor";
+  const grossTotal = isZeroPaymentPlan ? 0 : toMoneyNumber(finance?.gross_total);
+  const paidTotal = isZeroPaymentPlan
+    ? 0
+    : payments.reduce((sum, payment) => {
+        if (!payment.paid_date) return sum;
+        return sum + toMoneyNumber(payment.amount);
+      }, 0);
   const remainingTotal = Math.max(grossTotal - paidTotal, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -195,6 +199,8 @@ function buildFinanceSummary(
   const paymentStatus: TicketFinanceSummary["payment_status"] =
     !finance && payments.length === 0
       ? "untracked"
+      : grossTotal <= 0
+        ? "paid"
       : grossTotal > 0 && paidTotal >= grossTotal
         ? "paid"
         : hasOverduePayment

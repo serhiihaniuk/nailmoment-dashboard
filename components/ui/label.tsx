@@ -1,8 +1,9 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import * as LabelPrimitive from "@radix-ui/react-label";
-import { cn } from "@/shared/utils";
+import * as React from "react"
+import { Label as LabelPrimitive } from "radix-ui"
+
+import { cn } from "@/shared/utils"
 
 function Label({
   className,
@@ -17,20 +18,7 @@ function Label({
       )}
       {...props}
     />
-  );
+  )
 }
 
-export { Label };
-
-export const Field = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <div className="grid grid-cols-4 items-center gap-4">
-    <Label className="text-left">{label}</Label>
-    <div className="col-span-3">{children}</div>
-  </div>
-);
+export { Label }

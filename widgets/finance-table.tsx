@@ -4,7 +4,6 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarIcon,
-  CreditCard,
   Loader2,
   Plus,
   Search,
@@ -32,6 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -41,12 +47,31 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SlidePanel } from "@/components/ui/slide-panel";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { TicketWithFinance } from "@/shared/db/schema";
 import type {
@@ -125,10 +150,14 @@ type CreateTicketWithFinanceInput = CreateTicketInput & {
   finance_note: string;
 };
 
+type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
+
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>("all");
   const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const { data, isLoading, isFetching, isError } = useQuery<
     TicketWithFinance[],
     Error
@@ -218,11 +247,30 @@ export function FinanceTable() {
         );
       }
 
-      await saveFinance(ticket.id, { payment_plan: paymentPlan });
-
       if (expectedPaymentCount === null) {
+        await saveFinance(ticket.id, { payment_plan: paymentPlan });
         return;
       }
+
+      if (expectedPaymentCount === 0) {
+        await saveFinance(ticket.id, {
+          payment_plan: paymentPlan,
+          gross_total: "0.00",
+          discount_amount: "0.00",
+          tax_amount: "0.00",
+          net_total: "0.00",
+        });
+
+        for (const payment of sortedPayments.filter(
+          (payment) => !payment.paid_date
+        )) {
+          await deletePayment(payment.id);
+        }
+
+        return;
+      }
+
+      await saveFinance(ticket.id, { payment_plan: paymentPlan });
 
       const remainingAfterPaid = Math.max(
         toMoneyNumber(ticket.finance?.gross_total) -
@@ -232,13 +280,10 @@ export function FinanceTable() {
           ),
         0
       );
-      const targetPaymentCount =
-        expectedPaymentCount === 0
-          ? 0
-          : Math.max(
-              expectedPaymentCount,
-              paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
-            );
+      const targetPaymentCount = Math.max(
+        expectedPaymentCount,
+        paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
+      );
       const paidPaymentIds = new Set(paidPayments.map((payment) => payment.id));
       const removeCount = Math.max(
         sortedPayments.length - targetPaymentCount,
@@ -329,7 +374,21 @@ export function FinanceTable() {
   });
 
   const tickets = useMemo(() => {
-    const activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
+    let activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
+    
+    // Apply status filter
+    if (statusFilter !== "all") {
+      activeTickets = activeTickets.filter((ticket) => {
+        const status = ticket.finance_summary.payment_status;
+        if (statusFilter === "paid") return status === "paid";
+        if (statusFilter === "partial") return status === "partial";
+        if (statusFilter === "overdue") return status === "overdue";
+        if (statusFilter === "pending") return status === "unpaid" || status === "untracked";
+        return true;
+      });
+    }
+    
+    // Apply search
     if (!query.trim()) return activeTickets;
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -342,7 +401,7 @@ export function FinanceTable() {
         ticket.finance?.nip,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery))
     );
-  }, [data, query]);
+  }, [data, query, statusFilter]);
 
   const financeTotals = useMemo(() => {
     return tickets.reduce(
@@ -359,6 +418,11 @@ export function FinanceTable() {
     );
   }, [tickets]);
 
+  const selectedTicket = useMemo(
+    () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
+    [openTicketId, tickets]
+  );
+
   const isSaving =
     saveFinanceMutation.isPending ||
     updatePaymentMutation.isPending ||
@@ -368,190 +432,232 @@ export function FinanceTable() {
     createTicketMutation.isPending ||
     syncPlanMutation.isPending;
 
+  const openTicketPayments = (ticketId: string) => {
+    setOpenTicketId(ticketId);
+  };
+
   if (isLoading) {
     return <Skeleton className="h-[70vh] w-full rounded-xl" />;
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-heading-1">
-            Фінанси{" "}
-            <span className="text-muted-foreground font-normal text-base">
-              {tickets.length}
-            </span>
-          </h2>
-          {isError && (
-            <p className="text-sm text-destructive mt-1">
-              Помилка завантаження фінансів
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <NewTicketFinanceDialog
-            isPending={createTicketMutation.isPending}
-            onCreate={(data) => createTicketMutation.mutateAsync(data)}
-          />
-          <FinanceSummaryMetric label="Повна" value={formatZloty(financeTotals.gross)} />
-          <FinanceSummaryMetric label="Оплачено" value={formatZloty(financeTotals.paid)} />
-          <FinanceSummaryMetric
-            label="Залишок"
-            value={formatZloty(financeTotals.remaining)}
-          />
-          <FinanceSummaryMetric
-            label="Прострочено"
-            value={String(financeTotals.overdue)}
-            tone={financeTotals.overdue > 0 ? "danger" : "muted"}
-          />
-        </div>
+      {/* Page header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-heading-1">Фінанси</h2>
+        <NewTicketFinanceDialog
+          isPending={createTicketMutation.isPending}
+          onCreate={(data) => createTicketMutation.mutateAsync(data)}
+        />
       </div>
 
-      <div className="rounded-lg border border-border/70 bg-white shadow-surface overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-[#f8fafc] px-3 py-2">
-          <div className="text-[12px] text-muted-foreground">
-            Редагування зберігається після зміни поля.
-          </div>
-          <div className="relative w-80 max-w-full">
+      {/* Summary stats - compact inline */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+        <span className="text-muted-foreground">{tickets.length} записів</span>
+        <span className="hidden md:inline text-border">|</span>
+        <span><span className="text-muted-foreground">Сума:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
+        <span><span className="text-muted-foreground">Оплачено:</span> <span className="font-semibold tabular-nums text-success">{formatZloty(financeTotals.paid)}</span></span>
+        <span><span className="text-muted-foreground">Залишок:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
+        {financeTotals.overdue > 0 && (
+          <span><span className="text-muted-foreground">Прострочено:</span> <span className="font-semibold tabular-nums text-destructive">{financeTotals.overdue}</span></span>
+        )}
+      </div>
+
+      {isError && (
+        <p className="text-destructive font-medium">
+          Помилка завантаження фінансів
+        </p>
+      )}
+
+      {/* Main table */}
+      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/40">
+          <div className="relative w-full sm:w-auto sm:min-w-64">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40"
             />
             <Input
               placeholder="Пошук..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="h-8 bg-white pl-8 text-base shadow-none"
+              className="pl-9 h-9 border-border/50 text-base md:text-[13px] placeholder:text-muted-foreground/40"
             />
           </div>
+          <PaymentStatusFilter value={statusFilter} onChange={setStatusFilter} />
         </div>
 
-        <div className="max-h-[calc(100vh-11rem)] overflow-auto bg-white">
-          <table className="w-max min-w-full border-separate border-spacing-0 text-[12px]">
-            <thead className="sticky top-0 z-30">
-              <tr>
-                <FinanceHead className="sticky left-0 z-50 min-w-12 bg-[#f8fafc]">
-                  №
-                </FinanceHead>
-                <FinanceHead className="sticky left-12 z-50 min-w-26 bg-[#f8fafc]">
-                  Дата
-                </FinanceHead>
-                <FinanceHead className="sticky left-38 z-50 min-w-52 bg-[#f8fafc] shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)]">
-                  Ім&apos;я і фамілія
-                </FinanceHead>
-                <FinanceHead className="min-w-54">Email</FinanceHead>
-                <FinanceHead className="min-w-34">Телефон</FinanceHead>
-                <FinanceHead className="min-w-42">Інстаграм</FinanceHead>
-                <FinanceHead className="min-w-28">Тариф</FinanceHead>
-                <FinanceHead className="min-w-28 bg-[#e6f4df]">NIP</FinanceHead>
-                <FinanceHead className="min-w-22">Знижка</FinanceHead>
-                <FinanceHead className="min-w-44">Платежі</FinanceHead>
-                <FinanceHead className="min-w-28 bg-[#edf7ff]">Оплачено</FinanceHead>
-                <FinanceHead className="min-w-28 bg-[#e5e7eb]">Повна оплата</FinanceHead>
-                <FinanceHead className="min-w-24 bg-[#fde2e2]">Податок</FinanceHead>
-                <FinanceHead className="min-w-28 bg-[#e6f4df]">Чиста сума</FinanceHead>
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.map((ticket, index) => (
-                <tr
-                  key={ticket.id}
-                  className="group hover:bg-[#f8fafc]"
-                >
-                  <FinanceCell className="sticky left-0 z-20 bg-white text-right tabular-nums text-muted-foreground group-hover:bg-[#f8fafc]">
-                    {index + 1}
-                  </FinanceCell>
-                  <FinanceCell className="sticky left-12 z-20 bg-white tabular-nums group-hover:bg-[#f8fafc]">
-                    {formatDate(ticket.date)}
-                  </FinanceCell>
-                  <FinanceCell className="sticky left-38 z-20 bg-white font-medium shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)] group-hover:bg-[#f8fafc]">
-                    <span className="block max-w-48 truncate">{ticket.name}</span>
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground">
-                    {ticket.email || "—"}
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground tabular-nums">
-                    {ticket.phone?.replace(/\s+/g, "") || "—"}
-                  </FinanceCell>
-                  <FinanceCell className="text-muted-foreground">
-                    {ticket.instagram || "—"}
-                  </FinanceCell>
-                  <FinanceCell>
-                    <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
-                  </FinanceCell>
-                  <FinanceCell className="bg-[#f1f8ed]">
-                    <ReadOnlyText value={ticket.finance?.nip} />
-                  </FinanceCell>
-                  <FinanceCell>
-                    <ReadOnlyMoney value={ticket.finance?.discount_amount} />
-                  </FinanceCell>
+        <div className="overflow-x-auto">
+          <Table className="w-full min-w-225">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-b border-border/50">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-65">
+                  Клієнт
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-17.5">
+                  Тариф
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
+                  Повна оплата
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
+                  Оплачено
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
+                  Платежі
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
+                  Податок
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
+                  Чиста сума
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-22.5">
+                  Статус
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tickets.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
+                  </TableCell>
+                </TableRow>
+              )}
+              {tickets.map((ticket) => {
+                const grossTotal = toMoneyNumber(
+                  ticket.finance_summary.gross_total
+                );
+                const taxAmount = isZeroPaymentPlan(
+                  ticket.finance?.payment_plan
+                )
+                  ? 0
+                  : toMoneyNumber(ticket.finance?.tax_amount);
+                const paidTotal = toMoneyNumber(ticket.finance_summary.paid_total);
+                const netTotal = toMoneyNumber(calculatedNetTotal(ticket));
+                const status = ticket.finance_summary.payment_status;
+                const isOverdue = status === "overdue";
+                const displayedPaymentCount = getDisplayedPaymentCount(ticket);
 
-                  <FinanceCell>
-                    <PaymentsDialog
-                      ticket={ticket}
-                      planError={planErrors[ticket.id]}
-                      onCreate={(data) =>
-                        createPaymentMutation.mutate({
-                          ticketId: ticket.id,
-                          data,
-                        })
-                      }
-                      onUpdate={(paymentId, paymentData) =>
-                        updatePaymentMutation.mutate({
-                          paymentId,
-                          data: paymentData,
-                        })
-                      }
-                      onDelete={(paymentId) =>
-                        deletePaymentMutation.mutate(paymentId)
-                      }
-                      onFinanceChange={(financeData) =>
-                        saveFinanceMutation.mutate({
-                          ticketId: ticket.id,
-                          data: financeData,
-                        })
-                      }
-                      onTicketChange={(ticketData) =>
-                        updateTicketMutation.mutate({
-                          ticketId: ticket.id,
-                          data: ticketData,
-                        })
-                      }
-                      onPaymentPlanChange={(paymentPlan) =>
-                        syncPlanMutation.mutate({
-                          ticket,
-                          paymentPlan,
-                        })
-                      }
-                    />
-                  </FinanceCell>
-
-                  <FinanceCell className="bg-[#f4fbff] text-right">
-                    <ReadOnlyMoney value={ticket.finance_summary.paid_total} />
-                  </FinanceCell>
-                  <FinanceCell className="bg-[#f3f4f6] text-right">
-                    <ReadOnlyMoney value={ticket.finance?.gross_total} />
-                  </FinanceCell>
-                  <FinanceCell className="bg-[#fff1f1] text-right">
-                    <ReadOnlyMoney value={ticket.finance?.tax_amount} />
-                  </FinanceCell>
-                  <FinanceCell className="bg-[#f1f8ed] text-right">
-                    <ReadOnlyMoney value={ticket.finance?.net_total} />
-                  </FinanceCell>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                return (
+                  <TableRow
+                    key={ticket.id}
+                    role="button"
+                    tabIndex={0}
+                    className={cn(
+                      "cursor-pointer border-b border-border/30 last:border-0",
+                      openTicketId === ticket.id && "bg-muted/40",
+                      isOverdue && "bg-destructive/2"
+                    )}
+                    onClick={(event) => {
+                      const interactiveTarget = (
+                        event.target as HTMLElement
+                      ).closest("button,a,textarea,select");
+                      if (interactiveTarget) return;
+                      openTicketPayments(ticket.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      openTicketPayments(ticket.id);
+                    }}
+                  >
+                    <TableCell className="py-3.5 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-[13px] truncate max-w-60">{ticket.name}</span>
+                        <span className="text-[11px] text-muted-foreground/70 truncate max-w-60">
+                          {ticket.email || "—"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4">
+                      <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
+                      {formatZloty(grossTotal)}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px] text-success">
+                      {formatZloty(paidTotal)}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4">
+                      <Badge
+                        variant="outline"
+                        className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                      >
+                        {
+                          ticket.payments.filter((payment) => payment.paid_date)
+                            .length
+                        }/{displayedPaymentCount}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={cn(
+                      "py-3.5 px-4 text-right tabular-nums text-[13px]",
+                      taxAmount > 0 ? "text-destructive/70" : "text-muted-foreground/50"
+                    )}>
+                      {taxAmount > 0 ? formatZloty(taxAmount) : "0,00 zł"}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
+                      {formatZloty(netTotal)}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4">
+                      <StatusIndicator status={status} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
 
         {(isFetching || isSaving) && (
-          <div className="border-t border-border/50 px-3 py-2 text-[12px] text-muted-foreground flex items-center gap-2">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <div className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground/70 flex items-center gap-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
             Оновлення...
           </div>
         )}
       </div>
+
+      {selectedTicket && (
+        <PaymentsPanel
+          ticket={selectedTicket}
+          open={Boolean(openTicketId)}
+          onClose={() => setOpenTicketId(null)}
+          planError={planErrors[selectedTicket.id]}
+          onCreate={(data) =>
+            createPaymentMutation.mutate({
+              ticketId: selectedTicket.id,
+              data,
+            })
+          }
+          onUpdate={(paymentId, paymentData) =>
+            updatePaymentMutation.mutate({
+              paymentId,
+              data: paymentData,
+            })
+          }
+          onDelete={(paymentId) => deletePaymentMutation.mutate(paymentId)}
+          onFinanceChange={(financeData) =>
+            saveFinanceMutation.mutate({
+              ticketId: selectedTicket.id,
+              data: financeData,
+            })
+          }
+          onTicketChange={(ticketData) =>
+            updateTicketMutation.mutate({
+              ticketId: selectedTicket.id,
+              data: ticketData,
+            })
+          }
+          onPaymentPlanChange={(paymentPlan) =>
+            syncPlanMutation.mutate({
+              ticket: selectedTicket,
+              paymentPlan,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
@@ -574,9 +680,33 @@ function NewTicketFinanceDialog({
   };
 
   const handleGradeChange = (grade: TicketGrade) => {
+    const isZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
     updateForm({
       grade,
-      gross_total: TICKET_PRICE_BY_GRADE[grade],
+      gross_total: isZeroPaymentPlan ? "0.00" : TICKET_PRICE_BY_GRADE[grade],
+    });
+  };
+
+  const handlePaymentPlanChange = (payment_plan: PaymentPlan) => {
+    const isZeroPaymentPlan = getExpectedPaymentCount(payment_plan) === 0;
+    const wasZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
+    updateForm({
+      payment_plan,
+      ...(isZeroPaymentPlan
+        ? {
+            gross_total: "0.00",
+            discount_amount: "0.00",
+            tax_amount: "0.00",
+          }
+        : wasZeroPaymentPlan
+          ? {
+              gross_total: TICKET_PRICE_BY_GRADE[form.grade],
+              discount_amount: "0.00",
+              tax_amount: "0.00",
+            }
+          : {}),
     });
   };
 
@@ -593,11 +723,15 @@ function NewTicketFinanceDialog({
     setError(null);
 
     try {
+      const isZeroPaymentPlan = getExpectedPaymentCount(form.payment_plan) === 0;
+
       await onCreate({
         ...form,
-        gross_total: normalizeMoney(form.gross_total),
-        discount_amount: normalizeMoney(form.discount_amount),
-        tax_amount: normalizeMoney(form.tax_amount),
+        gross_total: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.gross_total),
+        discount_amount: isZeroPaymentPlan
+          ? "0.00"
+          : normalizeMoney(form.discount_amount),
+        tax_amount: isZeroPaymentPlan ? "0.00" : normalizeMoney(form.tax_amount),
       });
       setOpen(false);
       setForm(createNewTicketFinanceDefaults());
@@ -682,7 +816,7 @@ function NewTicketFinanceDialog({
               <SmallSelect
                 value={form.payment_plan}
                 options={PAYMENT_PLAN_OPTIONS}
-                onChange={(payment_plan) => updateForm({ payment_plan })}
+                onChange={handlePaymentPlanChange}
               />
             </PaymentField>
             <PaymentField label="Повна оплата">
@@ -771,40 +905,10 @@ function NewTicketFinanceDialog({
   );
 }
 
-function FinanceSummaryMetric({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  tone?: "default" | "muted" | "danger";
-}) {
-  return (
-    <div
-      className={cn(
-        "min-w-28 rounded-md border border-border/60 bg-white px-3 py-2 shadow-xs",
-        tone === "danger" && "border-destructive/30 bg-destructive/5",
-        tone === "muted" && "bg-muted/40"
-      )}
-    >
-      <div className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 text-[14px] font-semibold tabular-nums",
-          tone === "danger" && "text-destructive"
-        )}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function PaymentsDialog({
+function PaymentsPanel({
   ticket,
+  open,
+  onClose,
   planError,
   onCreate,
   onUpdate,
@@ -814,6 +918,8 @@ function PaymentsDialog({
   onPaymentPlanChange,
 }: {
   ticket: TicketWithFinance;
+  open: boolean;
+  onClose: () => void;
   planError?: string;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
   onUpdate: (paymentId: string, data: PatchPaymentInstallmentInput) => void;
@@ -847,17 +953,11 @@ function PaymentsDialog({
   );
   const hasUnscheduledRemaining = unscheduledRemaining >= 0.01;
   const selectedPaymentPlan = ticket.finance?.payment_plan ?? "full";
+  const hasZeroPaymentPlan = isZeroPaymentPlan(selectedPaymentPlan);
   const planPaymentLimit = getExpectedPaymentCount(selectedPaymentPlan);
-  const expectedPaymentCount =
-    planPaymentLimit ?? Math.max(sortedPayments.length, 1);
-  const displayedPaymentCount = Math.max(
-    expectedPaymentCount,
-    sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
-  );
+  const displayedPaymentCount = getDisplayedPaymentCount(ticket);
   const canAddPayment =
-    planPaymentLimit === null ||
-    sortedPayments.length < planPaymentLimit ||
-    hasUnscheduledRemaining;
+    planPaymentLimit === null || sortedPayments.length < planPaymentLimit;
   const disabledPaymentPlans = new Set(
     PAYMENT_PLAN_OPTIONS.filter((option) => {
       const optionPaymentCount = getExpectedPaymentCount(option.value);
@@ -873,7 +973,7 @@ function PaymentsDialog({
     });
     onFinanceChange(
       buildFinancePatchWithNet(ticket, {
-        gross_total: TICKET_PRICE_BY_GRADE[grade],
+        gross_total: hasZeroPaymentPlan ? "0.00" : TICKET_PRICE_BY_GRADE[grade],
       })
     );
   };
@@ -897,188 +997,195 @@ function PaymentsDialog({
     });
   };
 
+  const footerContent = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-[11px] text-muted-foreground">
+        Зміни зберігаються автоматично
+      </span>
+      {canAddPayment && (
+        <Button type="button" size="sm" onClick={handleAddPayment}>
+          <Plus data-icon="inline-start" />
+          Додати платіж
+        </Button>
+      )}
+    </div>
+  );
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className="flex h-7 w-full items-center justify-between gap-2 rounded-md border border-border/60 bg-white px-2 text-left text-[11px] transition-colors hover:bg-muted/50"
-        >
-          <span className="flex items-center gap-1.5 font-medium">
-            <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+    <SlidePanel open={open} onClose={onClose} footer={footerContent}>
+      {/* Header */}
+      <div className="pt-4 pb-4 border-b border-border/40 mb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-heading-1 truncate">{ticket.name}</h2>
+            <p className="text-caption mt-1 truncate">
+              {ticket.email} · {ticket.updated_grade ?? ticket.grade}
+            </p>
+          </div>
+          <Badge
+            variant="secondary"
+            className="rounded-md px-2.5 py-1.5 text-[14px] tabular-nums shrink-0"
+          >
             {paidCount}/{displayedPaymentCount}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Summary stats */}
+      <div className="flex items-center gap-4 text-[12px] mb-6">
+        <div>
+          <span className="text-muted-foreground">Повна: </span>
+          <span className="font-medium tabular-nums">
+            {formatZloty(toMoneyNumber(ticket.finance_summary.gross_total))}
           </span>
-          <span className="text-muted-foreground tabular-nums">
+        </div>
+        <div>
+          <span className="text-muted-foreground">Оплачено: </span>
+          <span className="font-medium tabular-nums text-success">
             {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
           </span>
-        </button>
-      </DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0">
-        <DialogHeader className="border-b border-border/60 bg-white px-5 py-4">
-          <div className="flex items-start justify-between gap-8 pr-8">
-            <div className="min-w-0">
-              <DialogTitle className="truncate text-[18px]">
-                {ticket.name}
-              </DialogTitle>
-              <DialogDescription className="mt-1 truncate">
-                {ticket.email} · {ticket.updated_grade ?? ticket.grade}
-              </DialogDescription>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-right">
-              <div className="text-[10px] uppercase text-muted-foreground">
-                Платежі
-              </div>
-              <div className="text-[16px] font-semibold tabular-nums">
-                {paidCount}/{displayedPaymentCount}
-              </div>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-3 gap-2 px-5 pt-4">
-            <FinanceSummaryMetric
-              label="Повна"
-              value={formatZloty(
-                toMoneyNumber(ticket.finance_summary.gross_total)
-              )}
-            />
-            <FinanceSummaryMetric
-              label="Оплачено"
-              value={formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
-            />
-            <FinanceSummaryMetric
-              label="Залишок"
-              value={formatZloty(
-                toMoneyNumber(ticket.finance_summary.remaining_total)
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4">
-            <PaymentField label="Ім'я">
-              <TextCell
-                value={ticket.name}
-                onSave={(name) => onTicketChange({ name })}
-              />
-            </PaymentField>
-            <PaymentField label="Email">
-              <TextCell
-                value={ticket.email}
-                onSave={(email) => onTicketChange({ email })}
-              />
-            </PaymentField>
-            <PaymentField label="Телефон">
-              <TextCell
-                value={ticket.phone ?? ""}
-                onSave={(phone) => onTicketChange({ phone })}
-              />
-            </PaymentField>
-            <PaymentField label="Instagram">
-              <TextCell
-                value={ticket.instagram ?? ""}
-                onSave={(instagram) => onTicketChange({ instagram })}
-              />
-            </PaymentField>
-            <PaymentField label="Тариф">
-              <SmallSelect
-                value={(ticket.updated_grade ?? ticket.grade) as TicketGrade}
-                options={GRADE_SELECT_OPTIONS}
-                onChange={handleGradeChange}
-              />
-            </PaymentField>
-            <InfoTile label="Дата" value={formatDate(ticket.date)} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4">
-            <PaymentField label="Оплата / розстрочка">
-              <SmallSelect
-                value={selectedPaymentPlan}
-                options={PAYMENT_PLAN_OPTIONS}
-                disabledValues={disabledPaymentPlans}
-                onChange={onPaymentPlanChange}
-              />
-              {planError && (
-                <span className="block text-[11px] text-destructive">
-                  {planError}
-                </span>
-              )}
-            </PaymentField>
-            <PaymentField label="NIP">
-              <TextCell
-                value={ticket.finance?.nip ?? ""}
-                onSave={(nip) => onFinanceChange({ nip })}
-              />
-            </PaymentField>
-            <PaymentField label="Знижка">
-              <MoneyCell
-                value={ticket.finance?.discount_amount ?? "0.00"}
-                onSave={(discount_amount) => onFinanceChange({ discount_amount })}
-              />
-            </PaymentField>
-            <PaymentField label="Повна оплата">
-              <MoneyCell
-                value={ticket.finance?.gross_total ?? "0.00"}
-                onSave={(gross_total) =>
-                  onFinanceChange(buildFinancePatchWithNet(ticket, { gross_total }))
-                }
-              />
-            </PaymentField>
-            <PaymentField label="Податок">
-              <MoneyCell
-                value={ticket.finance?.tax_amount ?? "0.00"}
-                onSave={(tax_amount) =>
-                  onFinanceChange(buildFinancePatchWithNet(ticket, { tax_amount }))
-                }
-              />
-            </PaymentField>
-            <PaymentField label="Чиста сума">
-              <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
-            </PaymentField>
-            <PaymentField label="Коментар" className="col-span-2">
-              <TextCell
-                value={ticket.finance?.finance_note ?? ""}
-                onSave={(finance_note) => onFinanceChange({ finance_note })}
-              />
-            </PaymentField>
-          </div>
-
-          <div className="space-y-3 px-5 py-4">
-            {sortedPayments.map((payment) => (
-              <PaymentCard
-                key={payment.id}
-                payment={payment}
-                isStripePayment={isStripeOriginPayment(ticket, payment)}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
-            ))}
-
-            {sortedPayments.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-[13px] text-muted-foreground">
-                Платежів ще немає.
-              </div>
-            )}
-          </div>
         </div>
-
-        <div className="shrink-0 flex items-center justify-between border-t border-border/60 bg-[#f8fafc] px-5 py-3">
-          <span className="text-[12px] text-muted-foreground">
-            Зміни зберігаються після виходу з поля.
+        <div>
+          <span className="text-muted-foreground">Залишок: </span>
+          <span className="font-medium tabular-nums">
+            {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
           </span>
-          {canAddPayment && (
-            <button
-              type="button"
-              onClick={handleAddPayment}
-              className="inline-flex h-8 items-center gap-2 rounded-md bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Додати платіж
-            </button>
+        </div>
+      </div>
+
+      {/* Contact info section */}
+      <div className="space-y-4 mb-6">
+        <h3 className="text-label-caps">Контактна інформація</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <PaymentField label="Ім'я">
+            <TextCell
+              value={ticket.name}
+              onSave={(name) => onTicketChange({ name })}
+            />
+          </PaymentField>
+          <PaymentField label="Телефон">
+            <TextCell
+              value={ticket.phone ?? ""}
+              onSave={(phone) => onTicketChange({ phone })}
+            />
+          </PaymentField>
+          <PaymentField label="Email">
+            <TextCell
+              value={ticket.email}
+              onSave={(email) => onTicketChange({ email })}
+            />
+          </PaymentField>
+          <PaymentField label="Instagram">
+            <TextCell
+              value={ticket.instagram ?? ""}
+              onSave={(instagram) => onTicketChange({ instagram })}
+            />
+          </PaymentField>
+        </div>
+      </div>
+
+      {/* Finance details section */}
+      <div className="space-y-4 mb-6">
+        <h3 className="text-label-caps">Фінансові деталі</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <PaymentField label="Тариф">
+            <SmallSelect
+              value={(ticket.updated_grade ?? ticket.grade) as TicketGrade}
+              options={GRADE_SELECT_OPTIONS}
+              onChange={handleGradeChange}
+            />
+          </PaymentField>
+          <PaymentField label="Оплата / розстрочка">
+            <SmallSelect
+              value={selectedPaymentPlan}
+              options={PAYMENT_PLAN_OPTIONS}
+              disabledValues={disabledPaymentPlans}
+              onChange={onPaymentPlanChange}
+            />
+            {planError && (
+              <span className="block text-[11px] text-destructive mt-1">
+                {planError}
+              </span>
+            )}
+          </PaymentField>
+          <PaymentField label="Повна оплата">
+            <MoneyCell
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.gross_total ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
+              onSave={(gross_total) =>
+                onFinanceChange(buildFinancePatchWithNet(ticket, { gross_total }))
+              }
+            />
+          </PaymentField>
+          <PaymentField label="Податок">
+            <MoneyCell
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.tax_amount ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
+              onSave={(tax_amount) =>
+                onFinanceChange(buildFinancePatchWithNet(ticket, { tax_amount }))
+              }
+            />
+          </PaymentField>
+          <PaymentField label="Знижка">
+            <MoneyCell
+              value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.discount_amount ?? "0.00"}
+              disabled={hasZeroPaymentPlan}
+              onSave={(discount_amount) => onFinanceChange({ discount_amount })}
+            />
+          </PaymentField>
+          <PaymentField label="Чиста сума">
+            <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
+          </PaymentField>
+          <PaymentField label="NIP">
+            <TextCell
+              value={ticket.finance?.nip ?? ""}
+              onSave={(nip) => onFinanceChange({ nip })}
+            />
+          </PaymentField>
+          <PaymentField label="Дата">
+            <Input
+              readOnly
+              tabIndex={-1}
+              value={formatDate(ticket.date)}
+              className="h-9 border-transparent bg-muted/30 px-2 text-base shadow-none"
+            />
+          </PaymentField>
+        </div>
+        <PaymentField label="Коментар">
+          <TextCell
+            value={ticket.finance?.finance_note ?? ""}
+            onSave={(finance_note) => onFinanceChange({ finance_note })}
+          />
+        </PaymentField>
+      </div>
+
+      {/* Payments section */}
+      <div className="space-y-4">
+        <h3 className="text-label-caps">Платежі</h3>
+        <div className="flex flex-col gap-3">
+          {sortedPayments.map((payment) => (
+            <PaymentCard
+              key={payment.id}
+              payment={payment}
+              isStripePayment={isStripeOriginPayment(ticket, payment)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          ))}
+
+          {sortedPayments.length === 0 && (
+            <Empty className="border rounded-lg">
+              <EmptyHeader>
+                <EmptyTitle className="text-[13px]">Платежів ще немає</EmptyTitle>
+                <EmptyDescription className="text-[12px]">
+                  Додайте платіж, коли для цього плану є доступна частина.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </SlidePanel>
   );
 }
 
@@ -1103,22 +1210,24 @@ function PaymentCard({
       : "Очікує оплату";
 
   return (
-    <div
+    <Card
       className={cn(
-        "rounded-lg border border-border/60 bg-white shadow-xs",
+        "rounded-lg shadow-xs",
         isLocked && "bg-muted/20"
       )}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-border/50 px-4 py-3">
+      <CardHeader className="flex-row items-center justify-between gap-4 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-[13px] font-semibold">
+          <Badge variant="secondary" className="rounded-md px-2 py-1 text-[13px]">
             #{payment.installment_number}
-          </div>
+          </Badge>
           <div>
-            <div className="text-[13px] font-medium">
+            <CardTitle className="text-[13px] font-medium">
               {formatZloty(toMoneyNumber(payment.amount))}
-            </div>
-            <div className="text-[11px] text-muted-foreground">{statusText}</div>
+            </CardTitle>
+            <CardDescription className="text-[11px]">
+              {statusText}
+            </CardDescription>
           </div>
         </div>
 
@@ -1142,9 +1251,10 @@ function PaymentCard({
             onConfirm={() => onDelete(payment.id)}
           />
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="grid grid-cols-2 gap-3 p-4">
+      <Separator />
+      <CardContent className="grid grid-cols-1 gap-3 p-4">
         <PaymentField label="Сума">
           <MoneyCell
             value={payment.amount}
@@ -1188,7 +1298,6 @@ function PaymentCard({
           <SmallSelect
             value={payment.invoice_status}
             options={INVOICE_STATUS_OPTIONS}
-            disabled={isLocked}
             onChange={(invoice_status) =>
               onUpdate(payment.id, { invoice_status })
             }
@@ -1197,19 +1306,18 @@ function PaymentCard({
         <PaymentField label="№ фактури">
           <TextCell
             value={payment.invoice_number}
-            disabled={isLocked}
             onSave={(invoice_number) => onUpdate(payment.id, { invoice_number })}
           />
         </PaymentField>
-        <PaymentField label="Коментар" className="col-span-2">
+        <PaymentField label="Коментар">
           <TextCell
             value={payment.comment}
             disabled={isLocked}
             onSave={(comment) => onUpdate(payment.id, { comment })}
           />
         </PaymentField>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1279,47 +1387,89 @@ function DeletePaymentButton({
   );
 }
 
+function PaymentStatusFilter({
+  value,
+  onChange,
+}: {
+  value: PaymentStatusFilter;
+  onChange: (value: PaymentStatusFilter) => void;
+}) {
+  const options: { value: PaymentStatusFilter; label: string }[] = [
+    { value: "all", label: "Всі" },
+    { value: "paid", label: "Оплачені" },
+    { value: "partial", label: "Часткові" },
+    { value: "pending", label: "Очікують" },
+    { value: "overdue", label: "Прострочені" },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors",
+            value === option.value
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StatusIndicator({ status }: { status?: string | null }) {
+  const config: Record<string, { color: string; label: string }> = {
+    paid: { color: "bg-success", label: "Оплачено" },
+    partial: { color: "bg-warning", label: "Частково" },
+    overdue: { color: "bg-destructive", label: "Прострочено" },
+    unpaid: { color: "bg-muted-foreground/30", label: "Очікує" },
+    untracked: { color: "bg-muted-foreground/20", label: "Без оплат" },
+    pending: { color: "bg-muted-foreground/30", label: "Очікує" },
+    not_started: { color: "bg-muted-foreground/30", label: "Очікує" },
+  };
+
+  const statusConfig = config[status ?? ""] ?? { color: "bg-muted-foreground/20", label: "—" };
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn("w-2 h-2 rounded-full shrink-0", statusConfig.color)} />
+      <span className="text-[12px] text-muted-foreground">{statusConfig.label}</span>
+    </div>
+  );
+}
+
 function GradeMarker({ grade }: { grade?: string | null }) {
   const normalizedGrade = grade?.toLowerCase();
 
   if (normalizedGrade === TICKET_TYPE.VIP) {
     return (
-      <span className="inline-flex rounded border border-[#395500] bg-[#395500] px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-white">
+      <Badge variant="default" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
         vip
-      </span>
+      </Badge>
     );
   }
 
   if (normalizedGrade === TICKET_TYPE.MAXI) {
     return (
-      <span className="inline-flex rounded border border-[#8a6a3d]/30 bg-[#f3e3b3] px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-[#5b3327]">
+      <Badge variant="warning" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
         maxi
-      </span>
+      </Badge>
     );
   }
 
   if (normalizedGrade === TICKET_TYPE.STANDARD) {
     return (
-      <span className="inline-flex rounded border border-border/70 bg-muted/50 px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-        standard
-      </span>
+      <span className="text-[11px] text-muted-foreground uppercase font-medium">std</span>
     );
   }
 
   return <span className="text-muted-foreground">—</span>;
-}
-
-function InfoTile({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-      <div className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-0.5 flex min-h-5 items-center truncate text-[12px] font-medium">
-        {value}
-      </div>
-    </div>
-  );
 }
 
 function PaymentField({
@@ -1332,69 +1482,25 @@ function PaymentField({
   className?: string;
 }) {
   return (
-    <label className={cn("space-y-1.5", className)}>
-      <span className="block text-[11px] font-medium text-muted-foreground">
+    <Field className={className}>
+      <FieldLabel className="text-[11px] text-muted-foreground">
         {label}
-      </span>
+      </FieldLabel>
       {children}
-    </label>
-  );
-}
-
-function ReadOnlyText({ value }: { value?: string | null }) {
-  return (
-    <span className="block min-h-7 rounded-md bg-white/40 px-1.5 py-1.5 text-[12px]">
-      {value?.trim() || "—"}
-    </span>
+    </Field>
   );
 }
 
 function ReadOnlyMoney({ value }: { value?: string | null }) {
   return (
-    <span className="block min-h-7 rounded-md bg-white/40 px-1.5 py-1.5 text-right tabular-nums">
-      {normalizeMoney(value ?? "0.00")}
-    </span>
+    <Input
+      readOnly
+      tabIndex={-1}
+      value={normalizeMoney(value ?? "0.00")}
+      className="h-9 border-transparent bg-muted/30 px-2 text-right text-base tabular-nums shadow-none"
+    />
   );
 }
-
-function FinanceHead({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <th
-      className={cn(
-        "h-9 border-r border-b border-border/60 bg-[#f8fafc] px-2 text-left align-middle text-[11px] font-semibold whitespace-nowrap text-foreground",
-        className
-      )}
-    >
-      {children}
-    </th>
-  );
-}
-
-function FinanceCell({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <td
-      className={cn(
-        "h-9 border-r border-b border-border/40 px-1.5 align-middle whitespace-nowrap",
-        className
-      )}
-    >
-      {children}
-    </td>
-  );
-}
-
 function MoneyCell({
   value,
   placeholder = "0.00",
@@ -1407,7 +1513,8 @@ function MoneyCell({
   onSave: (value: string) => void;
 }) {
   return (
-    <input
+    <Input
+      key={value}
       type="number"
       step="0.01"
       min="0"
@@ -1418,7 +1525,7 @@ function MoneyCell({
         const nextValue = normalizeMoney(event.target.value);
         if (nextValue !== value) onSave(nextValue);
       }}
-      className="h-9 w-full rounded-md border border-transparent bg-white/40 px-1.5 text-base text-right tabular-nums outline-none transition-colors hover:border-border/60 hover:bg-white focus:border-ring focus:bg-white focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+      className="border-transparent bg-white/40 px-1.5 text-right tabular-nums shadow-none hover:border-border/60 hover:bg-white"
     />
   );
 }
@@ -1433,7 +1540,8 @@ function TextCell({
   onSave: (value: string) => void;
 }) {
   return (
-    <input
+    <Input
+      key={value}
       type="text"
       defaultValue={value}
       disabled={disabled}
@@ -1441,7 +1549,7 @@ function TextCell({
         const nextValue = event.target.value.trim();
         if (nextValue !== value) onSave(nextValue);
       }}
-      className="h-9 w-full rounded-md border border-transparent bg-white/40 px-1.5 text-base outline-none transition-colors hover:border-border/60 hover:bg-white focus:border-ring focus:bg-white focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+      className="border-transparent bg-white/40 px-1.5 shadow-none hover:border-border/60 hover:bg-white"
     />
   );
 }
@@ -1526,15 +1634,17 @@ function SmallSelect<TOption extends readonly { value: string; label: string }[]
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={option.value}
-            disabled={disabledValues?.has(option.value)}
-          >
-            {option.label}
-          </SelectItem>
-        ))}
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              disabled={disabledValues?.has(option.value)}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
       </SelectContent>
     </Select>
   );
@@ -1588,6 +1698,10 @@ async function patchTicket(
 async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
 ): Promise<unknown> {
+  const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
+  const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
+  const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;
+  const taxAmount = isZeroPaymentPlan ? "0.00" : data.tax_amount;
   const { ticket } = await createTicket({
     name: data.name,
     email: data.email,
@@ -1596,15 +1710,15 @@ async function createTicketWithFinance(
     grade: data.grade,
   });
   const netTotal = Math.max(
-    toMoneyNumber(data.gross_total) - toMoneyNumber(data.tax_amount),
+    toMoneyNumber(grossTotal) - toMoneyNumber(taxAmount),
     0
   ).toFixed(2);
 
   await saveFinance(ticket.id, {
     payment_plan: data.payment_plan,
-    gross_total: data.gross_total,
-    discount_amount: data.discount_amount,
-    tax_amount: data.tax_amount,
+    gross_total: grossTotal,
+    discount_amount: discountAmount,
+    tax_amount: taxAmount,
     net_total: netTotal,
     nip: data.nip,
     finance_note: data.finance_note,
@@ -1612,7 +1726,7 @@ async function createTicketWithFinance(
 
   const paymentCount = getExpectedPaymentCount(data.payment_plan);
   if (paymentCount && paymentCount > 0) {
-    const amounts = splitMoney(data.gross_total, paymentCount);
+    const amounts = splitMoney(grossTotal, paymentCount);
     for (let index = 0; index < paymentCount; index += 1) {
       await createPayment(ticket.id, {
         installment_number: index + 1,
@@ -1700,6 +1814,15 @@ function getExpectedPaymentCount(plan: PaymentPlan): number | null {
   return null;
 }
 
+function isZeroPaymentPlan(plan: string | null | undefined): boolean {
+  return plan === "free" || plan === "sponsor";
+}
+
+function getDisplayedPaymentCount(ticket: TicketWithFinance): number {
+  const paymentLimit = getExpectedPaymentCount(ticket.finance?.payment_plan ?? "full");
+  return paymentLimit ?? Math.max(ticket.payments.length, 1);
+}
+
 function suggestedPaymentAmount(
   ticket: TicketWithFinance,
   paymentNumber: number
@@ -1733,6 +1856,8 @@ function normalizeMoney(value: string): string {
 }
 
 function calculatedNetTotal(ticket: TicketWithFinance): string {
+  if (isZeroPaymentPlan(ticket.finance?.payment_plan)) return "0.00";
+
   const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
   const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
   return Math.max(grossTotal - taxAmount, 0).toFixed(2);

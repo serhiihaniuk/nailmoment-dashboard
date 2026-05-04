@@ -9,6 +9,10 @@ import { patchPaymentInstallmentSchema } from "@/shared/db/schema.zod";
 import { paymentInstallmentTable, ticketTable } from "@/shared/db/schema";
 
 const financeService = createFinanceService(db);
+const STRIPE_EDITABLE_PAYMENT_FIELDS = new Set([
+  "invoice_status",
+  "invoice_number",
+]);
 
 async function getPaymentGuard(paymentId: string) {
   const rows = await db
@@ -44,25 +48,36 @@ export async function PATCH(
   }
 
   const { paymentId } = await params;
-  const paymentGuard = await getPaymentGuard(paymentId);
-  if (!paymentGuard) {
-    return NextResponse.json({ message: "Not found" }, { status: 404 });
-  }
-  if (isStripeOriginPayment(paymentGuard)) {
-    return NextResponse.json(
-      { message: "Stripe payments cannot be modified." },
-      { status: 403 }
-    );
-  }
-
   let data: z.input<typeof patchPaymentInstallmentSchema>;
+  let requestedPaymentFields: string[] = [];
 
   try {
-    data = patchPaymentInstallmentSchema.parse((await req.json()) ?? {});
+    const rawData = (await req.json()) ?? {};
+    requestedPaymentFields =
+      rawData && typeof rawData === "object" && !Array.isArray(rawData)
+        ? Object.keys(rawData)
+        : [];
+    data = patchPaymentInstallmentSchema.parse(rawData);
   } catch (e) {
     return NextResponse.json(
       { message: "Validation failed", issues: (e as z.ZodError).issues },
       { status: 400 }
+    );
+  }
+
+  const paymentGuard = await getPaymentGuard(paymentId);
+  if (!paymentGuard) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+  if (
+    isStripeOriginPayment(paymentGuard) &&
+    requestedPaymentFields.some(
+      (field) => !STRIPE_EDITABLE_PAYMENT_FIELDS.has(field)
+    )
+  ) {
+    return NextResponse.json(
+      { message: "Only invoice fields can be modified for Stripe payments." },
+      { status: 403 }
     );
   }
 

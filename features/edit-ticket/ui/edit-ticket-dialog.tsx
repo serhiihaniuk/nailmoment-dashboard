@@ -11,10 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Field, Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -51,7 +53,7 @@ export function EditTicketDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <Button variant="outline" size="sm" className="gap-1">
-            <Pencil size={14} /> Редагувати
+            <Pencil data-icon="inline-start" /> Редагувати
           </Button>
         )}
       </DialogTrigger>
@@ -67,7 +69,8 @@ export function EditTicketDialog({
               control={form.control}
               name="instagram"
               render={({ field }) => (
-                <Field label="Instagram">
+                <Field>
+                  <FieldLabel>Instagram</FieldLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} />
                   </FormControl>
@@ -79,7 +82,8 @@ export function EditTicketDialog({
               control={form.control}
               name="phone"
               render={({ field }) => (
-                <Field label="Телефон">
+                <Field>
+                  <FieldLabel>Телефон</FieldLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} />
                   </FormControl>
@@ -91,7 +95,8 @@ export function EditTicketDialog({
               control={form.control}
               name="updated_grade"
               render={({ field }) => (
-                <Field label="Тип квитка">
+                <Field>
+                  <FieldLabel>Тип квитка</FieldLabel>
                   <Select
                     value={field.value ?? "standard"}
                     onValueChange={field.onChange}
@@ -102,11 +107,13 @@ export function EditTicketDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {TICKET_TYPE_LIST.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          <TicketTypeBadge type={type} />
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {TICKET_TYPE_LIST.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            <TicketTypeBadge type={type} />
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -117,7 +124,8 @@ export function EditTicketDialog({
               control={form.control}
               name="comment"
               render={({ field }) => (
-                <Field label="Коментар">
+                <Field>
+                  <FieldLabel>Коментар</FieldLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -152,7 +160,7 @@ export function EditTicketDialog({
         <DialogFooter>
           <Button type="submit" form={formId} disabled={isPending}>
             {isPending ? (
-              <Loader2 className="animate-spin" size={16} />
+              <Loader2 data-icon="inline-start" className="animate-spin" />
             ) : (
               "Зберегти"
             )}
