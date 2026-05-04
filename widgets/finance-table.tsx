@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -41,12 +48,31 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { TicketWithFinance } from "@/shared/db/schema";
 import type {
@@ -129,6 +155,7 @@ export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const { data, isLoading, isFetching, isError } = useQuery<
     TicketWithFinance[],
     Error
@@ -359,6 +386,11 @@ export function FinanceTable() {
     );
   }, [tickets]);
 
+  const selectedTicket = useMemo(
+    () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
+    [openTicketId, tickets]
+  );
+
   const isSaving =
     saveFinanceMutation.isPending ||
     updatePaymentMutation.isPending ||
@@ -367,6 +399,19 @@ export function FinanceTable() {
     updateTicketMutation.isPending ||
     createTicketMutation.isPending ||
     syncPlanMutation.isPending;
+
+  const openTicketPayments = (ticketId: string) => {
+    setOpenTicketId(ticketId);
+  };
+
+  const handlePaymentsDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setOpenTicketId(null);
+      return;
+    }
+
+    if (selectedTicket) setOpenTicketId(selectedTicket.id);
+  };
 
   if (isLoading) {
     return <Skeleton className="h-[70vh] w-full rounded-xl" />;
@@ -427,17 +472,16 @@ export function FinanceTable() {
           </div>
         </div>
 
-        <div className="max-h-[calc(100vh-11rem)] overflow-auto bg-white">
-          <table className="w-max min-w-full border-separate border-spacing-0 text-[12px]">
-            <thead className="sticky top-0 z-30">
-              <tr>
-                <FinanceHead className="sticky left-0 z-50 min-w-12 bg-[#f8fafc]">
+        <Table className="w-max min-w-full border-separate border-spacing-0 text-[12px]">
+          <TableHeader className="sticky top-0 z-30">
+            <TableRow>
+                <FinanceHead className="min-w-12 bg-[#f8fafc] lg:sticky lg:left-0 lg:z-50">
                   №
                 </FinanceHead>
-                <FinanceHead className="sticky left-12 z-50 min-w-26 bg-[#f8fafc]">
+                <FinanceHead className="min-w-26 bg-[#f8fafc] lg:sticky lg:left-12 lg:z-50">
                   Дата
                 </FinanceHead>
-                <FinanceHead className="sticky left-38 z-50 min-w-52 bg-[#f8fafc] shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)]">
+                <FinanceHead className="min-w-52 bg-[#f8fafc] lg:sticky lg:left-38 lg:z-50 lg:shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)]">
                   Ім&apos;я і фамілія
                 </FinanceHead>
                 <FinanceHead className="min-w-54">Email</FinanceHead>
@@ -451,21 +495,35 @@ export function FinanceTable() {
                 <FinanceHead className="min-w-28 bg-[#e5e7eb]">Повна оплата</FinanceHead>
                 <FinanceHead className="min-w-24 bg-[#fde2e2]">Податок</FinanceHead>
                 <FinanceHead className="min-w-28 bg-[#e6f4df]">Чиста сума</FinanceHead>
-              </tr>
-            </thead>
-            <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {tickets.map((ticket, index) => (
-                <tr
+                <TableRow
                   key={ticket.id}
-                  className="group hover:bg-[#f8fafc]"
+                  role="button"
+                  tabIndex={0}
+                  className="group cursor-pointer hover:bg-[#f8fafc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-[-2px]"
+                  onClick={(event) => {
+                    const interactiveTarget = (
+                      event.target as HTMLElement
+                    ).closest("button,a,textarea,select");
+                    if (interactiveTarget) return;
+                    openTicketPayments(ticket.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    openTicketPayments(ticket.id);
+                  }}
                 >
-                  <FinanceCell className="sticky left-0 z-20 bg-white text-right tabular-nums text-muted-foreground group-hover:bg-[#f8fafc]">
+                  <FinanceCell className="bg-white text-right tabular-nums text-muted-foreground group-hover:bg-[#f8fafc] lg:sticky lg:left-0 lg:z-20">
                     {index + 1}
                   </FinanceCell>
-                  <FinanceCell className="sticky left-12 z-20 bg-white tabular-nums group-hover:bg-[#f8fafc]">
+                  <FinanceCell className="bg-white tabular-nums group-hover:bg-[#f8fafc] lg:sticky lg:left-12 lg:z-20">
                     {formatDate(ticket.date)}
                   </FinanceCell>
-                  <FinanceCell className="sticky left-38 z-20 bg-white font-medium shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)] group-hover:bg-[#f8fafc]">
+                  <FinanceCell className="bg-white font-medium group-hover:bg-[#f8fafc] lg:sticky lg:left-38 lg:z-20 lg:shadow-[8px_0_12px_-12px_rgba(15,23,42,0.55)]">
                     <span className="block max-w-48 truncate">{ticket.name}</span>
                   </FinanceCell>
                   <FinanceCell className="text-muted-foreground">
@@ -488,42 +546,9 @@ export function FinanceTable() {
                   </FinanceCell>
 
                   <FinanceCell>
-                    <PaymentsDialog
+                    <PaymentSummaryButton
                       ticket={ticket}
-                      planError={planErrors[ticket.id]}
-                      onCreate={(data) =>
-                        createPaymentMutation.mutate({
-                          ticketId: ticket.id,
-                          data,
-                        })
-                      }
-                      onUpdate={(paymentId, paymentData) =>
-                        updatePaymentMutation.mutate({
-                          paymentId,
-                          data: paymentData,
-                        })
-                      }
-                      onDelete={(paymentId) =>
-                        deletePaymentMutation.mutate(paymentId)
-                      }
-                      onFinanceChange={(financeData) =>
-                        saveFinanceMutation.mutate({
-                          ticketId: ticket.id,
-                          data: financeData,
-                        })
-                      }
-                      onTicketChange={(ticketData) =>
-                        updateTicketMutation.mutate({
-                          ticketId: ticket.id,
-                          data: ticketData,
-                        })
-                      }
-                      onPaymentPlanChange={(paymentPlan) =>
-                        syncPlanMutation.mutate({
-                          ticket,
-                          paymentPlan,
-                        })
-                      }
+                      onClick={() => openTicketPayments(ticket.id)}
                     />
                   </FinanceCell>
 
@@ -539,11 +564,10 @@ export function FinanceTable() {
                   <FinanceCell className="bg-[#f1f8ed] text-right">
                     <ReadOnlyMoney value={ticket.finance?.net_total} />
                   </FinanceCell>
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+          </TableBody>
+        </Table>
 
         {(isFetching || isSaving) && (
           <div className="border-t border-border/50 px-3 py-2 text-[12px] text-muted-foreground flex items-center gap-2">
@@ -552,6 +576,46 @@ export function FinanceTable() {
           </div>
         )}
       </div>
+
+      {selectedTicket && (
+        <PaymentsDialog
+          ticket={selectedTicket}
+          open={Boolean(openTicketId)}
+          onOpenChange={handlePaymentsDialogOpenChange}
+          planError={planErrors[selectedTicket.id]}
+          onCreate={(data) =>
+            createPaymentMutation.mutate({
+              ticketId: selectedTicket.id,
+              data,
+            })
+          }
+          onUpdate={(paymentId, paymentData) =>
+            updatePaymentMutation.mutate({
+              paymentId,
+              data: paymentData,
+            })
+          }
+          onDelete={(paymentId) => deletePaymentMutation.mutate(paymentId)}
+          onFinanceChange={(financeData) =>
+            saveFinanceMutation.mutate({
+              ticketId: selectedTicket.id,
+              data: financeData,
+            })
+          }
+          onTicketChange={(ticketData) =>
+            updateTicketMutation.mutate({
+              ticketId: selectedTicket.id,
+              data: ticketData,
+            })
+          }
+          onPaymentPlanChange={(paymentPlan) =>
+            syncPlanMutation.mutate({
+              ticket: selectedTicket,
+              paymentPlan,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
@@ -781,30 +845,92 @@ function FinanceSummaryMetric({
   tone?: "default" | "muted" | "danger";
 }) {
   return (
-    <div
+    <Card
       className={cn(
-        "min-w-28 rounded-md border border-border/60 bg-white px-3 py-2 shadow-xs",
-        tone === "danger" && "border-destructive/30 bg-destructive/5",
+        "min-w-28 rounded-md shadow-xs",
+        tone === "danger" && "border-destructive/30",
         tone === "muted" && "bg-muted/40"
       )}
     >
-      <div className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 text-[14px] font-semibold tabular-nums",
-          tone === "danger" && "text-destructive"
-        )}
-      >
-        {value}
-      </div>
-    </div>
+      <CardHeader className="gap-1 p-3">
+        <CardDescription className="text-[10px] uppercase">
+          {label}
+        </CardDescription>
+        <CardTitle
+          className={cn(
+            "text-[14px] font-semibold tabular-nums",
+            tone === "danger" && "text-destructive"
+          )}
+        >
+          {value}
+        </CardTitle>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function PaymentSummaryButton({
+  ticket,
+  onClick,
+}: {
+  ticket: TicketWithFinance;
+  onClick: () => void;
+}) {
+  const sortedPayments = [...ticket.payments].sort(
+    (a, b) => a.installment_number - b.installment_number
+  );
+  const paidCount = sortedPayments.filter((payment) => payment.paid_date).length;
+  const paidTotal = sortedPayments.reduce(
+    (total, payment) =>
+      payment.paid_date ? total + toMoneyNumber(payment.amount) : total,
+    0
+  );
+  const unpaidScheduledTotal = sortedPayments.reduce(
+    (total, payment) =>
+      payment.paid_date ? total : total + toMoneyNumber(payment.amount),
+    0
+  );
+  const hasUnscheduledRemaining =
+    Math.max(
+      toMoneyNumber(ticket.finance?.gross_total) - paidTotal - unpaidScheduledTotal,
+      0
+    ) >= 0.01;
+  const planPaymentLimit = getExpectedPaymentCount(
+    ticket.finance?.payment_plan ?? "full"
+  );
+  const expectedPaymentCount =
+    planPaymentLimit ?? Math.max(sortedPayments.length, 1);
+  const displayedPaymentCount = Math.max(
+    expectedPaymentCount,
+    sortedPayments.length + (hasUnscheduledRemaining ? 1 : 0)
+  );
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 w-full justify-between gap-2 px-2 text-[11px]"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      <span className="flex items-center gap-1.5 font-medium">
+        <CreditCard data-icon="inline-start" />
+        {paidCount}/{displayedPaymentCount}
+      </span>
+      <span className="text-muted-foreground tabular-nums">
+        {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
+      </span>
+    </Button>
   );
 }
 
 function PaymentsDialog({
   ticket,
+  open,
+  onOpenChange,
   planError,
   onCreate,
   onUpdate,
@@ -814,6 +940,8 @@ function PaymentsDialog({
   onPaymentPlanChange,
 }: {
   ticket: TicketWithFinance;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   planError?: string;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
   onUpdate: (paymentId: string, data: PatchPaymentInstallmentInput) => void;
@@ -898,22 +1026,11 @@ function PaymentsDialog({
   };
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className="flex h-7 w-full items-center justify-between gap-2 rounded-md border border-border/60 bg-white px-2 text-left text-[11px] transition-colors hover:bg-muted/50"
-        >
-          <span className="flex items-center gap-1.5 font-medium">
-            <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
-            {paidCount}/{displayedPaymentCount}
-          </span>
-          <span className="text-muted-foreground tabular-nums">
-            {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
-          </span>
-        </button>
-      </DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="flex h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden p-0 sm:h-[90vh] sm:max-w-3xl"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <DialogHeader className="border-b border-border/60 bg-white px-5 py-4">
           <div className="flex items-start justify-between gap-8 pr-8">
             <div className="min-w-0">
@@ -924,19 +1041,18 @@ function PaymentsDialog({
                 {ticket.email} · {ticket.updated_grade ?? ticket.grade}
               </DialogDescription>
             </div>
-            <div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-right">
-              <div className="text-[10px] uppercase text-muted-foreground">
-                Платежі
-              </div>
-              <div className="text-[16px] font-semibold tabular-nums">
-                {paidCount}/{displayedPaymentCount}
-              </div>
-            </div>
+            <Badge
+              variant="secondary"
+              className="rounded-md px-3 py-2 text-[16px] tabular-nums"
+              aria-label="Платежі"
+            >
+              {paidCount}/{displayedPaymentCount}
+            </Badge>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-3 gap-2 px-5 pt-4">
+        <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
+          <div className="grid grid-cols-1 gap-2 px-5 pt-4">
             <FinanceSummaryMetric
               label="Повна"
               value={formatZloty(
@@ -955,7 +1071,7 @@ function PaymentsDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4">
+          <div className="grid grid-cols-1 gap-3 px-5 pt-4">
             <PaymentField label="Ім'я">
               <TextCell
                 value={ticket.name}
@@ -990,7 +1106,7 @@ function PaymentsDialog({
             <InfoTile label="Дата" value={formatDate(ticket.date)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4">
+          <div className="grid grid-cols-1 gap-3 px-5 pt-4">
             <PaymentField label="Оплата / розстрочка">
               <SmallSelect
                 value={selectedPaymentPlan}
@@ -1035,7 +1151,7 @@ function PaymentsDialog({
             <PaymentField label="Чиста сума">
               <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
             </PaymentField>
-            <PaymentField label="Коментар" className="col-span-2">
+            <PaymentField label="Коментар">
               <TextCell
                 value={ticket.finance?.finance_note ?? ""}
                 onSave={(finance_note) => onFinanceChange({ finance_note })}
@@ -1043,7 +1159,7 @@ function PaymentsDialog({
             </PaymentField>
           </div>
 
-          <div className="space-y-3 px-5 py-4">
+          <div className="flex flex-col gap-3 px-5 py-4">
             {sortedPayments.map((payment) => (
               <PaymentCard
                 key={payment.id}
@@ -1055,26 +1171,33 @@ function PaymentsDialog({
             ))}
 
             {sortedPayments.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-[13px] text-muted-foreground">
-                Платежів ще немає.
-              </div>
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyTitle className="text-base">Платежів ще немає</EmptyTitle>
+                  <EmptyDescription>
+                    Додайте платіж, коли для цього плану є доступна частина.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             )}
           </div>
-        </div>
+        </ScrollArea>
 
-        <div className="shrink-0 flex items-center justify-between border-t border-border/60 bg-[#f8fafc] px-5 py-3">
+        <Separator />
+        <div className="flex shrink-0 flex-col gap-3 bg-muted/30 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-[12px] text-muted-foreground">
             Зміни зберігаються після виходу з поля.
           </span>
           {canAddPayment && (
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={handleAddPayment}
-              className="inline-flex h-8 items-center gap-2 rounded-md bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
+              className="w-full sm:w-auto"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus data-icon="inline-start" />
               Додати платіж
-            </button>
+            </Button>
           )}
         </div>
       </DialogContent>
@@ -1103,22 +1226,24 @@ function PaymentCard({
       : "Очікує оплату";
 
   return (
-    <div
+    <Card
       className={cn(
-        "rounded-lg border border-border/60 bg-white shadow-xs",
+        "rounded-lg shadow-xs",
         isLocked && "bg-muted/20"
       )}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-border/50 px-4 py-3">
+      <CardHeader className="flex-row items-center justify-between gap-4 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-[13px] font-semibold">
+          <Badge variant="secondary" className="rounded-md px-2 py-1 text-[13px]">
             #{payment.installment_number}
-          </div>
+          </Badge>
           <div>
-            <div className="text-[13px] font-medium">
+            <CardTitle className="text-[13px] font-medium">
               {formatZloty(toMoneyNumber(payment.amount))}
-            </div>
-            <div className="text-[11px] text-muted-foreground">{statusText}</div>
+            </CardTitle>
+            <CardDescription className="text-[11px]">
+              {statusText}
+            </CardDescription>
           </div>
         </div>
 
@@ -1142,9 +1267,10 @@ function PaymentCard({
             onConfirm={() => onDelete(payment.id)}
           />
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="grid grid-cols-2 gap-3 p-4">
+      <Separator />
+      <CardContent className="grid grid-cols-1 gap-3 p-4">
         <PaymentField label="Сума">
           <MoneyCell
             value={payment.amount}
@@ -1188,7 +1314,6 @@ function PaymentCard({
           <SmallSelect
             value={payment.invoice_status}
             options={INVOICE_STATUS_OPTIONS}
-            disabled={isLocked}
             onChange={(invoice_status) =>
               onUpdate(payment.id, { invoice_status })
             }
@@ -1197,19 +1322,18 @@ function PaymentCard({
         <PaymentField label="№ фактури">
           <TextCell
             value={payment.invoice_number}
-            disabled={isLocked}
             onSave={(invoice_number) => onUpdate(payment.id, { invoice_number })}
           />
         </PaymentField>
-        <PaymentField label="Коментар" className="col-span-2">
+        <PaymentField label="Коментар">
           <TextCell
             value={payment.comment}
             disabled={isLocked}
             onSave={(comment) => onUpdate(payment.id, { comment })}
           />
         </PaymentField>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1284,25 +1408,25 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
   if (normalizedGrade === TICKET_TYPE.VIP) {
     return (
-      <span className="inline-flex rounded border border-[#395500] bg-[#395500] px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-white">
+      <Badge variant="default" className="rounded px-1 py-0 text-[9px] uppercase">
         vip
-      </span>
+      </Badge>
     );
   }
 
   if (normalizedGrade === TICKET_TYPE.MAXI) {
     return (
-      <span className="inline-flex rounded border border-[#8a6a3d]/30 bg-[#f3e3b3] px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-[#5b3327]">
+      <Badge variant="warning" className="rounded px-1 py-0 text-[9px] uppercase">
         maxi
-      </span>
+      </Badge>
     );
   }
 
   if (normalizedGrade === TICKET_TYPE.STANDARD) {
     return (
-      <span className="inline-flex rounded border border-border/70 bg-muted/50 px-1 py-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <Badge variant="secondary" className="rounded px-1 py-0 text-[9px] uppercase">
         standard
-      </span>
+      </Badge>
     );
   }
 
@@ -1311,14 +1435,16 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
 function InfoTile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-      <div className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-0.5 flex min-h-5 items-center truncate text-[12px] font-medium">
-        {value}
-      </div>
-    </div>
+    <Card className="rounded-md bg-muted/30 shadow-none">
+      <CardHeader className="gap-1 p-3">
+        <CardDescription className="text-[10px] uppercase">
+          {label}
+        </CardDescription>
+        <CardTitle className="flex min-h-5 items-center truncate text-[12px] font-medium">
+          {value}
+        </CardTitle>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -1332,28 +1458,34 @@ function PaymentField({
   className?: string;
 }) {
   return (
-    <label className={cn("space-y-1.5", className)}>
-      <span className="block text-[11px] font-medium text-muted-foreground">
+    <Field className={className}>
+      <FieldLabel className="text-[11px] text-muted-foreground">
         {label}
-      </span>
+      </FieldLabel>
       {children}
-    </label>
+    </Field>
   );
 }
 
 function ReadOnlyText({ value }: { value?: string | null }) {
   return (
-    <span className="block min-h-7 rounded-md bg-white/40 px-1.5 py-1.5 text-[12px]">
-      {value?.trim() || "—"}
-    </span>
+    <Input
+      readOnly
+      tabIndex={-1}
+      value={value?.trim() || "—"}
+      className="h-9 border-transparent bg-white/40 px-1.5 text-base shadow-none"
+    />
   );
 }
 
 function ReadOnlyMoney({ value }: { value?: string | null }) {
   return (
-    <span className="block min-h-7 rounded-md bg-white/40 px-1.5 py-1.5 text-right tabular-nums">
-      {normalizeMoney(value ?? "0.00")}
-    </span>
+    <Input
+      readOnly
+      tabIndex={-1}
+      value={normalizeMoney(value ?? "0.00")}
+      className="h-9 border-transparent bg-white/40 px-1.5 text-right text-base tabular-nums shadow-none"
+    />
   );
 }
 
@@ -1365,14 +1497,14 @@ function FinanceHead({
   className?: string;
 }) {
   return (
-    <th
+    <TableHead
       className={cn(
         "h-9 border-r border-b border-border/60 bg-[#f8fafc] px-2 text-left align-middle text-[11px] font-semibold whitespace-nowrap text-foreground",
         className
       )}
     >
       {children}
-    </th>
+    </TableHead>
   );
 }
 
@@ -1384,14 +1516,14 @@ function FinanceCell({
   className?: string;
 }) {
   return (
-    <td
+    <TableCell
       className={cn(
         "h-9 border-r border-b border-border/40 px-1.5 align-middle whitespace-nowrap",
         className
       )}
     >
       {children}
-    </td>
+    </TableCell>
   );
 }
 
@@ -1407,7 +1539,7 @@ function MoneyCell({
   onSave: (value: string) => void;
 }) {
   return (
-    <input
+    <Input
       type="number"
       step="0.01"
       min="0"
@@ -1418,7 +1550,7 @@ function MoneyCell({
         const nextValue = normalizeMoney(event.target.value);
         if (nextValue !== value) onSave(nextValue);
       }}
-      className="h-9 w-full rounded-md border border-transparent bg-white/40 px-1.5 text-base text-right tabular-nums outline-none transition-colors hover:border-border/60 hover:bg-white focus:border-ring focus:bg-white focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+      className="border-transparent bg-white/40 px-1.5 text-right tabular-nums shadow-none hover:border-border/60 hover:bg-white"
     />
   );
 }
@@ -1433,7 +1565,7 @@ function TextCell({
   onSave: (value: string) => void;
 }) {
   return (
-    <input
+    <Input
       type="text"
       defaultValue={value}
       disabled={disabled}
@@ -1441,7 +1573,7 @@ function TextCell({
         const nextValue = event.target.value.trim();
         if (nextValue !== value) onSave(nextValue);
       }}
-      className="h-9 w-full rounded-md border border-transparent bg-white/40 px-1.5 text-base outline-none transition-colors hover:border-border/60 hover:bg-white focus:border-ring focus:bg-white focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+      className="border-transparent bg-white/40 px-1.5 shadow-none hover:border-border/60 hover:bg-white"
     />
   );
 }
@@ -1526,15 +1658,17 @@ function SmallSelect<TOption extends readonly { value: string; label: string }[]
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={option.value}
-            disabled={disabledValues?.has(option.value)}
-          >
-            {option.label}
-          </SelectItem>
-        ))}
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              disabled={disabledValues?.has(option.value)}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
       </SelectContent>
     </Select>
   );

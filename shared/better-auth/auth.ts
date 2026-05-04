@@ -7,6 +7,20 @@ const vercelOrigin = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : undefined;
 
+const v0PreviewOrigins =
+  process.env.VERCEL_ENV === "production"
+    ? []
+    : [
+        "https://v0.dev",
+        "https://*.v0.dev",
+        "https://v0.app",
+        "https://*.v0.app",
+        "https://*.vusercontent.net",
+        "https://lite.vusercontent.net",
+        "https://*.lite.vusercontent.net",
+        "https://generated.vusercontent.net",
+      ];
+
 const trustedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
@@ -17,6 +31,7 @@ const trustedOrigins = [
   "https://nailmoment-dashboard-serhiihaniuks-projects.vercel.app",
   "https://nailmoment-dashboard-serhiihaniuk-serhiihaniuks-projects.vercel.app",
   vercelOrigin,
+  ...v0PreviewOrigins,
 ].filter(Boolean) as string[];
 
 export const auth = betterAuth({
