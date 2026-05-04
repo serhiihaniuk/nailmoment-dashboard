@@ -167,6 +167,10 @@ type CreateTicketWithFinanceInput = CreateTicketInput & {
   finance_note: string;
 };
 
+type CreatedFinanceTicket = {
+  id: string;
+};
+
 type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
 
 export function FinanceTable() {
@@ -238,7 +242,11 @@ export function FinanceTable() {
 
   const createTicketMutation = useMutation({
     mutationFn: createTicketWithFinance,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+    onSuccess: (ticket) => {
+      setOpenTicketId(ticket.id);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
   });
 
   const syncPlanMutation = useMutation({
@@ -1336,7 +1344,7 @@ function NewTicketFinanceDialog({
   onCreate,
 }: {
   isPending: boolean;
-  onCreate: (data: CreateTicketWithFinanceInput) => Promise<unknown>;
+  onCreate: (data: CreateTicketWithFinanceInput) => Promise<CreatedFinanceTicket>;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CreateTicketWithFinanceInput>(() =>
@@ -2371,7 +2379,7 @@ async function patchTicket(
 
 async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
-): Promise<unknown> {
+): Promise<CreatedFinanceTicket> {
   const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
   const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
   const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;
