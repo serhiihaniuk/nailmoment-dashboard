@@ -434,40 +434,26 @@ export function FinanceTable() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* Page header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-heading-1">Фінанси</h2>
-          <p className="text-caption mt-1">{tickets.length} записів</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-heading-1">Фінанси</h2>
         <NewTicketFinanceDialog
           isPending={createTicketMutation.isPending}
           onCreate={(data) => createTicketMutation.mutateAsync(data)}
         />
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard
-          label="Загальна сума"
-          value={formatZloty(financeTotals.gross)}
-        />
-        <SummaryCard
-          label="Оплачено"
-          value={formatZloty(financeTotals.paid)}
-          variant="success"
-        />
-        <SummaryCard
-          label="Залишок"
-          value={formatZloty(financeTotals.remaining)}
-          variant={financeTotals.remaining > 0 ? "warning" : "default"}
-        />
-        <SummaryCard
-          label="Прострочено"
-          value={String(financeTotals.overdue)}
-          variant={financeTotals.overdue > 0 ? "danger" : "default"}
-        />
+      {/* Summary stats - compact inline */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+        <span className="text-muted-foreground">{tickets.length} записів</span>
+        <span className="hidden md:inline text-border">|</span>
+        <span><span className="text-muted-foreground">Сума:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
+        <span><span className="text-muted-foreground">Оплачено:</span> <span className="font-semibold tabular-nums text-success">{formatZloty(financeTotals.paid)}</span></span>
+        <span><span className="text-muted-foreground">Залишок:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
+        {financeTotals.overdue > 0 && (
+          <span><span className="text-muted-foreground">Прострочено:</span> <span className="font-semibold tabular-nums text-destructive">{financeTotals.overdue}</span></span>
+        )}
       </div>
 
       {isError && (
@@ -476,49 +462,53 @@ export function FinanceTable() {
         </p>
       )}
 
-      <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
+      {/* Main table */}
+      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-border/40">
-          <div className="relative w-full max-w-64">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/40">
+          <div className="relative w-full sm:w-auto sm:min-w-64">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40"
             />
             <Input
-              placeholder="Пошук за ім'ям, email, NIP..."
+              placeholder="Пошук..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="pl-8 h-8 border-border/50 bg-transparent text-base md:text-[13px] placeholder:text-muted-foreground/40"
+              className="pl-9 h-9 border-border/50 text-base md:text-[13px] placeholder:text-muted-foreground/40"
             />
           </div>
-
-          <div className="h-4 w-px bg-border/50 mx-1 hidden md:block" />
-
           <PaymentStatusFilter value={statusFilter} onChange={setStatusFilter} />
-
-          <div className="ml-auto text-[11px] text-muted-foreground/50 hidden md:block">
-            Натисніть на рядок для деталей
-          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-[900px]">
+          <Table className="w-full min-w-[700px]">
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[220px]">Клієнт</TableHead>
-                <TableHead className="w-[80px]">Тариф</TableHead>
-                <TableHead className="w-[80px] text-center">Платежі</TableHead>
-                <TableHead className="w-[100px] text-right">Повна оплата</TableHead>
-                <TableHead className="w-[80px] text-right">Податок</TableHead>
-                <TableHead className="w-[100px] text-right">Чиста сума</TableHead>
-                <TableHead className="w-[100px]">Статус</TableHead>
-                <TableHead className="w-[80px] text-right">Дата</TableHead>
+              <TableRow className="hover:bg-transparent border-b border-border/50">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[260px]">
+                  Клієнт
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[70px]">
+                  Тариф
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[100px]">
+                  Повна оплата
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[80px]">
+                  Податок
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[100px]">
+                  Чиста сума
+                </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[90px]">
+                  Статус
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
                   </TableCell>
                 </TableRow>
@@ -528,17 +518,7 @@ export function FinanceTable() {
                 const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
                 const netTotal = toMoneyNumber(ticket.finance?.net_total);
                 const status = ticket.finance_summary.payment_status;
-
-                // Calculate payment progress
-                const sortedPayments = [...ticket.payments].sort(
-                  (a, b) => a.installment_number - b.installment_number
-                );
-                const paidCount = sortedPayments.filter((p) => p.paid_date).length;
-                const planPaymentLimit = getExpectedPaymentCount(
-                  ticket.finance?.payment_plan ?? "full"
-                );
-                const expectedPaymentCount =
-                  planPaymentLimit ?? Math.max(sortedPayments.length, 1);
+                const isOverdue = status === "overdue";
 
                 return (
                   <TableRow
@@ -546,8 +526,9 @@ export function FinanceTable() {
                     role="button"
                     tabIndex={0}
                     className={cn(
-                      "cursor-pointer",
-                      openTicketId === ticket.id && "bg-muted/50"
+                      "cursor-pointer border-b border-border/30 last:border-0",
+                      openTicketId === ticket.id && "bg-muted/40",
+                      isOverdue && "bg-destructive/[0.02]"
                     )}
                     onClick={(event) => {
                       const interactiveTarget = (
@@ -562,43 +543,33 @@ export function FinanceTable() {
                       openTicketPayments(ticket.id);
                     }}
                   >
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium truncate max-w-[200px]">{ticket.name}</span>
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
-                          {ticket.email || ticket.phone || ticket.instagram || "—"}
+                    <TableCell className="py-3.5 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-[13px] truncate max-w-[240px]">{ticket.name}</span>
+                        <span className="text-[11px] text-muted-foreground/70 truncate max-w-[240px]">
+                          {ticket.email || "—"}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <GradeMarker grade={ticket.updated_grade ?? ticket.grade} />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(
-                        "inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded text-[12px] font-medium tabular-nums",
-                        paidCount === expectedPaymentCount && expectedPaymentCount > 0
-                          ? "bg-success/10 text-success"
-                          : status === "overdue"
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-muted text-muted-foreground"
-                      )}>
-                        {paidCount}/{expectedPaymentCount}
+                    <TableCell className="py-3.5 px-4">
+                      <span className="text-[12px] text-muted-foreground font-medium uppercase">
+                        {(ticket.updated_grade ?? ticket.grade) || "—"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
                       {formatZloty(grossTotal)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {taxAmount > 0 ? formatZloty(taxAmount) : "—"}
+                    <TableCell className={cn(
+                      "py-3.5 px-4 text-right tabular-nums text-[13px]",
+                      taxAmount > 0 ? "text-destructive/70" : "text-muted-foreground/50"
+                    )}>
+                      {taxAmount > 0 ? formatZloty(taxAmount) : "0,00 zł"}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
+                    <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px]">
                       {formatZloty(netTotal)}
                     </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={status} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatDate(ticket.date)}
+                    <TableCell className="py-3.5 px-4">
+                      <StatusIndicator status={status} />
                     </TableCell>
                   </TableRow>
                 );
@@ -1358,38 +1329,6 @@ function DeletePaymentButton({
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  variant = "default",
-}: {
-  label: string;
-  value: string;
-  variant?: "default" | "success" | "warning" | "danger";
-}) {
-  return (
-    <Card className="shadow-surface">
-      <CardHeader className="p-4 pb-2">
-        <CardDescription className="text-[11px] uppercase tracking-wider">
-          {label}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <span
-          className={cn(
-            "text-xl font-semibold tabular-nums",
-            variant === "success" && "text-success",
-            variant === "warning" && "text-warning",
-            variant === "danger" && "text-destructive"
-          )}
-        >
-          {value}
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
-
 function PaymentStatusFilter({
   value,
   onChange,
@@ -1406,17 +1345,17 @@ function PaymentStatusFilter({
   ];
 
   return (
-    <div className="flex items-center gap-0.5 rounded-md bg-muted/50 p-0.5">
+    <div className="flex items-center gap-1">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
+            "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors",
             value === option.value
-              ? "bg-white text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
           )}
         >
           {option.label}
@@ -1426,40 +1365,23 @@ function PaymentStatusFilter({
   );
 }
 
-function PaymentStatusBadge({ status }: { status?: string | null }) {
-  if (status === "paid") {
-    return (
-      <Badge variant="success" className="rounded-md px-2 py-0.5 text-[10px]">
-        Оплачено
-      </Badge>
-    );
-  }
+function StatusIndicator({ status }: { status?: string | null }) {
+  const config: Record<string, { color: string; label: string }> = {
+    paid: { color: "bg-success", label: "Оплачено" },
+    partial: { color: "bg-warning", label: "Частково" },
+    overdue: { color: "bg-destructive", label: "Прострочено" },
+    pending: { color: "bg-muted-foreground/30", label: "Очікує" },
+    not_started: { color: "bg-muted-foreground/30", label: "Очікує" },
+  };
 
-  if (status === "partial") {
-    return (
-      <Badge variant="warning" className="rounded-md px-2 py-0.5 text-[10px]">
-        Частково
-      </Badge>
-    );
-  }
+  const statusConfig = config[status ?? ""] ?? { color: "bg-muted-foreground/20", label: "—" };
 
-  if (status === "overdue") {
-    return (
-      <Badge variant="destructive" className="rounded-md px-2 py-0.5 text-[10px]">
-        Прострочено
-      </Badge>
-    );
-  }
-
-  if (status === "pending" || status === "not_started") {
-    return (
-      <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-[10px]">
-        Очікує
-      </Badge>
-    );
-  }
-
-  return <span className="text-muted-foreground text-[11px]">—</span>;
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn("w-2 h-2 rounded-full shrink-0", statusConfig.color)} />
+      <span className="text-[12px] text-muted-foreground">{statusConfig.label}</span>
+    </div>
+  );
 }
 
 function GradeMarker({ grade }: { grade?: string | null }) {
@@ -1467,7 +1389,7 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
   if (normalizedGrade === TICKET_TYPE.VIP) {
     return (
-      <Badge variant="default" className="rounded px-1 py-0 text-[9px] uppercase">
+      <Badge variant="default" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
         vip
       </Badge>
     );
@@ -1475,7 +1397,7 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
   if (normalizedGrade === TICKET_TYPE.MAXI) {
     return (
-      <Badge variant="warning" className="rounded px-1 py-0 text-[9px] uppercase">
+      <Badge variant="warning" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
         maxi
       </Badge>
     );
@@ -1483,9 +1405,7 @@ function GradeMarker({ grade }: { grade?: string | null }) {
 
   if (normalizedGrade === TICKET_TYPE.STANDARD) {
     return (
-      <Badge variant="secondary" className="rounded px-1 py-0 text-[9px] uppercase">
-        standard
-      </Badge>
+      <span className="text-[11px] text-muted-foreground uppercase font-medium">std</span>
     );
   }
 
