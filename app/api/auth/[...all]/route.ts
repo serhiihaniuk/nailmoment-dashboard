@@ -45,7 +45,31 @@ function makeCookieEmbeddable(cookie: string) {
 }
 
 async function handleAuth(request: Request) {
-  const response = await auth.handler(request);
+  let response: Response;
+  try {
+    response = await auth.handler(request);
+  } catch (error) {
+    console.error("[auth] handler failed", {
+      url: request.url,
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      origin: request.headers.get("origin"),
+      referer: request.headers.get("referer"),
+      error,
+    });
+
+    if (process.env.VERCEL_ENV === "production") {
+      return new Response("Internal Server Error", { status: 500 });
+    }
+
+    return Response.json(
+      {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      { status: 500 },
+    );
+  }
 
   if (!isEmbeddedPreviewRequest(request)) {
     return response;
