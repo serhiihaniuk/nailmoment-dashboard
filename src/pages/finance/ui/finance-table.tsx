@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Search } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
@@ -46,6 +46,12 @@ export function FinanceTable() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilterValue>("all");
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const [pendingCloseTicketId, setPendingCloseTicketId] = useState<string | null>(
+    null
+  );
+  const [blockedCloseTicketId, setBlockedCloseTicketId] = useState<string | null>(
+    null
+  );
   const financeAutosave = useFinanceAutosave();
   const { data, isLoading, isFetching, isError } = useQuery<
     TicketWithFinance[],
@@ -121,8 +127,81 @@ export function FinanceTable() {
     financeAutosave.isSaving || createTicketMutation.isPending;
 
   const openTicketPayments = (ticketId: string) => {
+    setBlockedCloseTicketId(null);
+    setPendingCloseTicketId(null);
     setOpenTicketId(ticketId);
   };
+
+  const requestClosePaymentsPanel = () => {
+    if (!selectedTicket) {
+      setOpenTicketId(null);
+      return;
+    }
+
+    const saveState = financeAutosave.getTicketSaveState(selectedTicket);
+
+    if (saveState.isSaving) {
+      setBlockedCloseTicketId(null);
+      setPendingCloseTicketId(selectedTicket.id);
+      return;
+    }
+
+    if (saveState.hasError) {
+      setBlockedCloseTicketId(selectedTicket.id);
+      return;
+    }
+
+    setBlockedCloseTicketId(null);
+    setPendingCloseTicketId(null);
+    setOpenTicketId(null);
+  };
+
+  useEffect(() => {
+    if (!pendingCloseTicketId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const ticket =
+        tickets.find((item) => item.id === pendingCloseTicketId) ?? null;
+      if (!ticket) {
+        setPendingCloseTicketId(null);
+        return;
+      }
+
+      const saveState = financeAutosave.getTicketSaveState(ticket);
+      if (saveState.isSaving) return;
+
+      setPendingCloseTicketId(null);
+
+      if (saveState.hasError) {
+        setBlockedCloseTicketId(ticket.id);
+        return;
+      }
+
+      setBlockedCloseTicketId(null);
+      setOpenTicketId((current) => (current === ticket.id ? null : current));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [financeAutosave, pendingCloseTicketId, tickets]);
+
+  useEffect(() => {
+    if (!blockedCloseTicketId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const ticket =
+        tickets.find((item) => item.id === blockedCloseTicketId) ?? null;
+      if (!ticket || openTicketId !== ticket.id) {
+        setBlockedCloseTicketId(null);
+        return;
+      }
+
+      if (!financeAutosave.getTicketSaveState(ticket).hasError) {
+        setBlockedCloseTicketId(null);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [blockedCloseTicketId, financeAutosave, openTicketId, tickets]);
 
   if (isLoading) {
     return <Skeleton className="h-[70vh] w-full rounded-xl" />;
@@ -329,7 +408,9 @@ export function FinanceTable() {
         <PaymentsPanel
           ticket={selectedTicket}
           open={Boolean(openTicketId)}
-          onClose={() => setOpenTicketId(null)}
+          onClose={requestClosePaymentsPanel}
+          closeBlockedByError={blockedCloseTicketId === selectedTicket.id}
+          closePending={pendingCloseTicketId === selectedTicket.id}
           paymentActionError={financeAutosave.getPaymentActionError(
             selectedTicket.id
           )}
