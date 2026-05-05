@@ -32,6 +32,39 @@ const eslintConfig = defineConfig([
           cssPath: "./app/globals.css",
         },
       ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/blocks/*",
+                "@/components/*",
+                "@/shared/const",
+                "@/shared/utils",
+              ],
+              message:
+                "Use FSD layer imports from src, for example '@/shared/ui/*', '@/shared/lib/*', or an entity public API.",
+            },
+            {
+              group: [
+                "@/features/*/api/*",
+                "@/features/*/model/*",
+                "@/features/*/ui/*",
+                "@/widgets/*/api/*",
+                "@/widgets/*/model/*",
+                "@/widgets/*/ui/*",
+                "@/entities/*/api/*",
+                "@/entities/*/lib/*",
+                "@/entities/*/model/*",
+                "@/entities/*/ui/*",
+              ],
+              message:
+                "Import slices through their public index entry point instead of internal segment files.",
+            },
+          ],
+        },
+      ],
     },
   },
   globalIgnores([
