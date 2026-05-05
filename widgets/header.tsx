@@ -1,23 +1,84 @@
+"use client";
+
 import { NavLink } from "@/blocks/nav-link";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/shared/utils";
+import { MenuIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Квитки" },
+  { href: "/finance", label: "Фінанси" },
+  { href: "/battle", label: "Батл" },
+  { href: "/speaker_vote", label: "Спікери" },
+  { href: "/info", label: "Допомога" },
+];
+
+function isActiveRoute(pathname: string, href: string) {
+  return pathname === href || (href === "/dashboard" && pathname.startsWith("/ticket/"));
+}
 
 export const Header = () => {
   return (
-    <header className="sticky top-0 z-50 w-full h-12 bg-white border-b border-border/60">
-      <div className="page-container h-full flex items-center gap-6">
-        <Link href="/dashboard" className="flex items-center mr-4">
+    <header className="sticky top-0 z-50 h-12 w-full border-b border-border/60 bg-background">
+      <div className="page-container flex h-full items-center gap-4">
+        <Link href="/dashboard" className="mr-4 flex items-center">
           <NailIcon className="w-16" />
         </Link>
-        <NavLink href="/dashboard">Квитки</NavLink>
-        <NavLink href="/finance">Фінанси</NavLink>
-        <NavLink href="/battle">Батл</NavLink>
-        <NavLink href="/speaker_vote">Спікери</NavLink>
-        <NavLink href="/info">Допомога</NavLink>
+        <nav className="hidden h-full items-center gap-6 md:flex">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.href} href={item.href}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        <MobileNavMenu />
       </div>
     </header>
   );
 };
+
+function MobileNavMenu() {
+  const pathname = usePathname();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          aria-label="Відкрити навігацію"
+          className="ml-auto md:hidden"
+          size="icon"
+          variant="ghost"
+        >
+          <MenuIcon aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuGroup>
+          {NAV_ITEMS.map((item) => (
+            <DropdownMenuItem
+              asChild
+              className={cn(
+                isActiveRoute(pathname, item.href) && "bg-accent text-accent-foreground"
+              )}
+              key={item.href}
+            >
+              <Link href={item.href}>{item.label}</Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const NailIcon: React.FC<any> = ({ size = 30, className, ...props }) => {
