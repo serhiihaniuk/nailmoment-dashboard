@@ -25,6 +25,7 @@ import { cn } from "@/shared/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader, Search } from "lucide-react";
 import { TicketPanelWrapper } from "@/widgets/ticket-panel";
+import { TicketTypeBadge } from "@/blocks/ticket-type-badge";
 
 async function fetchTickets(): Promise<TicketWithFinance[]> {
   const res = await fetch("/api/ticket");
@@ -253,7 +254,6 @@ export function TicketsTable() {
                       <TableHead>Ім&apos;я</TableHead>
                       <TableHead className="w-12 text-center">Stripe</TableHead>
                       <TableHead>E-mail</TableHead>
-                      <TableHead>Фінанси</TableHead>
                       <TableHead>Instagram</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Дата</TableHead>
@@ -299,8 +299,11 @@ export function TicketsTable() {
                         </TableCell>
                         <TableCell>
                           {t.instagram ? (
-                            <span className="text-muted-foreground">
-                              {t.instagram}
+                            <span
+                              className="text-muted-foreground"
+                              title={t.instagram}
+                            >
+                              {truncateText(t.instagram, 15)}
                             </span>
                           ) : (
                             <span className="text-muted-foreground/30">—</span>
@@ -497,23 +500,11 @@ const GradeSegment: FC<{
 );
 
 function GradeMarker({ grade }: { grade?: string | null }) {
-  const normalizedGrade = grade?.toLowerCase();
+  if (!grade) return null;
 
-  if (normalizedGrade === TICKET_TYPE.VIP) {
-    return (
-      <span className="text-[9px] uppercase tracking-wider font-semibold text-white bg-[#395500] border border-[#395500] px-1 py-0 rounded">
-        vip
-      </span>
-    );
-  }
+  return <TicketTypeBadge type={grade} />;
+}
 
-  if (normalizedGrade === TICKET_TYPE.MAXI) {
-    return (
-      <span className="text-[9px] uppercase tracking-wider font-semibold text-[#5b3327] border border-[#8a6a3d]/30 bg-[#f3e3b3] px-1 py-0 rounded">
-        maxi
-      </span>
-    );
-  }
-
-  return null;
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
@@ -91,6 +92,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  TICKET_TYPE_BADGE_COLORS,
+  TicketTypeBadge,
+} from "@/blocks/ticket-type-badge";
 import type { TicketWithFinance } from "@/shared/db/schema";
 import type {
   InsertPaymentInstallmentInput,
@@ -99,7 +104,6 @@ import type {
 } from "@/shared/db/schema.zod";
 import {
   TICKET_PRICE_BY_GRADE,
-  TICKET_TYPE,
   TICKET_TYPE_LIST,
 } from "@/shared/const";
 import { cn } from "@/shared/utils";
@@ -129,10 +133,9 @@ const PAYMENT_METHOD_OPTIONS = [
 ] as const;
 
 const INVOICE_STATUS_OPTIONS = [
-  { value: "not_sent", label: "Очікує відправки" },
-  { value: "requested", label: "Потрібна" },
+  { value: "not_needed", label: "Не запитана" },
+  { value: "requested", label: "Запитана" },
   { value: "sent", label: "Надіслана" },
-  { value: "not_needed", label: "Не потрібна" },
 ] as const;
 
 type SaleSource = (typeof SALE_SOURCE_OPTIONS)[number]["value"];
@@ -264,6 +267,10 @@ class ApiError extends Error {
 }
 
 type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
+type InvoiceStatus = (typeof INVOICE_STATUS_OPTIONS)[number]["value"];
+type InvoiceCounts = Record<InvoiceStatus, number> & {
+  total: number;
+};
 
 export function FinanceTable() {
   const queryClient = useQueryClient();
@@ -457,7 +464,7 @@ export function FinanceTable() {
           paid_date: "",
           due_date: "",
           payment_method: "other",
-          invoice_status: "not_sent",
+          invoice_status: "not_needed",
           invoice_number: "",
           comment: "",
         });
@@ -610,7 +617,7 @@ export function FinanceTable() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-225">
+          <Table className="w-full min-w-240">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/50">
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-65">
@@ -628,6 +635,9 @@ export function FinanceTable() {
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
                   Платежі
                 </TableHead>
+                <TableHead className="h-10 px-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
+                  Рахунок-фактура
+                </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
                   Податок
                 </TableHead>
@@ -642,7 +652,7 @@ export function FinanceTable() {
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     {query || statusFilter !== "all" ? "Нічого не знайдено" : "Фінансових записів ще немає"}
                   </TableCell>
                 </TableRow>
@@ -696,6 +706,11 @@ export function FinanceTable() {
                         <span className="text-[11px] text-muted-foreground/70 truncate max-w-60">
                           {ticket.email || "—"}
                         </span>
+                        {ticket.phone && (
+                          <span className="text-[11px] text-muted-foreground/50 truncate max-w-60">
+                            {ticket.phone}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-[12px] text-muted-foreground tabular-nums">
@@ -717,6 +732,9 @@ export function FinanceTable() {
                             .length
                         }/{displayedPaymentCount}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4 text-center">
+                      <InvoiceStatusCell ticket={ticket} />
                     </TableCell>
                     <TableCell className={cn(
                       "py-3.5 px-4 text-right tabular-nums text-[13px]",
@@ -793,15 +811,15 @@ type FinanceChartData = ReturnType<typeof buildFinanceCharts>;
 const gradeRevenueChartConfig = {
   standard: {
     label: "Standard",
-    color: "var(--success)",
+    color: TICKET_TYPE_BADGE_COLORS.standard.border,
   },
   maxi: {
     label: "Maxi",
-    color: "var(--warning)",
+    color: TICKET_TYPE_BADGE_COLORS.maxi.border,
   },
   vip: {
     label: "VIP",
-    color: "var(--foreground)",
+    color: TICKET_TYPE_BADGE_COLORS.vip.background,
   },
 } satisfies ChartConfig;
 
@@ -1219,9 +1237,9 @@ const chartPaymentStatusOrder = [
 ] as const;
 
 const chartGradeFill: Record<TicketGrade, string> = {
-  standard: "var(--success)",
-  maxi: "var(--warning)",
-  vip: "var(--foreground)",
+  standard: TICKET_TYPE_BADGE_COLORS.standard.border,
+  maxi: TICKET_TYPE_BADGE_COLORS.maxi.border,
+  vip: TICKET_TYPE_BADGE_COLORS.vip.background,
 };
 
 const chartSaleSourceFill: Record<SaleSource, string> = {
@@ -1814,7 +1832,7 @@ function PaymentsPanel({
       due_date: "",
       paid_date: "",
       payment_method: "other",
-      invoice_status: "not_sent",
+      invoice_status: "not_needed",
       invoice_number: "",
       comment: "",
     });
@@ -1973,6 +1991,16 @@ function PaymentsPanel({
               className="h-9 border-transparent bg-muted/30 px-2 text-base shadow-none"
             />
           </PaymentField>
+          <PaymentField label="QR квиток" className="col-span-2">
+            <Link
+              href={`/pdf/${ticket.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-9 w-fit items-center rounded-md text-[13px] font-medium text-foreground underline-offset-4 transition-colors hover:underline"
+            >
+              Переглянути / Завантажити
+            </Link>
+          </PaymentField>
         </div>
         <PaymentField label="Коментар">
           <TextCell
@@ -2119,7 +2147,7 @@ function PaymentCard({
         </PaymentField>
         <PaymentField label="Рахунок-фактура">
           <SmallSelect
-            value={payment.invoice_status}
+            value={getInvoiceStatus(payment.invoice_status)}
             options={INVOICE_STATUS_OPTIONS}
             onChange={(invoice_status) =>
               onUpdate(payment.id, { invoice_status })
@@ -2246,6 +2274,46 @@ function PaymentStatusFilter({
   );
 }
 
+function InvoiceStatusCell({ ticket }: { ticket: TicketWithFinance }) {
+  const counts = getTicketInvoiceCounts(ticket);
+  const title = getInvoiceCountsTitle(counts);
+  const rows = [
+    counts.sent > 0
+      ? {
+          key: "sent",
+          color: "bg-success",
+          label: `${counts.sent} ${pluralizeInvoiceSent(counts.sent)}`,
+        }
+      : null,
+    counts.requested > 0
+      ? {
+          key: "requested",
+          color: "bg-[#f59e0b]",
+          label: `${counts.requested} ${pluralizeInvoiceRequested(counts.requested)}`,
+        }
+      : null,
+  ].filter(Boolean) as { key: string; color: string; label: string }[];
+
+  const visibleRows =
+    rows.length > 0
+      ? rows
+      : [{ key: "not_needed", color: "bg-muted-foreground/40", label: "Не запитана" }];
+
+  return (
+    <div className="inline-flex flex-col items-start gap-1 text-left" title={title}>
+      {visibleRows.map((row) => (
+        <span
+          key={row.key}
+          className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground"
+        >
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", row.color)} />
+          <span>{row.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function StatusIndicator({ status }: { status?: string | null }) {
   const config: Record<string, { color: string; label: string }> = {
     paid: { color: "bg-success", label: "Оплачено" },
@@ -2268,36 +2336,9 @@ function StatusIndicator({ status }: { status?: string | null }) {
 }
 
 function GradeMarker({ grade }: { grade?: string | null }) {
-  const normalizedGrade = grade?.toLowerCase();
+  if (!grade) return <span className="text-muted-foreground">—</span>;
 
-  if (normalizedGrade === TICKET_TYPE.VIP) {
-    return (
-      <Badge variant="default" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
-        vip
-      </Badge>
-    );
-  }
-
-  if (normalizedGrade === TICKET_TYPE.MAXI) {
-    return (
-      <Badge variant="warning" className="rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold">
-        maxi
-      </Badge>
-    );
-  }
-
-  if (normalizedGrade === TICKET_TYPE.STANDARD) {
-    return (
-      <Badge
-        variant="success"
-        className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase"
-      >
-        std
-      </Badge>
-    );
-  }
-
-  return <span className="text-muted-foreground">—</span>;
+  return <TicketTypeBadge type={grade} />;
 }
 
 function PaymentField({
@@ -2670,7 +2711,7 @@ async function createTicketWithFinance(
         paid_date: "",
         due_date: "",
         payment_method: "other",
-        invoice_status: "not_sent",
+        invoice_status: "not_needed",
         invoice_number: "",
         comment: "",
       });
@@ -2758,6 +2799,47 @@ function isZeroPaymentPlan(plan: string | null | undefined): boolean {
 function getDisplayedPaymentCount(ticket: TicketWithFinance): number {
   const paymentLimit = getExpectedPaymentCount(ticket.finance?.payment_plan ?? "full");
   return paymentLimit ?? Math.max(ticket.payments.length, 1);
+}
+
+function getTicketInvoiceCounts(ticket: TicketWithFinance): InvoiceCounts {
+  return ticket.payments.reduce(
+    (counts, payment) => {
+      const status = getInvoiceStatus(payment.invoice_status);
+      counts[status] += 1;
+      counts.total += 1;
+      return counts;
+    },
+    {
+      requested: 0,
+      sent: 0,
+      not_needed: 0,
+      total: 0,
+    }
+  );
+}
+
+function getInvoiceStatus(value: string | null | undefined): InvoiceStatus {
+  if (INVOICE_STATUS_OPTIONS.some((option) => option.value === value)) {
+    return value as InvoiceStatus;
+  }
+
+  return "not_needed";
+}
+
+function getInvoiceCountsTitle(counts: InvoiceCounts): string {
+  return [
+    `Надіслана: ${counts.sent}`,
+    `Запитана: ${counts.requested}`,
+    `Не запитана: ${counts.not_needed}`,
+  ].join(" · ");
+}
+
+function pluralizeInvoiceSent(count: number): string {
+  return count === 1 ? "Надіслана" : "Надіслані";
+}
+
+function pluralizeInvoiceRequested(count: number): string {
+  return count === 1 ? "Запитана" : "Запитані";
 }
 
 function suggestedPaymentAmount(
