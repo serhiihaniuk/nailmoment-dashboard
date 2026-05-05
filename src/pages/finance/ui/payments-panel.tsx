@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Plus, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +83,7 @@ export function PaymentsPanel({
   ticket,
   open,
   onClose,
+  paymentActionError,
   getFieldStatus,
   onCreate,
   onUpdate,
@@ -94,6 +95,7 @@ export function PaymentsPanel({
   ticket: TicketWithFinance;
   open: boolean;
   onClose: () => void;
+  paymentActionError?: string | undefined;
   getFieldStatus: (fieldKey: string) => SaveStatus;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
   onUpdate: (
@@ -141,11 +143,14 @@ export function PaymentsPanel({
   const discountAmountFieldKey = financeFieldKey(ticket.id, "discount_amount");
   const nipFieldKey = financeFieldKey(ticket.id, "nip");
   const financeNoteFieldKey = financeFieldKey(ticket.id, "finance_note");
+  const paymentPlanStatus = getFieldStatus(paymentPlanFieldKey);
+  const isPaymentPlanSaving = paymentPlanStatus.state === "saving";
   const hasZeroPaymentPlan = isZeroPaymentPlan(selectedPaymentPlan);
   const planPaymentLimit = getExpectedPaymentCount(selectedPaymentPlan);
   const displayedPaymentCount = getDisplayedPaymentCount(ticket);
   const canAddPayment =
-    planPaymentLimit === null || sortedPayments.length < planPaymentLimit;
+    !isPaymentPlanSaving &&
+    (planPaymentLimit === null || sortedPayments.length < planPaymentLimit);
   const disabledPaymentPlans = new Set(
     PAYMENT_PLAN_OPTIONS.filter((option) => {
       const optionPaymentCount = getExpectedPaymentCount(option.value);
@@ -303,11 +308,12 @@ export function PaymentsPanel({
           </PaymentField>
           <PaymentField
             label="Оплата / розстрочка"
-            saveStatus={getFieldStatus(paymentPlanFieldKey)}
+            saveStatus={paymentPlanStatus}
           >
             <SmallSelect
               value={selectedPaymentPlan}
               options={PAYMENT_PLAN_OPTIONS}
+              disabled={isPaymentPlanSaving}
               disabledValues={disabledPaymentPlans}
               onChange={(paymentPlan) =>
                 onPaymentPlanChange(paymentPlan, paymentPlanFieldKey)
@@ -403,12 +409,19 @@ export function PaymentsPanel({
       {/* Payments section */}
       <div className="space-y-4">
         <h3 className="text-label-caps">Платежі</h3>
+        {paymentActionError && (
+          <p className="flex items-center gap-1.5 text-[12px] text-destructive">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            {paymentActionError}
+          </p>
+        )}
         <div className="flex flex-col gap-3">
           {sortedPayments.map((payment) => (
             <PaymentCard
               key={payment.id}
               payment={payment}
               isStripePayment={isStripeOriginPayment(ticket, payment)}
+              paymentsLocked={isPaymentPlanSaving}
               getFieldStatus={getFieldStatus}
               onUpdate={onUpdate}
               onDelete={onDelete}
@@ -434,12 +447,14 @@ export function PaymentsPanel({
 function PaymentCard({
   payment,
   isStripePayment,
+  paymentsLocked,
   getFieldStatus,
   onUpdate,
   onDelete,
 }: {
   payment: TicketWithFinance["payments"][number];
   isStripePayment: boolean;
+  paymentsLocked: boolean;
   getFieldStatus: (fieldKey: string) => SaveStatus;
   onUpdate: (
     paymentId: string,
@@ -449,8 +464,8 @@ function PaymentCard({
   onDelete: (paymentId: string) => void;
 }) {
   const isPaid = Boolean(payment.paid_date);
-  const isLocked = isStripePayment;
-  const canDelete = !isPaid && !isStripePayment;
+  const isLocked = isStripePayment || paymentsLocked;
+  const canDelete = !paymentsLocked && !isPaid && !isStripePayment;
   const amountFieldKey = paymentFieldKey(payment.id, "amount");
   const paidDateFieldKey = paymentFieldKey(payment.id, "paid_date");
   const dueDateFieldKey = paymentFieldKey(payment.id, "due_date");
@@ -516,6 +531,7 @@ function PaymentCard({
             canDelete={canDelete}
             isPaid={isPaid}
             isStripePayment={isStripePayment}
+            paymentsLocked={paymentsLocked}
             onConfirm={() => onDelete(payment.id)}
           />
         </div>
@@ -590,6 +606,7 @@ function PaymentCard({
           <SmallSelect
             value={getInvoiceStatus(payment.invoice_status)}
             options={INVOICE_STATUS_OPTIONS}
+            disabled={paymentsLocked}
             onChange={(invoice_status) =>
               onUpdate(payment.id, { invoice_status }, invoiceStatusFieldKey)
             }
@@ -601,6 +618,7 @@ function PaymentCard({
         >
           <TextCell
             value={payment.invoice_number}
+            disabled={paymentsLocked}
             onSave={(invoice_number) =>
               onUpdate(payment.id, { invoice_number }, invoiceNumberFieldKey)
             }
@@ -625,19 +643,23 @@ function DeletePaymentButton({
   canDelete,
   isPaid,
   isStripePayment,
+  paymentsLocked,
   onConfirm,
 }: {
   canDelete: boolean;
   isPaid: boolean;
   isStripePayment: boolean;
+  paymentsLocked: boolean;
   onConfirm: () => void;
 }) {
   if (!canDelete) {
-    const title = isStripePayment
-      ? "Платіж Stripe не можна змінювати або видаляти"
-      : isPaid
-        ? "Оплачений платіж не можна видалити"
-        : "Платіж не можна видалити";
+    const title = paymentsLocked
+      ? "План оплати оновлюється"
+      : isStripePayment
+        ? "Платіж Stripe не можна змінювати або видаляти"
+        : isPaid
+          ? "Оплачений платіж не можна видалити"
+          : "Платіж не можна видалити";
 
     return (
       <Button

@@ -33,11 +33,14 @@ import {
   ticketsQueryKey,
   type FinanceTicketPatch,
 } from './finance-cache';
+import {
+  createAutosaveOrder,
+  type OrderedAutosaveContext,
+} from './autosave-order';
 import { idleSaveStatus, type SaveStatus } from './autosave-status';
 
-type MutationContext = {
+type MutationContext = OrderedAutosaveContext & {
   previousTickets?: TicketWithFinance[] | undefined;
-  fieldKey?: string | undefined;
   rollbackChangedField?: (() => void) | undefined;
 };
 
@@ -63,6 +66,16 @@ type PaymentPlanMutationInput = {
   ticketId: string;
   paymentPlan: PaymentPlan;
   fieldKey: string;
+};
+
+type CreatePaymentMutationInput = {
+  ticketId: string;
+  data: InsertPaymentInstallmentInput;
+};
+
+type DeletePaymentMutationInput = {
+  ticketId: string;
+  paymentId: string;
 };
 
 function getErrorMessage(error: unknown): string {
@@ -163,7 +176,18 @@ function buildPaymentRollbackPatch(
 export function useFinanceAutosave() {
   const queryClient = useQueryClient();
   const [statuses, setStatuses] = useState<Record<string, SaveStatus>>({});
+  const [paymentActionErrors, setPaymentActionErrors] = useState<
+    Record<string, string>
+  >({});
   const savedTimeouts = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const autosaveOrder = useRef<ReturnType<typeof createAutosaveOrder> | null>(
+    null
+  );
+
+  if (autosaveOrder.current == null) {
+    autosaveOrder.current = createAutosaveOrder();
+  }
+  const order = autosaveOrder.current;
 
   const clearSavedTimeout = useCallback((fieldKey: string) => {
     const timeoutId = savedTimeouts.current.get(fieldKey);
@@ -227,8 +251,34 @@ export function useFinanceAutosave() {
     [statuses]
   );
 
+  const getPaymentActionError = useCallback(
+    (ticketId: string): string | undefined => paymentActionErrors[ticketId],
+    [paymentActionErrors]
+  );
+
+  const clearPaymentActionError = useCallback((ticketId: string) => {
+    setPaymentActionErrors((current) => {
+      if (!current[ticketId]) return current;
+      const next = { ...current };
+      delete next[ticketId];
+      return next;
+    });
+  }, []);
+
+  const setPaymentActionError = useCallback(
+    (ticketId: string, error: unknown) => {
+      setPaymentActionErrors((current) => ({
+        ...current,
+        [ticketId]: getErrorMessage(error),
+      }));
+    },
+    []
+  );
+
   const restorePreviousTickets = useCallback(
     (context: MutationContext | undefined) => {
+      if (!order.isLatest(context)) return;
+
       if (context?.rollbackChangedField) {
         context.rollbackChangedField();
         return;
@@ -237,13 +287,15 @@ export function useFinanceAutosave() {
       if (!context?.previousTickets) return;
       queryClient.setQueryData(ticketsQueryKey, context.previousTickets);
     },
-    [queryClient]
+    [order, queryClient]
   );
 
   const saveTicketMutation = useMutation({
-    mutationFn: ({ ticketId, data }: TicketMutationInput) =>
-      patchTicket(ticketId, data),
+    mutationFn: ({ ticketId, data, fieldKey }: TicketMutationInput) =>
+      order.run(fieldKey, () => patchTicket(ticketId, data)),
     onMutate: async ({ ticketId, data, fieldKey }) => {
+      const fieldVersion = order.begin(fieldKey);
+      markSaving(fieldKey);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
@@ -251,15 +303,17 @@ export function useFinanceAutosave() {
       const rollbackPatch = previousTicket
         ? buildTicketRollbackPatch(previousTicket, data)
         : null;
-      markSaving(fieldKey);
-      queryClient.setQueryData<TicketWithFinance[]>(
-        ticketsQueryKey,
-        (current) =>
-          patchTicketInFinanceCache(current, ticketId, data)
-      );
+      if (order.isLatest({ fieldKey, fieldVersion })) {
+        queryClient.setQueryData<TicketWithFinance[]>(
+          ticketsQueryKey,
+          (current) =>
+            patchTicketInFinanceCache(current, ticketId, data)
+        );
+      }
       return {
         previousTickets,
         fieldKey,
+        fieldVersion,
         rollbackChangedField: rollbackPatch
           ? () => {
               queryClient.setQueryData<TicketWithFinance[]>(
@@ -271,7 +325,8 @@ export function useFinanceAutosave() {
           : undefined,
       } satisfies MutationContext;
     },
-    onSuccess: (ticket, { fieldKey }) => {
+    onSuccess: (ticket, { fieldKey }, context) => {
+      if (!order.isLatest(context)) return;
       queryClient.setQueryData<TicketWithFinance[]>(
         ticketsQueryKey,
         (current) => replaceTicketFieldsInFinanceCache(current, ticket)
@@ -280,17 +335,23 @@ export function useFinanceAutosave() {
     },
     onError: (error, _variables, context) => {
       restorePreviousTickets(context);
-      if (context?.fieldKey) markError(context.fieldKey, error);
+      if (context?.fieldKey && order.isLatest(context)) {
+        markError(context.fieldKey, error);
+      }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+    onSettled: (_data, _error, _variables, context) => {
+      if (order.isLatest(context)) {
+        queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+      }
     },
   });
 
   const saveFinanceMutation = useMutation({
-    mutationFn: ({ ticketId, data }: FinanceMutationInput) =>
-      saveFinance(ticketId, data),
+    mutationFn: ({ ticketId, data, fieldKey }: FinanceMutationInput) =>
+      order.run(fieldKey, () => saveFinance(ticketId, data)),
     onMutate: async ({ ticketId, data, fieldKey }) => {
+      const fieldVersion = order.begin(fieldKey);
+      markSaving(fieldKey);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
@@ -298,14 +359,16 @@ export function useFinanceAutosave() {
       const rollbackPatch = previousFinance
         ? buildFinanceRollbackPatch(previousFinance, data)
         : null;
-      markSaving(fieldKey);
-      queryClient.setQueryData<TicketWithFinance[]>(
-        ticketsQueryKey,
-        (current) => patchTicketFinanceInCache(current, ticketId, data)
-      );
+      if (order.isLatest({ fieldKey, fieldVersion })) {
+        queryClient.setQueryData<TicketWithFinance[]>(
+          ticketsQueryKey,
+          (current) => patchTicketFinanceInCache(current, ticketId, data)
+        );
+      }
       return {
         previousTickets,
         fieldKey,
+        fieldVersion,
         rollbackChangedField: rollbackPatch
           ? () => {
               queryClient.setQueryData<TicketWithFinance[]>(
@@ -317,7 +380,8 @@ export function useFinanceAutosave() {
           : undefined,
       } satisfies MutationContext;
     },
-    onSuccess: (finance, { ticketId, fieldKey }) => {
+    onSuccess: (finance, { ticketId, fieldKey }, context) => {
+      if (!order.isLatest(context)) return;
       queryClient.setQueryData<TicketWithFinance[]>(
         ticketsQueryKey,
         (current) => replaceTicketFinanceInCache(current, ticketId, finance)
@@ -326,17 +390,23 @@ export function useFinanceAutosave() {
     },
     onError: (error, _variables, context) => {
       restorePreviousTickets(context);
-      if (context?.fieldKey) markError(context.fieldKey, error);
+      if (context?.fieldKey && order.isLatest(context)) {
+        markError(context.fieldKey, error);
+      }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+    onSettled: (_data, _error, _variables, context) => {
+      if (order.isLatest(context)) {
+        queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+      }
     },
   });
 
   const updatePaymentMutation = useMutation({
-    mutationFn: ({ paymentId, data }: PaymentMutationInput) =>
-      updatePayment(paymentId, data),
+    mutationFn: ({ paymentId, data, fieldKey }: PaymentMutationInput) =>
+      order.run(fieldKey, () => updatePayment(paymentId, data)),
     onMutate: async ({ paymentId, data, fieldKey }) => {
+      const fieldVersion = order.begin(fieldKey);
+      markSaving(fieldKey);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
@@ -344,14 +414,16 @@ export function useFinanceAutosave() {
       const rollbackPatch = previousPayment
         ? buildPaymentRollbackPatch(previousPayment, data)
         : null;
-      markSaving(fieldKey);
-      queryClient.setQueryData<TicketWithFinance[]>(
-        ticketsQueryKey,
-        (current) => patchPaymentInFinanceCache(current, paymentId, data)
-      );
+      if (order.isLatest({ fieldKey, fieldVersion })) {
+        queryClient.setQueryData<TicketWithFinance[]>(
+          ticketsQueryKey,
+          (current) => patchPaymentInFinanceCache(current, paymentId, data)
+        );
+      }
       return {
         previousTickets,
         fieldKey,
+        fieldVersion,
         rollbackChangedField: rollbackPatch
           ? () => {
               queryClient.setQueryData<TicketWithFinance[]>(
@@ -363,7 +435,8 @@ export function useFinanceAutosave() {
           : undefined,
       } satisfies MutationContext;
     },
-    onSuccess: (payment, { fieldKey }) => {
+    onSuccess: (payment, { fieldKey }, context) => {
+      if (!order.isLatest(context)) return;
       queryClient.setQueryData<TicketWithFinance[]>(
         ticketsQueryKey,
         (current) => replacePaymentInFinanceCache(current, payment)
@@ -372,28 +445,45 @@ export function useFinanceAutosave() {
     },
     onError: (error, _variables, context) => {
       restorePreviousTickets(context);
-      if (context?.fieldKey) markError(context.fieldKey, error);
+      if (context?.fieldKey && order.isLatest(context)) {
+        markError(context.fieldKey, error);
+      }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+    onSettled: (_data, _error, _variables, context) => {
+      if (order.isLatest(context)) {
+        queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+      }
     },
   });
 
   const syncPaymentPlanMutation = useMutation({
-    mutationFn: ({ ticketId, paymentPlan }: PaymentPlanMutationInput) =>
-      syncTicketPaymentPlan(ticketId, paymentPlan),
+    mutationFn: ({
+      ticketId,
+      paymentPlan,
+      fieldKey,
+    }: PaymentPlanMutationInput) =>
+      order.run(fieldKey, () => syncTicketPaymentPlan(ticketId, paymentPlan)),
     onMutate: async ({ ticketId, paymentPlan, fieldKey }) => {
+      const fieldVersion = order.begin(fieldKey);
+      markSaving(fieldKey);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
-      markSaving(fieldKey);
-      queryClient.setQueryData<TicketWithFinance[]>(
-        ticketsQueryKey,
-        (current) => patchPaymentPlanInFinanceCache(current, ticketId, paymentPlan)
-      );
-      return { previousTickets, fieldKey } satisfies MutationContext;
+      if (order.isLatest({ fieldKey, fieldVersion })) {
+        queryClient.setQueryData<TicketWithFinance[]>(
+          ticketsQueryKey,
+          (current) =>
+            patchPaymentPlanInFinanceCache(current, ticketId, paymentPlan)
+        );
+      }
+      return {
+        previousTickets,
+        fieldKey,
+        fieldVersion,
+      } satisfies MutationContext;
     },
-    onSuccess: (ticket, { fieldKey }) => {
+    onSuccess: (ticket, { fieldKey }, context) => {
+      if (!order.isLatest(context)) return;
       queryClient.setQueryData<TicketWithFinance[]>(
         ticketsQueryKey,
         (current) => replaceTicketInFinanceCache(current, ticket)
@@ -402,21 +492,23 @@ export function useFinanceAutosave() {
     },
     onError: (error, _variables, context) => {
       restorePreviousTickets(context);
-      if (context?.fieldKey) markError(context.fieldKey, error);
+      if (context?.fieldKey && order.isLatest(context)) {
+        markError(context.fieldKey, error);
+      }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+    onSettled: (_data, _error, _variables, context) => {
+      if (order.isLatest(context)) {
+        queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
+      }
     },
   });
 
   const createPaymentMutation = useMutation({
-    mutationFn: ({
-      ticketId,
-      data,
-    }: {
-      ticketId: string;
-      data: InsertPaymentInstallmentInput;
-    }) => createPayment(ticketId, data),
+    mutationFn: ({ ticketId, data }: CreatePaymentMutationInput) =>
+      createPayment(ticketId, data),
+    onMutate: ({ ticketId }) => {
+      clearPaymentActionError(ticketId);
+    },
     onSuccess: (payment, { ticketId }) => {
       queryClient.setQueryData<TicketWithFinance[]>(
         ticketsQueryKey,
@@ -424,11 +516,16 @@ export function useFinanceAutosave() {
       );
       queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
     },
+    onError: (error, { ticketId }) => {
+      setPaymentActionError(ticketId, error);
+    },
   });
 
   const deletePaymentMutation = useMutation({
-    mutationFn: (paymentId: string) => deletePayment(paymentId),
-    onMutate: async (paymentId) => {
+    mutationFn: ({ paymentId }: DeletePaymentMutationInput) =>
+      deletePayment(paymentId),
+    onMutate: async ({ ticketId, paymentId }) => {
+      clearPaymentActionError(ticketId);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
@@ -438,8 +535,12 @@ export function useFinanceAutosave() {
       );
       return { previousTickets } satisfies MutationContext;
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, { ticketId }, context) => {
       restorePreviousTickets(context);
+      setPaymentActionError(ticketId, error);
+    },
+    onSuccess: (_deleted, { ticketId }) => {
+      clearPaymentActionError(ticketId);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
@@ -448,6 +549,7 @@ export function useFinanceAutosave() {
 
   return {
     getFieldStatus,
+    getPaymentActionError,
     isSaving:
       saveTicketMutation.isPending ||
       saveFinanceMutation.isPending ||
@@ -457,7 +559,8 @@ export function useFinanceAutosave() {
       deletePaymentMutation.isPending,
     createPayment: (ticketId: string, data: InsertPaymentInstallmentInput) =>
       createPaymentMutation.mutate({ ticketId, data }),
-    deletePayment: (paymentId: string) => deletePaymentMutation.mutate(paymentId),
+    deletePayment: (ticketId: string, paymentId: string) =>
+      deletePaymentMutation.mutate({ ticketId, paymentId }),
     saveFinance: (
       ticketId: string,
       data: UpsertTicketFinanceInput,

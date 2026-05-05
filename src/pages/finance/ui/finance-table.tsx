@@ -330,6 +330,9 @@ export function FinanceTable() {
           ticket={selectedTicket}
           open={Boolean(openTicketId)}
           onClose={() => setOpenTicketId(null)}
+          paymentActionError={financeAutosave.getPaymentActionError(
+            selectedTicket.id
+          )}
           getFieldStatus={financeAutosave.getFieldStatus}
           onCreate={(data) =>
             financeAutosave.createPayment(selectedTicket.id, data)
@@ -337,7 +340,9 @@ export function FinanceTable() {
           onUpdate={(paymentId, paymentData, fieldKey) =>
             financeAutosave.savePayment(paymentId, paymentData, fieldKey)
           }
-          onDelete={(paymentId) => financeAutosave.deletePayment(paymentId)}
+          onDelete={(paymentId) =>
+            financeAutosave.deletePayment(selectedTicket.id, paymentId)
+          }
           onFinanceChange={(financeData, fieldKey) =>
             financeAutosave.saveFinance(
               selectedTicket.id,
