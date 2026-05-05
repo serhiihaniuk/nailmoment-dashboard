@@ -139,6 +139,8 @@ export function FinanceTable() {
     }
 
     const saveState = financeAutosave.getTicketSaveState(selectedTicket);
+    const hasShownFailedCloseWarning =
+      blockedCloseTicketId === selectedTicket.id;
 
     if (saveState.isSaving) {
       setBlockedCloseTicketId(null);
@@ -146,7 +148,7 @@ export function FinanceTable() {
       return;
     }
 
-    if (saveState.hasError) {
+    if (saveState.hasError && !hasShownFailedCloseWarning) {
       setBlockedCloseTicketId(selectedTicket.id);
       return;
     }
