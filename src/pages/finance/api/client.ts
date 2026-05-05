@@ -1,11 +1,14 @@
 import {
   paymentInstallmentSchema,
   parseTicketWithFinanceList,
+  parseTicketWithFinance,
   splitMoney,
   ticketFinanceSchema,
   ticketSchema,
   toMoneyNumber,
+  getExpectedPaymentCount,
   type PaymentInstallment,
+  type PaymentPlan,
   type Ticket,
   type TicketFinance,
   type TicketWithFinance,
@@ -22,7 +25,6 @@ import type {
 } from '../model/types';
 import { ApiError } from '../model/types';
 import {
-  getExpectedPaymentCount,
   readApiError,
 } from '../model/utils';
 import { z } from 'zod';
@@ -63,6 +65,19 @@ export async function saveFinance(
   });
   if (!response.ok) throw await readApiError(response);
   return ticketFinanceSchema.parse(await response.json());
+}
+
+export async function syncTicketPaymentPlan(
+  ticketId: string,
+  paymentPlan: PaymentPlan
+): Promise<TicketWithFinance> {
+  const response = await fetch(`/api/ticket/${ticketId}/finance/payment-plan`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payment_plan: paymentPlan }),
+  });
+  if (!response.ok) throw await readApiError(response);
+  return parseTicketWithFinance(await response.json());
 }
 
 export async function createTicket(body: CreateTicketInput): Promise<{ ticket: { id: string } }> {

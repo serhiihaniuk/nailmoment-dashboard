@@ -44,7 +44,10 @@ export {
   type TicketGradeOrUnknown,
   type TicketId,
   type TicketWithFinance,
+  getExpectedPaymentCount,
+  isZeroPaymentPlan,
 } from "./model/ticket";
+export { buildTicketFinanceSummary } from "./model/finance-summary";
 export {
   extractInstagramName,
   extractInstagramUsername,

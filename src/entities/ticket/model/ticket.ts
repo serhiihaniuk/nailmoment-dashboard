@@ -142,6 +142,20 @@ export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 export type FinancePaymentStatus = z.infer<typeof financePaymentStatusSchema>;
 
+export function getExpectedPaymentCount(plan: PaymentPlan): number | null {
+  if (plan === "full") return 1;
+  if (plan === "two_parts") return 2;
+  if (plan === "three_parts") return 3;
+  if (plan === "free" || plan === "sponsor") return 0;
+  return null;
+}
+
+export function isZeroPaymentPlan(
+  plan: string | null | undefined
+): boolean {
+  return plan === "free" || plan === "sponsor";
+}
+
 // Browser-facing response schemas. Keep route/client responses aligned here.
 export const ticketSchema = z.object({
   archived: z.boolean(),

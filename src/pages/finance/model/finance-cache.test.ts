@@ -1,0 +1,180 @@
+import { describe, expect, test } from "vitest";
+import type {
+  PaymentInstallment,
+  TicketFinance,
+  TicketWithFinance,
+} from "@/entities/ticket";
+import {
+  patchPaymentInFinanceCache,
+  patchPaymentPlanInFinanceCache,
+  patchTicketFinanceInCache,
+  patchTicketInFinanceCache,
+} from "./finance-cache";
+
+const createdAt = new Date("2026-01-01T10:00:00.000Z");
+const futureDueDate = new Date("2030-01-01T10:00:00.000Z");
+
+function makeFinance(
+  overrides: Partial<TicketFinance> = {}
+): TicketFinance {
+  return {
+    id: "finance-1",
+    ticket_id: "ticket-1",
+    sale_source: "site",
+    payment_plan: "two_parts",
+    gross_total: "100.00",
+    discount_amount: "0.00",
+    tax_amount: "20.00",
+    net_total: "80.00",
+    nip: "",
+    finance_note: "",
+    created_at: createdAt,
+    updated_at: createdAt,
+    ...overrides,
+  };
+}
+
+function makePayment(
+  overrides: Partial<PaymentInstallment> = {}
+): PaymentInstallment {
+  return {
+    id: "payment-1",
+    ticket_id: "ticket-1",
+    installment_number: 1,
+    amount: "40.00",
+    sale_source: "site",
+    due_date: futureDueDate,
+    paid_date: null,
+    payment_method: "blik",
+    invoice_status: "not_needed",
+    invoice_number: "",
+    comment: "",
+    created_at: createdAt,
+    updated_at: createdAt,
+    ...overrides,
+  };
+}
+
+function makeTicket(
+  overrides: Partial<TicketWithFinance> = {}
+): TicketWithFinance {
+  const finance = overrides.finance ?? makeFinance();
+  const payments = overrides.payments ?? [makePayment()];
+
+  return {
+    id: "ticket-1",
+    name: "Old Name",
+    email: "old@example.com",
+    phone: "+48123123123",
+    instagram: "old_handle",
+    grade: "standard",
+    updated_grade: null,
+    comment: "",
+    date: createdAt,
+    archived: false,
+    arrived: false,
+    mail_sent: false,
+    qr_code: "",
+    stripe_event_id: "",
+    finance,
+    payments,
+    finance_summary: {
+      gross_total: finance?.gross_total ?? "0.00",
+      paid_total: "0.00",
+      remaining_total: finance?.gross_total ?? "0.00",
+      payment_count: payments.length,
+      payment_status: finance ? "unpaid" : "untracked",
+      invoice_status: payments.length > 0 ? "not_needed" : null,
+      next_due_date: payments[0]?.due_date ?? null,
+    },
+    ...overrides,
+  };
+}
+
+function readTicket(cache: TicketWithFinance[]): TicketWithFinance {
+  const ticket = cache.find((item) => item.id === "ticket-1");
+  if (!ticket) {
+    throw new Error("Expected ticket fixture to be present");
+  }
+
+  return ticket;
+}
+
+describe("finance optimistic cache helpers", () => {
+  test("patches ticket fields in cached finance tickets", () => {
+    const result = patchTicketInFinanceCache([makeTicket()], "ticket-1", {
+      name: "New Name",
+      updated_grade: "vip",
+    });
+
+    const ticket = readTicket(result);
+    expect(ticket.name).toBe("New Name");
+    expect(ticket.updated_grade).toBe("vip");
+    expect(ticket.finance_summary.remaining_total).toBe("100.00");
+  });
+
+  test("patches finance fields and recalculates the summary", () => {
+    const result = patchTicketFinanceInCache([makeTicket()], "ticket-1", {
+      gross_total: "90",
+      tax_amount: "18",
+    });
+
+    const ticket = readTicket(result);
+    expect(ticket.finance?.gross_total).toBe("90.00");
+    expect(ticket.finance?.tax_amount).toBe("18.00");
+    expect(ticket.finance_summary.gross_total).toBe("90.00");
+    expect(ticket.finance_summary.remaining_total).toBe("90.00");
+    expect(ticket.finance_summary.payment_status).toBe("unpaid");
+  });
+
+  test("patches payment fields and recalculates paid and remaining totals", () => {
+    const paidDate = new Date("2026-02-01T10:00:00.000Z");
+    const result = patchPaymentInFinanceCache([makeTicket()], "payment-1", {
+      paid_date: paidDate,
+    });
+
+    const ticket = readTicket(result);
+    expect(ticket.payments[0]?.paid_date).toEqual(paidDate);
+    expect(ticket.finance_summary.paid_total).toBe("40.00");
+    expect(ticket.finance_summary.remaining_total).toBe("60.00");
+    expect(ticket.finance_summary.payment_status).toBe("partial");
+  });
+
+  test("keeps the previous cache snapshot usable for rollback", () => {
+    const previous = [makeTicket()];
+    const optimistic = patchTicketFinanceInCache(previous, "ticket-1", {
+      gross_total: "70",
+    });
+
+    expect(readTicket(optimistic).finance?.gross_total).toBe("70.00");
+    expect(readTicket(previous).finance?.gross_total).toBe("100.00");
+    expect(readTicket(previous).finance_summary.remaining_total).toBe("100.00");
+  });
+
+  test("applies zero-payment plans to cached finance and unpaid payments", () => {
+    const paidPayment = makePayment({
+      id: "payment-paid",
+      paid_date: new Date("2026-02-01T10:00:00.000Z"),
+    });
+    const unpaidPayment = makePayment({
+      id: "payment-unpaid",
+      installment_number: 2,
+      paid_date: null,
+    });
+
+    const result = patchPaymentPlanInFinanceCache(
+      [makeTicket({ payments: [paidPayment, unpaidPayment] })],
+      "ticket-1",
+      "free"
+    );
+
+    const ticket = readTicket(result);
+    expect(ticket.finance?.payment_plan).toBe("free");
+    expect(ticket.finance_summary.gross_total).toBe("0.00");
+    expect(ticket.finance_summary.remaining_total).toBe("0.00");
+    expect(ticket.finance_summary.payment_status).toBe("paid");
+    expect(ticket.payments.map((payment) => payment.id)).toEqual([
+      "payment-paid",
+    ]);
+  });
+});

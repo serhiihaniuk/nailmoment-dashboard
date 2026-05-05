@@ -15,31 +15,20 @@ import {
   TableRow,
 } from '@/shared/ui/table';
 import type { TicketWithFinance } from '@/entities/ticket';
-import type {
-  InsertPaymentInstallmentInput,
-  PatchPaymentInstallmentInput,
-  UpsertTicketFinanceInput,
-} from '@/shared/db/schema.zod';
 import { cn } from '@/shared/lib/cn';
 import {
-  createPayment,
   createTicketWithFinance,
-  deletePayment,
   fetchTickets,
-  patchTicket,
-  saveFinance,
-  updatePayment,
 } from '../api/client';
-import { type PaymentPlan } from '../model/constants';
-import type { CreateTicketInput, PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
+import type { PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
+import { ticketsQueryKey } from '../model/finance-cache';
+import { useFinanceAutosave } from '../model/use-finance-autosave';
 import {
   calculatedNetTotal,
   formatDate,
   formatZloty,
   getDisplayedPaymentCount,
-  getExpectedPaymentCount,
   isZeroPaymentPlan,
-  splitMoney,
   toMoneyNumber,
 } from '../model/utils';
 import { FinanceCharts, buildFinanceCharts } from './finance-charts';
@@ -56,223 +45,23 @@ export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilterValue>("all");
-  const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const financeAutosave = useFinanceAutosave();
   const { data, isLoading, isFetching, isError } = useQuery<
     TicketWithFinance[],
     Error
   >({
-    queryKey: ["tickets"],
+    queryKey: ticketsQueryKey,
     queryFn: fetchTickets,
     staleTime: Infinity,
-  });
-
-  const saveFinanceMutation = useMutation({
-    mutationFn: ({
-      ticketId,
-      data,
-    }: {
-      ticketId: string;
-      data: UpsertTicketFinanceInput;
-    }) => saveFinance(ticketId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
-  });
-
-  const updatePaymentMutation = useMutation({
-    mutationFn: ({
-      paymentId,
-      data,
-    }: {
-      paymentId: string;
-      data: PatchPaymentInstallmentInput;
-    }) => updatePayment(paymentId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
-  });
-
-  const createPaymentMutation = useMutation({
-    mutationFn: ({
-      ticketId,
-      data,
-    }: {
-      ticketId: string;
-      data: InsertPaymentInstallmentInput;
-    }) => createPayment(ticketId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
-  });
-
-  const deletePaymentMutation = useMutation({
-    mutationFn: (paymentId: string) => deletePayment(paymentId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
-  });
-
-  const updateTicketMutation = useMutation({
-    mutationFn: ({
-      ticketId,
-      data,
-    }: {
-      ticketId: string;
-      data: Partial<CreateTicketInput> & {
-        updated_grade?: string | null;
-        comment?: string;
-      };
-    }) => patchTicket(ticketId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
 
   const createTicketMutation = useMutation({
     mutationFn: createTicketWithFinance,
     onSuccess: (ticket) => {
       setOpenTicketId(ticket.id);
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
       queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
-    },
-  });
-
-  const syncPlanMutation = useMutation({
-    mutationFn: async ({
-      ticket,
-      paymentPlan,
-    }: {
-      ticket: TicketWithFinance;
-      paymentPlan: PaymentPlan;
-    }) => {
-      const expectedPaymentCount = getExpectedPaymentCount(paymentPlan);
-      const sortedPayments = [...ticket.payments].sort(
-        (a, b) => a.installment_number - b.installment_number
-      );
-      const paidPayments = sortedPayments.filter((payment) => payment.paid_date);
-
-      if (
-        expectedPaymentCount !== null &&
-        expectedPaymentCount < paidPayments.length
-      ) {
-        throw new Error(
-          "Не можна вибрати менше платежів, ніж уже оплачено."
-        );
-      }
-
-      if (expectedPaymentCount === null) {
-        await saveFinance(ticket.id, { payment_plan: paymentPlan });
-        return;
-      }
-
-      if (expectedPaymentCount === 0) {
-        await saveFinance(ticket.id, {
-          payment_plan: paymentPlan,
-          gross_total: "0.00",
-          discount_amount: "0.00",
-          tax_amount: "0.00",
-          net_total: "0.00",
-        });
-
-        for (const payment of sortedPayments.filter(
-          (payment) => !payment.paid_date
-        )) {
-          await deletePayment(payment.id);
-        }
-
-        return;
-      }
-
-      await saveFinance(ticket.id, { payment_plan: paymentPlan });
-
-      const remainingAfterPaid = Math.max(
-        toMoneyNumber(ticket.finance?.gross_total) -
-          paidPayments.reduce(
-            (total, payment) => total + toMoneyNumber(payment.amount),
-            0
-          ),
-        0
-      );
-      const targetPaymentCount = Math.max(
-        expectedPaymentCount,
-        paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
-      );
-      const paidPaymentIds = new Set(paidPayments.map((payment) => payment.id));
-      const removeCount = Math.max(
-        sortedPayments.length - targetPaymentCount,
-        0
-      );
-      const removablePayments = sortedPayments
-        .filter((payment) => !paidPaymentIds.has(payment.id))
-        .sort((a, b) => b.installment_number - a.installment_number)
-        .slice(0, removeCount);
-      const removablePaymentIds = new Set(
-        removablePayments.map((payment) => payment.id)
-      );
-
-      for (const payment of removablePayments) {
-        await deletePayment(payment.id);
-      }
-
-      const splitAmounts = splitMoney(
-        remainingAfterPaid.toFixed(2),
-        Math.max(targetPaymentCount - paidPayments.length, 0)
-      );
-      const remainingPayments = sortedPayments
-        .filter((payment) => !removablePaymentIds.has(payment.id))
-        .sort((a, b) => a.installment_number - b.installment_number);
-      let unpaidPaymentIndex = 0;
-
-      for (const [index, payment] of remainingPayments.entries()) {
-        const patch: PatchPaymentInstallmentInput = {};
-
-        if (payment.installment_number !== index + 1) {
-          patch.installment_number = index + 1;
-        }
-
-        if (!payment.paid_date) {
-          patch.amount = splitAmounts[unpaidPaymentIndex] ?? "0.00";
-          unpaidPaymentIndex += 1;
-        }
-
-        if (Object.keys(patch).length > 0) {
-          await updatePayment(payment.id, patch);
-        }
-      }
-
-      for (
-        let index = remainingPayments.length + 1;
-        index <= targetPaymentCount;
-        index += 1
-      ) {
-        await createPayment(ticket.id, {
-          installment_number: index,
-          amount: splitAmounts[unpaidPaymentIndex] ?? "0.00",
-          sale_source: "direct_transfer",
-          paid_date: "",
-          due_date: "",
-          payment_method: "other",
-          invoice_status: "not_needed",
-          invoice_number: "",
-          comment: "",
-        });
-        unpaidPaymentIndex += 1;
-      }
-    },
-    onMutate: ({ ticket }) => {
-      setPlanErrors((current) => {
-        const next = { ...current };
-        delete next[ticket.id];
-        return next;
-      });
-    },
-    onError: (error, { ticket }) => {
-      setPlanErrors((current) => ({
-        ...current,
-        [ticket.id]:
-          error instanceof Error
-            ? error.message
-            : "Не вдалося змінити план оплати.",
-      }));
-    },
-    onSuccess: (_data, { ticket }) => {
-      setPlanErrors((current) => {
-        const next = { ...current };
-        delete next[ticket.id];
-        return next;
-      });
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
     },
   });
 
@@ -329,13 +118,7 @@ export function FinanceTable() {
   );
 
   const isSaving =
-    saveFinanceMutation.isPending ||
-    updatePaymentMutation.isPending ||
-    createPaymentMutation.isPending ||
-    deletePaymentMutation.isPending ||
-    updateTicketMutation.isPending ||
-    createTicketMutation.isPending ||
-    syncPlanMutation.isPending;
+    financeAutosave.isSaving || createTicketMutation.isPending;
 
   const openTicketPayments = (ticketId: string) => {
     setOpenTicketId(ticketId);
@@ -547,37 +330,35 @@ export function FinanceTable() {
           ticket={selectedTicket}
           open={Boolean(openTicketId)}
           onClose={() => setOpenTicketId(null)}
-          planError={planErrors[selectedTicket.id]}
+          paymentActionError={financeAutosave.getPaymentActionError(
+            selectedTicket.id
+          )}
+          getFieldStatus={financeAutosave.getFieldStatus}
           onCreate={(data) =>
-            createPaymentMutation.mutate({
-              ticketId: selectedTicket.id,
-              data,
-            })
+            financeAutosave.createPayment(selectedTicket.id, data)
           }
-          onUpdate={(paymentId, paymentData) =>
-            updatePaymentMutation.mutate({
-              paymentId,
-              data: paymentData,
-            })
+          onUpdate={(paymentId, paymentData, fieldKey) =>
+            financeAutosave.savePayment(paymentId, paymentData, fieldKey)
           }
-          onDelete={(paymentId) => deletePaymentMutation.mutate(paymentId)}
-          onFinanceChange={(financeData) =>
-            saveFinanceMutation.mutate({
-              ticketId: selectedTicket.id,
-              data: financeData,
-            })
+          onDelete={(paymentId) =>
+            financeAutosave.deletePayment(selectedTicket.id, paymentId)
           }
-          onTicketChange={(ticketData) =>
-            updateTicketMutation.mutate({
-              ticketId: selectedTicket.id,
-              data: ticketData,
-            })
+          onFinanceChange={(financeData, fieldKey) =>
+            financeAutosave.saveFinance(
+              selectedTicket.id,
+              financeData,
+              fieldKey
+            )
           }
-          onPaymentPlanChange={(paymentPlan) =>
-            syncPlanMutation.mutate({
-              ticket: selectedTicket,
+          onTicketChange={(ticketData, fieldKey) =>
+            financeAutosave.saveTicket(selectedTicket.id, ticketData, fieldKey)
+          }
+          onPaymentPlanChange={(paymentPlan, fieldKey) =>
+            financeAutosave.savePaymentPlan(
+              selectedTicket.id,
               paymentPlan,
-            })
+              fieldKey
+            )
           }
         />
       )}

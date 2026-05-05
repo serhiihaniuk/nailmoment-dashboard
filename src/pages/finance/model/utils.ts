@@ -1,7 +1,11 @@
 import type { TicketWithFinance } from '@/entities/ticket';
 import type { UpsertTicketFinanceInput } from '@/shared/db/schema.zod';
-import { TICKET_PRICE_BY_GRADE } from '@/entities/ticket';
-import { INVOICE_STATUS_OPTIONS, type PaymentPlan } from './constants';
+import {
+  TICKET_PRICE_BY_GRADE,
+  getExpectedPaymentCount,
+  isZeroPaymentPlan,
+} from '@/entities/ticket';
+import { INVOICE_STATUS_OPTIONS } from './constants';
 import type {
   ApiIssue,
   CreateTicketWithFinanceInput,
@@ -11,6 +15,8 @@ import type {
 } from './types';
 import { ApiError } from './types';
 import { z } from 'zod';
+
+export { getExpectedPaymentCount, isZeroPaymentPlan } from '@/entities/ticket';
 
 // API routes currently return a few compatible error shapes. Normalize them
 // here so finance forms can keep one `ApiError`/`fieldErrors` path.
@@ -145,18 +151,6 @@ export function createNewTicketFinanceDefaults(): CreateTicketWithFinanceInput {
     nip: "",
     finance_note: "",
   };
-}
-
-export function getExpectedPaymentCount(plan: PaymentPlan): number | null {
-  if (plan === "full") return 1;
-  if (plan === "two_parts") return 2;
-  if (plan === "three_parts") return 3;
-  if (plan === "free" || plan === "sponsor") return 0;
-  return null;
-}
-
-export function isZeroPaymentPlan(plan: string | null | undefined): boolean {
-  return plan === "free" || plan === "sponsor";
 }
 
 export function getDisplayedPaymentCount(ticket: TicketWithFinance): number {
