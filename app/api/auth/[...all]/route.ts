@@ -1,4 +1,1 @@
-import { auth } from "@/shared/better-auth/auth";
-import { toNextJsHandler } from "better-auth/next-js";
-
-export const { POST, GET } = toNextJsHandler(auth);
+export { GET, POST } from "@/app/api-routes/auth/[...all]/route";
