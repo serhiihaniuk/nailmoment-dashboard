@@ -1,4 +1,4 @@
-import { CalendarIcon } from 'lucide-react';
+import { AlertCircle, CalendarIcon, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Calendar } from '@/shared/ui/calendar';
 import { Field, FieldError, FieldLabel } from '@/shared/ui/field';
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/shared/ui/select';
 import { cn } from '@/shared/lib/cn';
+import type { SaveStatus } from '../model/autosave-status';
 import { formatDate, normalizeMoney, toDateInputValue } from '../model/utils';
 
 export function PaymentField({
@@ -24,20 +25,84 @@ export function PaymentField({
   children,
   className,
   error,
+  saveStatus,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string | undefined;
   error?: string | undefined;
+  saveStatus?: SaveStatus | undefined;
 }) {
+  const fieldError =
+    error ?? (saveStatus?.state === "error" ? saveStatus.message : undefined);
+
   return (
-    <Field className={className} data-invalid={Boolean(error) || undefined}>
-      <FieldLabel className="text-[11px] text-muted-foreground">
+    <Field className={className} data-invalid={Boolean(fieldError) || undefined}>
+      <FieldLabel className="min-h-4 text-[11px] text-muted-foreground">
         {label}
       </FieldLabel>
-      {children}
-      <FieldError className="text-[11px]" errors={error ? [{ message: error }] : []} />
+      <div className="w-full space-y-0.5">
+        {children}
+        <SaveStatusLine status={saveStatus} />
+      </div>
+      <FieldError
+        className="mt-0 text-[11px]"
+        errors={fieldError ? [{ message: fieldError }] : []}
+      />
     </Field>
+  );
+}
+
+export function SaveStatusLine({
+  status,
+  className,
+}: {
+  status?: SaveStatus | undefined;
+  className?: string | undefined;
+}) {
+  return (
+    <div
+      className={cn("flex min-h-4 items-center", className)}
+      aria-live="polite"
+    >
+      <SaveStatusIndicator status={status} />
+    </div>
+  );
+}
+
+export function SaveStatusIndicator({
+  status,
+}: {
+  status?: SaveStatus | undefined;
+}) {
+  if (!status || status.state === "idle") return null;
+
+  if (status.state === "saving") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Зберігається...
+      </span>
+    );
+  }
+
+  if (status.state === "saved") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-success">
+        <Check className="h-3 w-3" />
+        Збережено
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 text-[11px] text-destructive"
+      title={status.message}
+    >
+      <AlertCircle className="h-3 w-3" />
+      Не збережено
+    </span>
   );
 }
 

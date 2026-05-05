@@ -38,6 +38,12 @@ import type {
 } from '@/shared/db/schema.zod';
 import { TICKET_PRICE_BY_GRADE } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
+import type { SaveStatus } from '../model/autosave-status';
+import {
+  financeFieldKey,
+  paymentFieldKey,
+  ticketFieldKey,
+} from '../model/autosave-status';
 import {
   GRADE_SELECT_OPTIONS,
   INVOICE_STATUS_OPTIONS,
@@ -47,7 +53,7 @@ import {
   type PaymentPlan,
   type TicketGrade,
 } from '../model/constants';
-import type { CreateTicketInput } from '../model/types';
+import type { FinanceTicketPatch } from '../model/finance-cache';
 import {
   buildFinancePatchWithNet,
   calculatedNetTotal,
@@ -68,6 +74,7 @@ import {
   MoneyCell,
   PaymentField,
   ReadOnlyMoney,
+  SaveStatusLine,
   SmallSelect,
   TextCell,
 } from './edit-cells';
@@ -76,7 +83,7 @@ export function PaymentsPanel({
   ticket,
   open,
   onClose,
-  planError,
+  getFieldStatus,
   onCreate,
   onUpdate,
   onDelete,
@@ -87,18 +94,17 @@ export function PaymentsPanel({
   ticket: TicketWithFinance;
   open: boolean;
   onClose: () => void;
-  planError?: string | undefined;
+  getFieldStatus: (fieldKey: string) => SaveStatus;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
-  onUpdate: (paymentId: string, data: PatchPaymentInstallmentInput) => void;
-  onDelete: (paymentId: string) => void;
-  onFinanceChange: (data: UpsertTicketFinanceInput) => void;
-  onTicketChange: (
-    data: Partial<CreateTicketInput> & {
-      updated_grade?: string | null;
-      comment?: string;
-    }
+  onUpdate: (
+    paymentId: string,
+    data: PatchPaymentInstallmentInput,
+    fieldKey: string
   ) => void;
-  onPaymentPlanChange: (paymentPlan: PaymentPlan) => void;
+  onDelete: (paymentId: string) => void;
+  onFinanceChange: (data: UpsertTicketFinanceInput, fieldKey: string) => void;
+  onTicketChange: (data: FinanceTicketPatch, fieldKey: string) => void;
+  onPaymentPlanChange: (paymentPlan: PaymentPlan, fieldKey: string) => void;
 }) {
   const sortedPayments = [...ticket.payments].sort(
     (a, b) => a.installment_number - b.installment_number
@@ -120,6 +126,21 @@ export function PaymentsPanel({
   );
   const hasUnscheduledRemaining = unscheduledRemaining >= 0.01;
   const selectedPaymentPlan = ticket.finance?.payment_plan ?? "full";
+  const selectedGrade =
+    GRADE_SELECT_OPTIONS.find(
+      (option) => option.value === (ticket.updated_grade ?? ticket.grade)
+    )?.value ?? "standard";
+  const nameFieldKey = ticketFieldKey(ticket.id, "name");
+  const phoneFieldKey = ticketFieldKey(ticket.id, "phone");
+  const emailFieldKey = ticketFieldKey(ticket.id, "email");
+  const instagramFieldKey = ticketFieldKey(ticket.id, "instagram");
+  const gradeFieldKey = ticketFieldKey(ticket.id, "updated_grade");
+  const paymentPlanFieldKey = financeFieldKey(ticket.id, "payment_plan");
+  const grossTotalFieldKey = financeFieldKey(ticket.id, "gross_total");
+  const taxAmountFieldKey = financeFieldKey(ticket.id, "tax_amount");
+  const discountAmountFieldKey = financeFieldKey(ticket.id, "discount_amount");
+  const nipFieldKey = financeFieldKey(ticket.id, "nip");
+  const financeNoteFieldKey = financeFieldKey(ticket.id, "finance_note");
   const hasZeroPaymentPlan = isZeroPaymentPlan(selectedPaymentPlan);
   const planPaymentLimit = getExpectedPaymentCount(selectedPaymentPlan);
   const displayedPaymentCount = getDisplayedPaymentCount(ticket);
@@ -137,11 +158,12 @@ export function PaymentsPanel({
   const handleGradeChange = (grade: TicketGrade) => {
     onTicketChange({
       updated_grade: grade === ticket.grade ? null : grade,
-    });
+    }, gradeFieldKey);
     onFinanceChange(
       buildFinancePatchWithNet(ticket, {
         gross_total: hasZeroPaymentPlan ? "0.00" : TICKET_PRICE_BY_GRADE[grade],
-      })
+      }),
+      grossTotalFieldKey
     );
   };
 
@@ -224,28 +246,42 @@ export function PaymentsPanel({
       <div className="space-y-4 mb-6">
         <h3 className="text-label-caps">Контактна інформація</h3>
         <div className="grid grid-cols-2 gap-3">
-          <PaymentField label="Ім'я">
+          <PaymentField
+            label="Ім'я"
+            saveStatus={getFieldStatus(nameFieldKey)}
+          >
             <TextCell
               value={ticket.name}
-              onSave={(name) => onTicketChange({ name })}
+              onSave={(name) => onTicketChange({ name }, nameFieldKey)}
             />
           </PaymentField>
-          <PaymentField label="Телефон">
+          <PaymentField
+            label="Телефон"
+            saveStatus={getFieldStatus(phoneFieldKey)}
+          >
             <TextCell
               value={ticket.phone ?? ""}
-              onSave={(phone) => onTicketChange({ phone })}
+              onSave={(phone) => onTicketChange({ phone }, phoneFieldKey)}
             />
           </PaymentField>
-          <PaymentField label="Email">
+          <PaymentField
+            label="Email"
+            saveStatus={getFieldStatus(emailFieldKey)}
+          >
             <TextCell
               value={ticket.email}
-              onSave={(email) => onTicketChange({ email })}
+              onSave={(email) => onTicketChange({ email }, emailFieldKey)}
             />
           </PaymentField>
-          <PaymentField label="Instagram">
+          <PaymentField
+            label="Instagram"
+            saveStatus={getFieldStatus(instagramFieldKey)}
+          >
             <TextCell
               value={ticket.instagram ?? ""}
-              onSave={(instagram) => onTicketChange({ instagram })}
+              onSave={(instagram) =>
+                onTicketChange({ instagram }, instagramFieldKey)
+              }
             />
           </PaymentField>
         </div>
@@ -255,58 +291,81 @@ export function PaymentsPanel({
       <div className="space-y-4 mb-6">
         <h3 className="text-label-caps">Фінансові деталі</h3>
         <div className="grid grid-cols-2 gap-3">
-          <PaymentField label="Тариф">
+          <PaymentField
+            label="Тариф"
+            saveStatus={getFieldStatus(gradeFieldKey)}
+          >
             <SmallSelect
-              value={(ticket.updated_grade ?? ticket.grade) as TicketGrade}
+              value={selectedGrade}
               options={GRADE_SELECT_OPTIONS}
               onChange={handleGradeChange}
             />
           </PaymentField>
-          <PaymentField label="Оплата / розстрочка">
+          <PaymentField
+            label="Оплата / розстрочка"
+            saveStatus={getFieldStatus(paymentPlanFieldKey)}
+          >
             <SmallSelect
               value={selectedPaymentPlan}
               options={PAYMENT_PLAN_OPTIONS}
               disabledValues={disabledPaymentPlans}
-              onChange={onPaymentPlanChange}
+              onChange={(paymentPlan) =>
+                onPaymentPlanChange(paymentPlan, paymentPlanFieldKey)
+              }
             />
-            {planError && (
-              <span className="block text-[11px] text-destructive mt-1">
-                {planError}
-              </span>
-            )}
           </PaymentField>
-          <PaymentField label="До оплати">
+          <PaymentField
+            label="До оплати"
+            saveStatus={getFieldStatus(grossTotalFieldKey)}
+          >
             <MoneyCell
               value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.gross_total ?? "0.00"}
               disabled={hasZeroPaymentPlan}
               onSave={(gross_total) =>
-                onFinanceChange(buildFinancePatchWithNet(ticket, { gross_total }))
+                onFinanceChange(
+                  buildFinancePatchWithNet(ticket, { gross_total }),
+                  grossTotalFieldKey
+                )
               }
             />
           </PaymentField>
-          <PaymentField label="Податок">
+          <PaymentField
+            label="Податок"
+            saveStatus={getFieldStatus(taxAmountFieldKey)}
+          >
             <MoneyCell
               value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.tax_amount ?? "0.00"}
               disabled={hasZeroPaymentPlan}
               onSave={(tax_amount) =>
-                onFinanceChange(buildFinancePatchWithNet(ticket, { tax_amount }))
+                onFinanceChange(
+                  buildFinancePatchWithNet(ticket, { tax_amount }),
+                  taxAmountFieldKey
+                )
               }
             />
           </PaymentField>
-          <PaymentField label="Знижка">
+          <PaymentField
+            label="Знижка"
+            saveStatus={getFieldStatus(discountAmountFieldKey)}
+          >
             <MoneyCell
               value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.discount_amount ?? "0.00"}
               disabled={hasZeroPaymentPlan}
-              onSave={(discount_amount) => onFinanceChange({ discount_amount })}
+              onSave={(discount_amount) =>
+                onFinanceChange({ discount_amount }, discountAmountFieldKey)
+              }
             />
           </PaymentField>
           <PaymentField label="Нетто">
             <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
           </PaymentField>
-          <PaymentField label="NIP">
+          <PaymentField
+            label="NIP"
+            saveStatus={getFieldStatus(nipFieldKey)}
+          >
             <TextCell
               value={ticket.finance?.nip ?? ""}
-              onSave={(nip) => onFinanceChange({ nip })}
+              onSave={(nip) => onFinanceChange({ nip }, nipFieldKey)}
             />
           </PaymentField>
           <PaymentField label="Дата">
@@ -328,10 +387,15 @@ export function PaymentsPanel({
             </Link>
           </PaymentField>
         </div>
-        <PaymentField label="Коментар">
+        <PaymentField
+          label="Коментар"
+          saveStatus={getFieldStatus(financeNoteFieldKey)}
+        >
           <TextCell
             value={ticket.finance?.finance_note ?? ""}
-            onSave={(finance_note) => onFinanceChange({ finance_note })}
+            onSave={(finance_note) =>
+              onFinanceChange({ finance_note }, financeNoteFieldKey)
+            }
           />
         </PaymentField>
       </div>
@@ -345,6 +409,7 @@ export function PaymentsPanel({
               key={payment.id}
               payment={payment}
               isStripePayment={isStripeOriginPayment(ticket, payment)}
+              getFieldStatus={getFieldStatus}
               onUpdate={onUpdate}
               onDelete={onDelete}
             />
@@ -369,17 +434,31 @@ export function PaymentsPanel({
 function PaymentCard({
   payment,
   isStripePayment,
+  getFieldStatus,
   onUpdate,
   onDelete,
 }: {
   payment: TicketWithFinance["payments"][number];
   isStripePayment: boolean;
-  onUpdate: (paymentId: string, data: PatchPaymentInstallmentInput) => void;
+  getFieldStatus: (fieldKey: string) => SaveStatus;
+  onUpdate: (
+    paymentId: string,
+    data: PatchPaymentInstallmentInput,
+    fieldKey: string
+  ) => void;
   onDelete: (paymentId: string) => void;
 }) {
   const isPaid = Boolean(payment.paid_date);
   const isLocked = isStripePayment;
   const canDelete = !isPaid && !isStripePayment;
+  const amountFieldKey = paymentFieldKey(payment.id, "amount");
+  const paidDateFieldKey = paymentFieldKey(payment.id, "paid_date");
+  const dueDateFieldKey = paymentFieldKey(payment.id, "due_date");
+  const saleSourceFieldKey = paymentFieldKey(payment.id, "sale_source");
+  const paymentMethodFieldKey = paymentFieldKey(payment.id, "payment_method");
+  const invoiceStatusFieldKey = paymentFieldKey(payment.id, "invoice_status");
+  const invoiceNumberFieldKey = paymentFieldKey(payment.id, "invoice_number");
+  const commentFieldKey = paymentFieldKey(payment.id, "comment");
   const statusText = isStripePayment
     ? "Платіж Stripe"
     : isPaid
@@ -409,18 +488,30 @@ function PaymentCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <label className="flex items-center gap-2 whitespace-nowrap text-[12px] font-medium">
-            Оплачено
-            <Switch
-              checked={isPaid}
-              disabled={isLocked}
-              onCheckedChange={(checked) =>
-                onUpdate(payment.id, {
-                  paid_date: checked ? payment.paid_date ?? todayInputValue() : "",
-                })
-              }
+          <div className="flex flex-col items-end">
+            <label className="flex items-center gap-2 whitespace-nowrap text-[12px] font-medium">
+              <span>Оплачено</span>
+              <Switch
+                checked={isPaid}
+                disabled={isLocked}
+                onCheckedChange={(checked) =>
+                  onUpdate(
+                    payment.id,
+                    {
+                      paid_date: checked
+                        ? payment.paid_date ?? todayInputValue()
+                        : "",
+                    },
+                    paidDateFieldKey
+                  )
+                }
+              />
+            </label>
+            <SaveStatusLine
+              status={getFieldStatus(paidDateFieldKey)}
+              className="justify-end"
             />
-          </label>
+          </div>
           <DeletePaymentButton
             canDelete={canDelete}
             isPaid={isPaid}
@@ -432,65 +523,97 @@ function PaymentCard({
 
       <Separator />
       <CardContent className="grid grid-cols-1 gap-3 p-4">
-        <PaymentField label="Сума">
+        <PaymentField
+          label="Сума"
+          saveStatus={getFieldStatus(amountFieldKey)}
+        >
           <MoneyCell
             value={payment.amount}
             disabled={isLocked}
-            onSave={(amount) => onUpdate(payment.id, { amount })}
+            onSave={(amount) => onUpdate(payment.id, { amount }, amountFieldKey)}
           />
         </PaymentField>
-        <PaymentField label="Дата оплати">
+        <PaymentField
+          label="Дата оплати"
+          saveStatus={getFieldStatus(paidDateFieldKey)}
+        >
           <DateCell
             value={dateInputValue(payment.paid_date)}
             disabled={isLocked}
-            onSave={(paid_date) => onUpdate(payment.id, { paid_date })}
+            onSave={(paid_date) =>
+              onUpdate(payment.id, { paid_date }, paidDateFieldKey)
+            }
           />
         </PaymentField>
-        <PaymentField label="Термін оплати">
+        <PaymentField
+          label="Термін оплати"
+          saveStatus={getFieldStatus(dueDateFieldKey)}
+        >
           <DateCell
             value={dateInputValue(payment.due_date)}
             disabled={isLocked}
-            onSave={(due_date) => onUpdate(payment.id, { due_date })}
+            onSave={(due_date) =>
+              onUpdate(payment.id, { due_date }, dueDateFieldKey)
+            }
           />
         </PaymentField>
-        <PaymentField label="Джерело платежу">
+        <PaymentField
+          label="Джерело платежу"
+          saveStatus={getFieldStatus(saleSourceFieldKey)}
+        >
           <SmallSelect
             value={isStripePayment ? "site" : payment.sale_source}
             options={SALE_SOURCE_OPTIONS}
             disabled={isLocked}
-            onChange={(sale_source) => onUpdate(payment.id, { sale_source })}
+            onChange={(sale_source) =>
+              onUpdate(payment.id, { sale_source }, saleSourceFieldKey)
+            }
           />
         </PaymentField>
-        <PaymentField label="Спосіб оплати">
+        <PaymentField
+          label="Спосіб оплати"
+          saveStatus={getFieldStatus(paymentMethodFieldKey)}
+        >
           <SmallSelect
             value={payment.payment_method}
             options={PAYMENT_METHOD_OPTIONS}
             disabled={isLocked}
             onChange={(payment_method) =>
-              onUpdate(payment.id, { payment_method })
+              onUpdate(payment.id, { payment_method }, paymentMethodFieldKey)
             }
           />
         </PaymentField>
-        <PaymentField label="Рахунок-фактура">
+        <PaymentField
+          label="Рахунок-фактура"
+          saveStatus={getFieldStatus(invoiceStatusFieldKey)}
+        >
           <SmallSelect
             value={getInvoiceStatus(payment.invoice_status)}
             options={INVOICE_STATUS_OPTIONS}
             onChange={(invoice_status) =>
-              onUpdate(payment.id, { invoice_status })
+              onUpdate(payment.id, { invoice_status }, invoiceStatusFieldKey)
             }
           />
         </PaymentField>
-        <PaymentField label="№ рахунку-фактури">
+        <PaymentField
+          label="№ рахунку-фактури"
+          saveStatus={getFieldStatus(invoiceNumberFieldKey)}
+        >
           <TextCell
             value={payment.invoice_number}
-            onSave={(invoice_number) => onUpdate(payment.id, { invoice_number })}
+            onSave={(invoice_number) =>
+              onUpdate(payment.id, { invoice_number }, invoiceNumberFieldKey)
+            }
           />
         </PaymentField>
-        <PaymentField label="Коментар">
+        <PaymentField
+          label="Коментар"
+          saveStatus={getFieldStatus(commentFieldKey)}
+        >
           <TextCell
             value={payment.comment}
             disabled={isLocked}
-            onSave={(comment) => onUpdate(payment.id, { comment })}
+            onSave={(comment) => onUpdate(payment.id, { comment }, commentFieldKey)}
           />
         </PaymentField>
       </CardContent>
