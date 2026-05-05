@@ -12,8 +12,8 @@ export const Header = () => {
         <NavLink href="/dashboard">Квитки</NavLink>
         <NavLink href="/finance">Фінанси</NavLink>
         <NavLink href="/battle">Батл</NavLink>
-        <NavLink href="/speaker_vote">Спікер</NavLink>
-        <NavLink href="/info">Інфо</NavLink>
+        <NavLink href="/speaker_vote">Спікери</NavLink>
+        <NavLink href="/info">Допомога</NavLink>
       </div>
     </header>
   );

@@ -188,13 +188,11 @@ function buildFinanceSummary(
   const invoiceStatus =
     payments.length === 0
       ? null
-      : payments.some((payment) => payment.invoice_status === "not_sent")
-        ? "not_sent"
-        : payments.some((payment) => payment.invoice_status === "requested")
-          ? "requested"
-          : payments.every((payment) => payment.invoice_status === "not_needed")
-            ? "not_needed"
-            : "sent";
+      : payments.some((payment) => payment.invoice_status === "requested")
+        ? "requested"
+        : payments.some((payment) => payment.invoice_status === "sent")
+          ? "sent"
+          : "not_needed";
 
   const paymentStatus: TicketFinanceSummary["payment_status"] =
     !finance && payments.length === 0
