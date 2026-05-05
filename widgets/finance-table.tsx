@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type ComponentProps, type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
@@ -91,6 +91,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { TicketWithFinance } from "@/shared/db/schema";
 import type {
   InsertPaymentInstallmentInput,
@@ -106,7 +107,7 @@ import { cn } from "@/shared/utils";
 
 const SALE_SOURCE_OPTIONS = [
   { value: "site", label: "Сайт" },
-  { value: "direct_transfer", label: "Переказ напряму" },
+  { value: "direct_transfer", label: "Прямий переказ" },
   { value: "other", label: "Інше" },
 ] as const;
 
@@ -114,13 +115,13 @@ const PAYMENT_PLAN_OPTIONS = [
   { value: "full", label: "Повна оплата" },
   { value: "two_parts", label: "Розстрочка на 2 частини" },
   { value: "three_parts", label: "Розстрочка на 3 частини" },
-  { value: "custom", label: "Інша розстрочка" },
-  { value: "free", label: "Безкоштовно" },
-  { value: "sponsor", label: "Спонсор" },
+  { value: "custom", label: "Індивідуальний графік" },
+  { value: "free", label: "Без оплати" },
+  { value: "sponsor", label: "Спонсорський квиток" },
 ] as const;
 
 const PAYMENT_METHOD_OPTIONS = [
-  { value: "nail_moment_company", label: "Фірма Nail Moment" },
+  { value: "nail_moment_company", label: "Рахунок Nail Moment" },
   { value: "revolut", label: "Revolut" },
   { value: "blik", label: "BLIK" },
   { value: "cash", label: "Готівка" },
@@ -129,14 +130,15 @@ const PAYMENT_METHOD_OPTIONS = [
 ] as const;
 
 const INVOICE_STATUS_OPTIONS = [
-  { value: "not_sent", label: "Не відправлена" },
-  { value: "requested", label: "Запитана" },
-  { value: "sent", label: "Відправлена" },
+  { value: "not_sent", label: "Очікує відправки" },
+  { value: "requested", label: "Потрібна" },
+  { value: "sent", label: "Надіслана" },
   { value: "not_needed", label: "Не потрібна" },
 ] as const;
 
 type SaleSource = (typeof SALE_SOURCE_OPTIONS)[number]["value"];
 type PaymentPlan = (typeof PAYMENT_PLAN_OPTIONS)[number]["value"];
+type InvoiceStatus = (typeof INVOICE_STATUS_OPTIONS)[number]["value"];
 type TicketGrade = (typeof TICKET_TYPE_LIST)[number];
 
 const GRADE_SELECT_OPTIONS = TICKET_TYPE_LIST.map((value) => ({
@@ -195,7 +197,7 @@ const newTicketFinanceSchema = z
     if (grossTotal <= 0) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Повна оплата має бути більшою за 0",
+        message: "Сума до оплати має бути більшою за 0",
         path: ["gross_total"],
       });
     }
@@ -203,7 +205,7 @@ const newTicketFinanceSchema = z
     if (taxAmount > grossTotal) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Податок не може бути більшим за повну оплату",
+        message: "Податок не може бути більшим за суму до оплати",
         path: ["tax_amount"],
       });
     }
@@ -211,7 +213,7 @@ const newTicketFinanceSchema = z
     if (discountAmount > grossTotal) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Знижка не може бути більшою за повну оплату",
+        message: "Знижка не може бути більшою за суму до оплати",
         path: ["discount_amount"],
       });
     }
@@ -264,11 +266,24 @@ class ApiError extends Error {
 }
 
 type PaymentStatusFilter = "all" | "paid" | "partial" | "overdue" | "pending";
+type InvoiceFilter =
+  | "all"
+  | "action_required"
+  | "requested"
+  | "not_sent"
+  | "sent"
+  | "not_needed";
+type InvoiceSummary = Record<InvoiceStatus, number> & {
+  total: number;
+  actionRequired: number;
+};
+type InvoiceTotals = InvoiceSummary;
 
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>("all");
+  const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>("all");
   const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const { data, isLoading, isFetching, isError } = useQuery<
@@ -490,7 +505,7 @@ export function FinanceTable() {
     },
   });
 
-  const tickets = useMemo(() => {
+  const baseTickets = useMemo(() => {
     let activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
     
     // Apply status filter
@@ -519,6 +534,19 @@ export function FinanceTable() {
       ].some((value) => value?.toLowerCase().includes(normalizedQuery))
     );
   }, [data, query, statusFilter]);
+
+  const invoiceTotals = useMemo(
+    () => buildInvoiceTotals(baseTickets),
+    [baseTickets]
+  );
+
+  const tickets = useMemo(
+    () =>
+      baseTickets.filter((ticket) =>
+        ticketMatchesInvoiceFilter(ticket, invoiceFilter)
+      ),
+    [baseTickets, invoiceFilter]
+  );
 
   const financeTotals = useMemo(() => {
     return tickets.reduce(
@@ -572,15 +600,21 @@ export function FinanceTable() {
 
       {/* Summary stats - compact inline */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
-        <span className="text-muted-foreground">{tickets.length} записів</span>
+        <span className="text-muted-foreground">{tickets.length} квитків</span>
         <span className="hidden md:inline text-border">|</span>
-        <span><span className="text-muted-foreground">Сума:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
+        <span><span className="text-muted-foreground">До оплати:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
         <span><span className="text-muted-foreground">Оплачено:</span> <span className="font-semibold tabular-nums text-success">{formatZloty(financeTotals.paid)}</span></span>
-        <span><span className="text-muted-foreground">Залишок:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
+        <span><span className="text-muted-foreground">Залишилось:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
         {financeTotals.overdue > 0 && (
           <span><span className="text-muted-foreground">Прострочено:</span> <span className="font-semibold tabular-nums text-destructive">{financeTotals.overdue}</span></span>
         )}
       </div>
+
+      <InvoiceOverview
+        totals={invoiceTotals}
+        value={invoiceFilter}
+        onChange={setInvoiceFilter}
+      />
 
       {isError && (
         <p className="text-destructive font-medium">
@@ -607,10 +641,12 @@ export function FinanceTable() {
             />
           </div>
           <PaymentStatusFilter value={statusFilter} onChange={setStatusFilter} />
+          <Separator orientation="vertical" className="hidden h-5 sm:block" />
+          <InvoiceStatusFilter value={invoiceFilter} onChange={setInvoiceFilter} />
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="w-full min-w-225">
+          <Table className="w-full min-w-250">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/50">
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-65">
@@ -620,7 +656,7 @@ export function FinanceTable() {
                   Дата
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
-                  Повна оплата
+                  До оплати
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
@@ -628,11 +664,14 @@ export function FinanceTable() {
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
                   Платежі
                 </TableHead>
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
+                  Рахунок-фактура
+                </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
                   Податок
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
-                  Чиста сума
+                  Нетто
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-22.5">
                   Статус
@@ -642,8 +681,8 @@ export function FinanceTable() {
             <TableBody>
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                    {query || statusFilter !== "all" ? "Записів не знайдено" : "Немає фінансових записів"}
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                    {query || statusFilter !== "all" || invoiceFilter !== "all" ? "Нічого не знайдено" : "Фінансових записів ще немає"}
                   </TableCell>
                 </TableRow>
               )}
@@ -661,6 +700,7 @@ export function FinanceTable() {
                 const status = ticket.finance_summary.payment_status;
                 const isOverdue = status === "overdue";
                 const displayedPaymentCount = getDisplayedPaymentCount(ticket);
+                const invoiceSummary = getTicketInvoiceSummary(ticket);
 
                 return (
                   <TableRow
@@ -717,6 +757,9 @@ export function FinanceTable() {
                             .length
                         }/{displayedPaymentCount}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="py-3.5 px-4">
+                      <InvoiceStatusBadge summary={invoiceSummary} />
                     </TableCell>
                     <TableCell className={cn(
                       "py-3.5 px-4 text-right tabular-nums text-[13px]",
@@ -814,7 +857,7 @@ const saleSourceChartConfig = {
     color: "var(--chart-1)",
   },
   direct_transfer: {
-    label: "Переказ напряму",
+    label: "Прямий переказ",
     color: "var(--chart-2)",
   },
   other: {
@@ -825,18 +868,18 @@ const saleSourceChartConfig = {
 
 const paymentStatusChartConfig = {
   count: {
-    label: "Записи",
+    label: "Квитки",
   },
   paid: {
-    label: "Оплачені",
+    label: "Оплачено",
     color: "var(--success)",
   },
   partial: {
-    label: "Часткові",
+    label: "Часткова оплата",
     color: "var(--warning)",
   },
   unpaid: {
-    label: "Очікують",
+    label: "Очікують оплату",
     color: "var(--muted-foreground)",
   },
   overdue: {
@@ -844,18 +887,18 @@ const paymentStatusChartConfig = {
     color: "var(--destructive)",
   },
   untracked: {
-    label: "Без оплат",
+    label: "Без платежів",
     color: "var(--muted-foreground)",
   },
 } satisfies ChartConfig;
 
 const cashflowChartConfig = {
   paid: {
-    label: "Отримано",
+    label: "Надійшло",
     color: "var(--success)",
   },
   expected: {
-    label: "Очікується",
+    label: "Заплановано",
     color: "var(--warning)",
   },
 } satisfies ChartConfig;
@@ -879,13 +922,13 @@ function FinanceCharts({ data }: { data: FinanceChartData }) {
   const cashflowStats = [
     {
       key: "paid",
-      label: "Отримано",
+      label: "Надійшло",
       value: data.cashflow.reduce((sum, item) => sum + item.paid, 0),
       color: "var(--success)",
     },
     {
       key: "expected",
-      label: "Очікується",
+      label: "Заплановано",
       value: data.cashflow.reduce((sum, item) => sum + item.expected, 0),
       color: "var(--warning)",
     },
@@ -974,8 +1017,8 @@ function FinanceCharts({ data }: { data: FinanceChartData }) {
 
       <Card className="w-full">
         <CardHeader className="items-center pb-0">
-          <CardTitle>Продажі за джерелом</CardTitle>
-          <CardDescription>Сайт, переказ напряму та інше</CardDescription>
+          <CardTitle>Продажі за каналами</CardTitle>
+          <CardDescription>Розподіл за каналами оплати</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 pb-0">
           <ChartContainer
@@ -1020,7 +1063,7 @@ function FinanceCharts({ data }: { data: FinanceChartData }) {
               key: source.key,
               label: source.label,
               value: source.amount,
-              detail: `${source.count} записів`,
+              detail: `${source.count} квитків`,
               color: chartSaleSourceLegendFill[source.key],
             }))}
             total={sourceTotal}
@@ -1031,8 +1074,8 @@ function FinanceCharts({ data }: { data: FinanceChartData }) {
 
       <Card className="w-full">
         <CardHeader className="items-center pb-0">
-          <CardTitle>Статуси оплат</CardTitle>
-          <CardDescription>Оплачені, часткові, очікують і прострочені</CardDescription>
+          <CardTitle>Статуси платежів</CardTitle>
+          <CardDescription>Стан оплат за квитками</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 pb-0">
           <ChartContainer
@@ -1082,8 +1125,8 @@ function FinanceCharts({ data }: { data: FinanceChartData }) {
 
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Грошовий графік</CardTitle>
-          <CardDescription>Отримані платежі й очікувані внески</CardDescription>
+          <CardTitle>Графік платежів</CardTitle>
+          <CardDescription>Фактичні та заплановані надходження</CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer
@@ -1205,6 +1248,125 @@ function ChartStatsList({
         <div className="text-sm text-muted-foreground">Немає даних</div>
       )}
     </div>
+  );
+}
+
+function InvoiceOverview({
+  totals,
+  value,
+  onChange,
+}: {
+  totals: InvoiceTotals;
+  value: InvoiceFilter;
+  onChange: (value: InvoiceFilter) => void;
+}) {
+  const invoiceItems = [
+    {
+      value: "action_required",
+      label: "Потребують уваги",
+      count: totals.actionRequired,
+      detail: "Потрібно або очікує відправки",
+      variant: "warning" as const,
+    },
+    {
+      value: "requested",
+      label: "Потрібні",
+      count: totals.requested,
+      detail: "Клієнт очікує рахунок",
+      variant: "warning" as const,
+    },
+    {
+      value: "not_sent",
+      label: "Очікують відправки",
+      count: totals.not_sent,
+      detail: "Рахунок ще не надіслано",
+      variant: "secondary" as const,
+    },
+    {
+      value: "sent",
+      label: "Надіслані",
+      count: totals.sent,
+      detail: "Рахунок уже надіслано",
+      variant: "success" as const,
+    },
+    {
+      value: "not_needed",
+      label: "Не потрібні",
+      count: totals.not_needed,
+      detail: "Для платежу рахунок не потрібен",
+      variant: "outline" as const,
+    },
+  ] satisfies Array<{
+    value: InvoiceFilter;
+    label: string;
+    count: number;
+    detail: string;
+    variant: ComponentProps<typeof Badge>["variant"];
+  }>;
+
+  return (
+    <Card className="gap-4 py-4">
+      <CardHeader className="px-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <CardTitle>Рахунки-фактури</CardTitle>
+            <CardDescription>
+              Видно, які рахунки потрібно підготувати, надіслати або вже закрито.
+            </CardDescription>
+          </div>
+          <Badge
+            variant={totals.actionRequired > 0 ? "warning" : "secondary"}
+            className="rounded-md"
+          >
+            {totals.actionRequired} до дії
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4">
+        <ToggleGroup
+          type="single"
+          value={value}
+          onValueChange={(nextValue) =>
+            onChange((nextValue as InvoiceFilter) || "all")
+          }
+          className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6"
+          variant="outline"
+        >
+          <ToggleGroupItem
+            value="all"
+            aria-label="Показати всі рахунки-фактури"
+            className="h-auto flex-col items-start rounded-lg border px-3 py-2 text-left data-[state=on]:bg-accent"
+          >
+            <span className="text-[12px] font-medium">Усі платежі</span>
+            <span className="text-[18px] font-semibold tabular-nums">
+              {totals.total}
+            </span>
+            <span className="text-[11px] text-muted-foreground">з рахунками</span>
+          </ToggleGroupItem>
+          {invoiceItems.map((item) => (
+            <ToggleGroupItem
+              key={item.value}
+              value={item.value}
+              aria-label={item.label}
+              className="h-auto flex-col items-start rounded-lg border px-3 py-2 text-left data-[state=on]:bg-accent"
+            >
+              <span className="text-[12px] font-medium">{item.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="text-[18px] font-semibold tabular-nums">
+                  {item.count}
+                </span>
+                <Badge variant={item.variant} className="rounded-md px-1.5">
+                  {formatPercent(item.count, Math.max(totals.total, 1))}
+                </Badge>
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {item.detail}
+              </span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1422,11 +1584,11 @@ function getPaymentStatusLabel(
   value: (typeof chartPaymentStatusOrder)[number]
 ): string {
   const labels: Record<(typeof chartPaymentStatusOrder)[number], string> = {
-    paid: "Оплачені",
-    partial: "Часткові",
-    unpaid: "Очікують",
+    paid: "Оплачено",
+    partial: "Часткова оплата",
+    unpaid: "Очікують оплату",
     overdue: "Прострочені",
-    untracked: "Без оплат",
+    untracked: "Без платежів",
   };
   return labels[value];
 }
@@ -1559,7 +1721,7 @@ function NewTicketFinanceDialog({
         <DialogHeader className="border-b border-border/60 px-5 py-4">
           <DialogTitle>Новий квиток</DialogTitle>
           <DialogDescription>
-            Створення квитка, фінансів і першого плану платежів.
+            Додайте клієнта, фінансові дані та початковий платіжний план.
           </DialogDescription>
         </DialogHeader>
 
@@ -1612,7 +1774,7 @@ function NewTicketFinanceDialog({
               />
             </PaymentField>
             <PaymentField
-              label="Де продаж платежу?"
+              label="Джерело платежу"
               error={fieldErrors.payment_sale_source}
             >
               <SmallSelect
@@ -1633,7 +1795,7 @@ function NewTicketFinanceDialog({
                 onChange={handlePaymentPlanChange}
               />
             </PaymentField>
-            <PaymentField label="Повна оплата" error={fieldErrors.gross_total}>
+            <PaymentField label="До оплати" error={fieldErrors.gross_total}>
               <Input
                 type="number"
                 min="0"
@@ -1680,7 +1842,7 @@ function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
-            <PaymentField label="Чиста сума">
+            <PaymentField label="Нетто">
               <ReadOnlyMoney
                 value={Math.max(
                   toMoneyNumber(form.gross_total) - toMoneyNumber(form.tax_amount),
@@ -1931,7 +2093,7 @@ function PaymentsPanel({
               </span>
             )}
           </PaymentField>
-          <PaymentField label="Повна оплата">
+          <PaymentField label="До оплати">
             <MoneyCell
               value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.gross_total ?? "0.00"}
               disabled={hasZeroPaymentPlan}
@@ -1956,7 +2118,7 @@ function PaymentsPanel({
               onSave={(discount_amount) => onFinanceChange({ discount_amount })}
             />
           </PaymentField>
-          <PaymentField label="Чиста сума">
+          <PaymentField label="Нетто">
             <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
           </PaymentField>
           <PaymentField label="NIP">
@@ -2027,10 +2189,10 @@ function PaymentCard({
   const isLocked = isStripePayment;
   const canDelete = !isPaid && !isStripePayment;
   const statusText = isStripePayment
-    ? "Оплата Stripe"
+    ? "Платіж Stripe"
     : isPaid
       ? "Оплачено"
-      : "Очікує оплату";
+      : "Очікує оплати";
 
   return (
     <Card
@@ -2099,7 +2261,7 @@ function PaymentCard({
             onSave={(due_date) => onUpdate(payment.id, { due_date })}
           />
         </PaymentField>
-        <PaymentField label="Де продаж?">
+        <PaymentField label="Джерело платежу">
           <SmallSelect
             value={isStripePayment ? "site" : payment.sale_source}
             options={SALE_SOURCE_OPTIONS}
@@ -2107,7 +2269,7 @@ function PaymentCard({
             onChange={(sale_source) => onUpdate(payment.id, { sale_source })}
           />
         </PaymentField>
-        <PaymentField label="Варіант оплати">
+        <PaymentField label="Спосіб оплати">
           <SmallSelect
             value={payment.payment_method}
             options={PAYMENT_METHOD_OPTIONS}
@@ -2117,7 +2279,7 @@ function PaymentCard({
             }
           />
         </PaymentField>
-        <PaymentField label="Фактура">
+        <PaymentField label="Рахунок-фактура">
           <SmallSelect
             value={payment.invoice_status}
             options={INVOICE_STATUS_OPTIONS}
@@ -2126,7 +2288,7 @@ function PaymentCard({
             }
           />
         </PaymentField>
-        <PaymentField label="№ фактури">
+        <PaymentField label="№ рахунку-фактури">
           <TextCell
             value={payment.invoice_number}
             onSave={(invoice_number) => onUpdate(payment.id, { invoice_number })}
@@ -2193,7 +2355,7 @@ function DeletePaymentButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Видалити платіж?</AlertDialogTitle>
           <AlertDialogDescription>
-            Цю дію не можна скасувати. Платіж буде прибрано з фінансів квитка.
+            Цю дію не можна скасувати. Платіж буде видалено з фінансів квитка.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -2220,8 +2382,8 @@ function PaymentStatusFilter({
   const options: { value: PaymentStatusFilter; label: string }[] = [
     { value: "all", label: "Всі" },
     { value: "paid", label: "Оплачені" },
-    { value: "partial", label: "Часткові" },
-    { value: "pending", label: "Очікують" },
+    { value: "partial", label: "Часткова оплата" },
+    { value: "pending", label: "Очікують оплату" },
     { value: "overdue", label: "Прострочені" },
   ];
 
@@ -2246,15 +2408,103 @@ function PaymentStatusFilter({
   );
 }
 
+function InvoiceStatusFilter({
+  value,
+  onChange,
+}: {
+  value: InvoiceFilter;
+  onChange: (value: InvoiceFilter) => void;
+}) {
+  const options: { value: InvoiceFilter; label: string }[] = [
+    { value: "all", label: "Усі рахунки" },
+    { value: "action_required", label: "До дії" },
+    { value: "sent", label: "Надіслані" },
+    { value: "not_needed", label: "Не потрібні" },
+  ];
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      onValueChange={(nextValue) =>
+        onChange((nextValue as InvoiceFilter) || "all")
+      }
+      className="flex flex-wrap"
+      variant="outline"
+    >
+      {options.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          aria-label={option.label}
+          className="h-8 px-2.5 text-[11px]"
+        >
+          {option.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
+function InvoiceStatusBadge({ summary }: { summary: InvoiceSummary }) {
+  if (summary.total === 0) {
+    return (
+      <Badge variant="secondary" className="rounded-md px-2 py-1 text-[11px]">
+        Без платежів
+      </Badge>
+    );
+  }
+
+  if (summary.actionRequired > 0) {
+    return (
+      <div
+        className="flex flex-wrap gap-1"
+        title={getInvoiceSummaryTitle(summary)}
+      >
+        <Badge variant="warning" className="rounded-md px-2 py-1 text-[11px]">
+          До дії {summary.actionRequired}
+        </Badge>
+        {summary.sent > 0 && (
+          <Badge variant="success" className="rounded-md px-2 py-1 text-[11px]">
+            Надіслано {summary.sent}
+          </Badge>
+        )}
+      </div>
+    );
+  }
+
+  if (summary.sent > 0) {
+    return (
+      <Badge
+        variant="success"
+        className="rounded-md px-2 py-1 text-[11px]"
+        title={getInvoiceSummaryTitle(summary)}
+      >
+        Надіслано {summary.sent}/{summary.total}
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className="rounded-md px-2 py-1 text-[11px]"
+      title={getInvoiceSummaryTitle(summary)}
+    >
+      Не потрібна
+    </Badge>
+  );
+}
+
 function StatusIndicator({ status }: { status?: string | null }) {
   const config: Record<string, { color: string; label: string }> = {
     paid: { color: "bg-success", label: "Оплачено" },
     partial: { color: "bg-warning", label: "Частково" },
     overdue: { color: "bg-destructive", label: "Прострочено" },
-    unpaid: { color: "bg-muted-foreground/30", label: "Очікує" },
-    untracked: { color: "bg-muted-foreground/20", label: "Без оплат" },
-    pending: { color: "bg-muted-foreground/30", label: "Очікує" },
-    not_started: { color: "bg-muted-foreground/30", label: "Очікує" },
+    unpaid: { color: "bg-muted-foreground/30", label: "Очікує оплати" },
+    untracked: { color: "bg-muted-foreground/20", label: "Без платежів" },
+    pending: { color: "bg-muted-foreground/30", label: "Очікує оплати" },
+    not_started: { color: "bg-muted-foreground/30", label: "Очікує оплати" },
   };
 
   const statusConfig = config[status ?? ""] ?? { color: "bg-muted-foreground/20", label: "—" };
@@ -2758,6 +3008,74 @@ function isZeroPaymentPlan(plan: string | null | undefined): boolean {
 function getDisplayedPaymentCount(ticket: TicketWithFinance): number {
   const paymentLimit = getExpectedPaymentCount(ticket.finance?.payment_plan ?? "full");
   return paymentLimit ?? Math.max(ticket.payments.length, 1);
+}
+
+function getTicketInvoiceSummary(ticket: TicketWithFinance): InvoiceSummary {
+  return ticket.payments.reduce(
+    (summary, payment) => {
+      const status = getInvoiceStatus(payment.invoice_status);
+      summary[status] += 1;
+      summary.total += 1;
+      if (status === "requested" || status === "not_sent") {
+        summary.actionRequired += 1;
+      }
+      return summary;
+    },
+    createEmptyInvoiceSummary()
+  );
+}
+
+function buildInvoiceTotals(tickets: TicketWithFinance[]): InvoiceTotals {
+  return tickets.reduce((totals, ticket) => {
+    const summary = getTicketInvoiceSummary(ticket);
+    totals.not_sent += summary.not_sent;
+    totals.requested += summary.requested;
+    totals.sent += summary.sent;
+    totals.not_needed += summary.not_needed;
+    totals.total += summary.total;
+    totals.actionRequired += summary.actionRequired;
+    return totals;
+  }, createEmptyInvoiceSummary());
+}
+
+function ticketMatchesInvoiceFilter(
+  ticket: TicketWithFinance,
+  filter: InvoiceFilter
+): boolean {
+  if (filter === "all") return true;
+
+  const summary = getTicketInvoiceSummary(ticket);
+  if (filter === "action_required") return summary.actionRequired > 0;
+  return summary[filter] > 0;
+}
+
+function getInvoiceStatus(value: string | null | undefined): InvoiceStatus {
+  if (
+    INVOICE_STATUS_OPTIONS.some((option) => option.value === value)
+  ) {
+    return value as InvoiceStatus;
+  }
+  return "not_sent";
+}
+
+function createEmptyInvoiceSummary(): InvoiceSummary {
+  return {
+    not_sent: 0,
+    requested: 0,
+    sent: 0,
+    not_needed: 0,
+    total: 0,
+    actionRequired: 0,
+  };
+}
+
+function getInvoiceSummaryTitle(summary: InvoiceSummary): string {
+  return [
+    `Потрібні: ${summary.requested}`,
+    `Очікують відправки: ${summary.not_sent}`,
+    `Надіслані: ${summary.sent}`,
+    `Не потрібні: ${summary.not_needed}`,
+  ].join(" · ");
 }
 
 function suggestedPaymentAmount(

@@ -141,7 +141,7 @@ export function BattleTicketPanel({ battleTicketId }: { battleTicketId: string }
       <div className="border-t border-border/60 py-5">
         <h3 className="text-label-caps mb-3">Статуси</h3>
         <div className="flex flex-col gap-2.5">
-          <PanelRow label="Email надіслано" value={
+          <PanelRow label="Лист надіслано" value={
             <span className="flex items-center gap-1.5">
               {bt.mail_sent ? (
                 <MailCheck size={14} className="text-[#1a7f37]" />

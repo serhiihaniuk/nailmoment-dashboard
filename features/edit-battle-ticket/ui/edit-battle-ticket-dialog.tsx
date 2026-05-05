@@ -40,7 +40,7 @@ export function EditBattleTicketDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1">
-          <Pencil size={14} /> Редагувати Учасника
+          <Pencil size={14} /> Редагувати учасника
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-105 top-4 translate-y-0 md:top-1/2 md:-translate-y-1/2">
@@ -164,7 +164,7 @@ export function EditBattleTicketDialog({
               name="photos_sent"
               render={({ field }) => (
                 <FormItem className="space-y-2">
-                  <Label htmlFor="photos-sent-toggle">Статус відправки фото</Label>
+                  <Label htmlFor="photos-sent-toggle">Статус фото</Label>
                   <FormControl>
                     <Toggle
                       id="photos-sent-toggle"
@@ -179,11 +179,11 @@ export function EditBattleTicketDialog({
                       ) : (
                         <CameraOff className="h-4 w-4 mr-2" />
                       )}
-                      {field.value ? "Фото Надіслано" : "Фото Не Надіслано"}
+                      {field.value ? "Фото надіслано" : "Фото не надіслано"}
                     </Toggle>
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    Натисніть, щоб змінити статус.
+                    Натисніть, щоб оновити статус.
                   </p>
                 </FormItem>
               )}
@@ -196,7 +196,7 @@ export function EditBattleTicketDialog({
             {isPending ? (
               <Loader2 className="animate-spin" size={16} />
             ) : (
-              "Зберегти Зміни"
+              "Зберегти зміни"
             )}
           </Button>
         </DialogFooter>

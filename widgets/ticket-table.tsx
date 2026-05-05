@@ -156,7 +156,7 @@ export function TicketsTable() {
           <span>{stats.remaining} не прибули</span>
           {stats.maxi > 0 && (
             <>
-              <span className="text-border">Â·</span>
+              <span className="text-border">·</span>
               <span>{stats.maxi} MAXI</span>
             </>
           )}
@@ -219,7 +219,7 @@ export function TicketsTable() {
                 <SelectContent>
                   <SelectItem value="all">Всі</SelectItem>
                   <SelectItem value="stripe">Stripe</SelectItem>
-                  <SelectItem value="manual">Direct</SelectItem>
+                  <SelectItem value="manual">Вручну</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -235,7 +235,7 @@ export function TicketsTable() {
                     : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50",
                 )}
               >
-                Видалені
+                Архів
               </button>
             </div>
 

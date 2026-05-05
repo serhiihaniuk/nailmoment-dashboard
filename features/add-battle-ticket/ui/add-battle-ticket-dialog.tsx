@@ -41,7 +41,7 @@ export function AddBattleTicketDialog() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" variant="default" className="gap-1">
-          <Plus size={14} /> Додати Учасника
+          <Plus size={14} /> Додати учасника
         </Button>
       </DialogTrigger>
 
@@ -172,14 +172,14 @@ export function AddBattleTicketDialog() {
               render={({ field }) => (
                 <FormItem className="grid grid-cols-4 items-center gap-4">
                   <FormLabel className="text-left">
-                    Коментар (опціонально)
+                    Коментар
                   </FormLabel>
                   <div className="col-span-3">
                     <FormControl>
                       <Textarea
                         {...field}
                         value={field.value ?? ""}
-                        placeholder="Додаткова інформація..."
+                        placeholder="Додаткова інформація"
                         className="h-24"
                         disabled={isLocked}
                       />
@@ -204,7 +204,7 @@ export function AddBattleTicketDialog() {
             ) : isSuccess ? (
               "Закрити"
             ) : (
-              "Створити Учасника"
+              "Створити учасника"
             )}
           </Button>
         </DialogFooter>
