@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +83,8 @@ export function PaymentsPanel({
   ticket,
   open,
   onClose,
+  closeBlockedByError,
+  closePending,
   paymentActionError,
   getFieldStatus,
   onCreate,
@@ -95,6 +97,8 @@ export function PaymentsPanel({
   ticket: TicketWithFinance;
   open: boolean;
   onClose: () => void;
+  closeBlockedByError: boolean;
+  closePending: boolean;
   paymentActionError?: string | undefined;
   getFieldStatus: (fieldKey: string) => SaveStatus;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
@@ -191,11 +195,25 @@ export function PaymentsPanel({
     });
   };
 
+  const closeStatusContent = closePending ? (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      Завершуємо збереження перед закриттям...
+    </span>
+  ) : closeBlockedByError ? (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-destructive">
+      <AlertCircle className="h-3 w-3" />
+      Не вдалося зберегти. Панель залишилась відкритою.
+    </span>
+  ) : (
+    <span className="text-[11px] text-muted-foreground">
+      Зміни зберігаються автоматично
+    </span>
+  );
+
   const footerContent = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-[11px] text-muted-foreground">
-        Зміни зберігаються автоматично
-      </span>
+      {closeStatusContent}
       {canAddPayment && (
         <Button type="button" size="sm" onClick={handleAddPayment}>
           <Plus data-icon="inline-start" />

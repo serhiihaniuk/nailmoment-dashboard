@@ -78,6 +78,11 @@ type DeletePaymentMutationInput = {
   paymentId: string;
 };
 
+type TicketSaveState = {
+  hasError: boolean;
+  isSaving: boolean;
+};
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Не вдалося зберегти.";
 }
@@ -173,12 +178,35 @@ function buildPaymentRollbackPatch(
   return patch;
 }
 
+function getTicketStatusEntries(
+  statuses: Record<string, SaveStatus>,
+  ticket: TicketWithFinance
+): SaveStatus[] {
+  const prefixes = [
+    `ticket:${ticket.id}:`,
+    `finance:${ticket.id}:`,
+    ...ticket.payments.map((payment) => `payment:${payment.id}:`),
+  ];
+
+  return Object.entries(statuses)
+    .filter(([fieldKey]) =>
+      prefixes.some((prefix) => fieldKey.startsWith(prefix))
+    )
+    .map(([, status]) => status);
+}
+
 export function useFinanceAutosave() {
   const queryClient = useQueryClient();
   const [statuses, setStatuses] = useState<Record<string, SaveStatus>>({});
   const [paymentActionErrors, setPaymentActionErrors] = useState<
     Record<string, string>
   >({});
+  const [paymentActionPendingCounts, setPaymentActionPendingCounts] = useState<
+    Record<string, number>
+  >({});
+  const statusesRef = useRef(statuses);
+  const paymentActionErrorsRef = useRef(paymentActionErrors);
+  const paymentActionPendingCountsRef = useRef(paymentActionPendingCounts);
   const savedTimeouts = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const autosaveOrder = useRef<ReturnType<typeof createAutosaveOrder> | null>(
     null
@@ -199,18 +227,22 @@ export function useFinanceAutosave() {
   const setFieldStatus = useCallback(
     (fieldKey: string, status: SaveStatus) => {
       clearSavedTimeout(fieldKey);
-      setStatuses((current) => ({
-        ...current,
+      const nextStatuses = {
+        ...statusesRef.current,
         [fieldKey]: status,
-      }));
+      };
+      statusesRef.current = nextStatuses;
+      setStatuses(nextStatuses);
 
       if (status.state !== "saved") return;
 
       const timeoutId = setTimeout(() => {
-        setStatuses((current) => ({
-          ...current,
+        const nextStatusesAfterDelay = {
+          ...statusesRef.current,
           [fieldKey]: idleSaveStatus,
-        }));
+        };
+        statusesRef.current = nextStatusesAfterDelay;
+        setStatuses(nextStatusesAfterDelay);
         savedTimeouts.current.delete(fieldKey);
       }, 1800);
       savedTimeouts.current.set(fieldKey, timeoutId);
@@ -257,20 +289,67 @@ export function useFinanceAutosave() {
   );
 
   const clearPaymentActionError = useCallback((ticketId: string) => {
-    setPaymentActionErrors((current) => {
-      if (!current[ticketId]) return current;
-      const next = { ...current };
-      delete next[ticketId];
-      return next;
-    });
+    if (!paymentActionErrorsRef.current[ticketId]) return;
+
+    const nextErrors = { ...paymentActionErrorsRef.current };
+    delete nextErrors[ticketId];
+    paymentActionErrorsRef.current = nextErrors;
+    setPaymentActionErrors(nextErrors);
   }, []);
 
   const setPaymentActionError = useCallback(
     (ticketId: string, error: unknown) => {
-      setPaymentActionErrors((current) => ({
-        ...current,
+      const nextErrors = {
+        ...paymentActionErrorsRef.current,
         [ticketId]: getErrorMessage(error),
-      }));
+      };
+      paymentActionErrorsRef.current = nextErrors;
+      setPaymentActionErrors(nextErrors);
+    },
+    []
+  );
+
+  const incrementPaymentActionPending = useCallback((ticketId: string) => {
+    const nextCounts = {
+      ...paymentActionPendingCountsRef.current,
+      [ticketId]: (paymentActionPendingCountsRef.current[ticketId] ?? 0) + 1,
+    };
+    paymentActionPendingCountsRef.current = nextCounts;
+    setPaymentActionPendingCounts(nextCounts);
+  }, []);
+
+  const decrementPaymentActionPending = useCallback((ticketId: string) => {
+    const nextCount = Math.max(
+      (paymentActionPendingCountsRef.current[ticketId] ?? 0) - 1,
+      0
+    );
+    const nextCounts = { ...paymentActionPendingCountsRef.current };
+
+    if (nextCount > 0) {
+      nextCounts[ticketId] = nextCount;
+    } else {
+      delete nextCounts[ticketId];
+    }
+
+    paymentActionPendingCountsRef.current = nextCounts;
+    setPaymentActionPendingCounts(nextCounts);
+  }, []);
+
+  const getTicketSaveState = useCallback(
+    (ticket: TicketWithFinance): TicketSaveState => {
+      const ticketStatuses = getTicketStatusEntries(
+        statusesRef.current,
+        ticket
+      );
+
+      return {
+        hasError:
+          ticketStatuses.some((status) => status.state === "error") ||
+          Boolean(paymentActionErrorsRef.current[ticket.id]),
+        isSaving:
+          ticketStatuses.some((status) => status.state === "saving") ||
+          (paymentActionPendingCountsRef.current[ticket.id] ?? 0) > 0,
+      };
     },
     []
   );
@@ -508,6 +587,7 @@ export function useFinanceAutosave() {
       createPayment(ticketId, data),
     onMutate: ({ ticketId }) => {
       clearPaymentActionError(ticketId);
+      incrementPaymentActionPending(ticketId);
     },
     onSuccess: (payment, { ticketId }) => {
       queryClient.setQueryData<TicketWithFinance[]>(
@@ -519,6 +599,9 @@ export function useFinanceAutosave() {
     onError: (error, { ticketId }) => {
       setPaymentActionError(ticketId, error);
     },
+    onSettled: (_data, _error, { ticketId }) => {
+      decrementPaymentActionPending(ticketId);
+    },
   });
 
   const deletePaymentMutation = useMutation({
@@ -526,6 +609,7 @@ export function useFinanceAutosave() {
       deletePayment(paymentId),
     onMutate: async ({ ticketId, paymentId }) => {
       clearPaymentActionError(ticketId);
+      incrementPaymentActionPending(ticketId);
       await queryClient.cancelQueries({ queryKey: ticketsQueryKey });
       const previousTickets =
         queryClient.getQueryData<TicketWithFinance[]>(ticketsQueryKey);
@@ -542,7 +626,8 @@ export function useFinanceAutosave() {
     onSuccess: (_deleted, { ticketId }) => {
       clearPaymentActionError(ticketId);
     },
-    onSettled: () => {
+    onSettled: (_data, _error, { ticketId }) => {
+      decrementPaymentActionPending(ticketId);
       queryClient.invalidateQueries({ queryKey: ticketsQueryKey });
     },
   });
@@ -550,6 +635,7 @@ export function useFinanceAutosave() {
   return {
     getFieldStatus,
     getPaymentActionError,
+    getTicketSaveState,
     isSaving:
       saveTicketMutation.isPending ||
       saveFinanceMutation.isPending ||
