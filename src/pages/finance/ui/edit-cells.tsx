@@ -27,8 +27,8 @@ export function PaymentField({
 }: {
   label: string;
   children: React.ReactNode;
-  className?: string;
-  error?: string;
+  className?: string | undefined;
+  error?: string | undefined;
 }) {
   return (
     <Field className={className} data-invalid={Boolean(error) || undefined}>
@@ -189,7 +189,7 @@ export function SmallSelect<TOption extends readonly { value: string; label: str
             <SelectItem
               key={option.value}
               value={option.value}
-              disabled={disabledValues?.has(option.value)}
+              disabled={disabledValues?.has(option.value) ?? false}
             >
               {option.label}
             </SelectItem>

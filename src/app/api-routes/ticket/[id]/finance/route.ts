@@ -6,6 +6,11 @@ import { db } from "@/shared/db";
 import { createFinanceService } from "@/shared/db/service/finance-service";
 import { createTicketService } from "@/shared/db/service/ticket-service";
 import { upsertTicketFinanceSchema } from "@/shared/db/schema.zod";
+import {
+  parseRequestJson,
+  parseRouteParams,
+} from "@/app/api-routes/lib/request";
+import { ticketIdSchema } from "@/entities/ticket";
 
 const financeService = createFinanceService(db);
 const ticketService = createTicketService(db);
@@ -19,7 +24,13 @@ export async function GET(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ id: ticketIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
+
+  const { id } = parsedParams.data;
   const ticket = await ticketService.getTicket(id);
   if (!ticket) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
@@ -38,23 +49,25 @@ export async function PATCH(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ id: ticketIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
+
+  const { id } = parsedParams.data;
   const ticket = await ticketService.getTicket(id);
   if (!ticket) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  let data: z.input<typeof upsertTicketFinanceSchema>;
-  try {
-    data = upsertTicketFinanceSchema.parse((await req.json()) ?? {});
-  } catch (e) {
-    return NextResponse.json(
-      { message: "Validation failed", issues: (e as z.ZodError).issues },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseRequestJson(req, upsertTicketFinanceSchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const finance = await financeService.upsertFinanceForTicket(id, data);
+  const finance = await financeService.upsertFinanceForTicket(
+    id,
+    parsedBody.data
+  );
   return NextResponse.json(finance, { status: 200 });
 }
 

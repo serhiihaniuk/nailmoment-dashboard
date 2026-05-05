@@ -32,10 +32,129 @@ If a task might affect production data, production users, sent ticket emails, QR
 - For feature work, create a branch first.
 - Prefer branch names like `codex/<short-task-name>` unless the user asks for another name.
 - Before committing, run the relevant checks:
+  - `npm run typecheck`
   - `npm run lint`
   - `npm test`
   - `npm run build`
 - Before pushing, confirm `git status --short --branch`.
+
+## TypeScript, FSD, And Code Organization Rules
+
+This repo has intentional TypeScript and Feature-Sliced Design boundaries. Follow them even for quick fixes. Do not hide architectural drift inside one large file.
+
+### Architecture Map
+
+- `src/entities/ticket/model/ticket.ts` is the canonical ticket domain model. It owns ticket grades, ticket/payment ID parsers, finance enums, money normalization, and browser-facing ticket response schemas.
+- `src/entities/ticket/index.ts` is the public ticket domain API. Import reusable ticket domain types from `@/entities/ticket`.
+- `src/entities/ticket/index.client.ts` is the small client-safe UI entry point for ticket components that should not pull server-only code into the browser.
+- `src/shared/db/schema.ts` and `src/shared/db/schema.zod.ts` describe persistence and route input shapes. Treat those as DB/API plumbing, not the default type to pass around pages and widgets.
+- `src/app/api-routes/lib/request.ts` parses JSON bodies and route params with Zod before route handlers use them.
+- `src/pages/finance/api/client.ts` parses finance/ticket browser API responses before returning typed data to React Query.
+- `src/pages/finance/model/utils.ts` parses API error payloads into the finance page's `ApiError` and `fieldErrors` shape.
+- `src/shared/config/env.ts` is the only place that should read required secrets directly. Add scoped readers there so importing one service does not force unrelated secrets to exist.
+
+Rule of thumb: if a value is rendered or edited by pages/widgets, prefer the entity type from `@/entities/ticket`. If a value is being inserted into Drizzle, use the DB schema/input type from `@/shared/db`.
+
+### TypeScript Strictness
+
+Do not weaken strictness to make errors disappear:
+
+- Keep `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` enabled.
+- Do not add `any`, broad `as SomeType` casts, double assertions, or non-null assertions to silence TypeScript.
+- If a value is unknown at runtime, parse it with Zod or narrow it honestly.
+- Treat `request.json()`, `response.json()`, route params, environment variables, webhook payloads, Telegram payloads, and database `returning()` results as untrusted until checked.
+- `response.json()` and `request.json()` return `unknown` in practice. Parse them at the boundary, then pass parsed domain data inward.
+
+### FSD Import Direction
+
+Respect this layer direction:
+
+```txt
+app -> pages -> widgets -> features -> entities -> shared
+```
+
+- Lower layers (`src/pages`, `src/widgets`, `src/features`, `src/entities`) must not import from `@/app/*`.
+- Import slices through public entry points such as `@/entities/ticket`; do not import from `@/entities/ticket/model/*`, `@/widgets/*/ui/*`, etc. unless you are editing inside that slice.
+- Page-specific server actions belong in the owning page slice, for example `src/pages/pdf-ticket-preview/api/email-preview.ts`, not in `src/app/actions`.
+- `eslint.config.mjs` protects the main boundary mistakes: lower layers importing `@/app/*`, imports from internal slice files, and legacy non-FSD aliases such as `@/components/*`.
+
+### Slice Placement And File Size Discipline
+
+Do not create a huge widget or page component that contains everything. A 3,000-line widget is one symptom; the deeper problem is skipping ownership decisions and mixing API, model, domain, and UI concerns in one place.
+
+Before implementing a non-trivial UI or workflow, do a short ownership pass:
+
+1. Which route or slice owns this behavior today?
+2. Is it used in one place or already reused in multiple places?
+3. Is the logic domain-specific, page-specific, or generic infrastructure?
+4. Where will runtime parsing happen?
+5. Which public API should other slices import from?
+
+Then place code by current ownership, not by what might be reusable someday:
+
+- Start in `src/pages/<page-slice>` for behavior used by one route. A large single-page workflow still belongs in the page slice first.
+- Create a `widget` only when a composite UI block is reused across pages or has a stable cross-page responsibility.
+- Create a `feature` only for a reusable user action used in more than one place.
+- Create or extend an `entity` only for reusable business domain concepts, schemas, parsers, or entity UI.
+- Keep `shared` free of business logic. Shared is for UI kit, generic libraries, config readers, DB plumbing, and infrastructure.
+
+Common mistakes to avoid:
+
+- Do not create `widgets/<name>/ui/<name>.tsx` as a dumping ground for an entire page.
+- Do not move page-only code into `widgets` or `features` just because the component is large.
+- Do not put Zod schemas, fetch calls, mutations, table setup, forms, dialogs, and rendering into one TSX file.
+- Do not bypass a slice public API to import from another slice's internal `api`, `model`, or `ui` folder.
+- Do not invent a new shared helper for business rules that belong to `entities/ticket` or the owning page.
+- Do not create speculative abstractions for future reuse. Extract only when reuse is real or the boundary is already stable.
+
+When a page or widget grows, split by responsibility inside the slice:
+
+```txt
+src/pages/<slice>/
+  api/      browser/server calls and response parsing
+  model/    schemas, constants, derived state, pure helpers
+  ui/       focused components
+  index.ts  public slice entry point
+```
+
+For larger workflows, prefer several focused files over one clever file:
+
+- `api/<thing>-client.ts` for browser calls and response parsing
+- `model/<thing>-schema.ts` for page-owned schemas
+- `model/<thing>-helpers.ts` for pure page-owned calculations
+- `ui/<thing>-table.tsx` for table rendering
+- `ui/<thing>-dialog.tsx` for one dialog
+- `ui/<thing>-panel.tsx` for one panel
+
+Before adding a large TSX file, ask whether it mixes concerns. Split it if it contains several of these at once:
+
+- data fetching or mutations
+- Zod schemas or API response parsing
+- table column definitions and filtering
+- form state and validation
+- multiple dialogs or panels
+- domain calculations
+- low-level UI subcomponents
+
+Practical size guide:
+
+- Under 250 lines is usually fine.
+- Around 400 lines, look for a natural split before adding more.
+- Over 700 lines needs a strong reason and a comment explaining why it is intentionally kept together.
+- Over 1,000 lines should almost always be split before handoff.
+
+If a requested change naturally touches many responsibilities, it is better to create a small set of well-named files in the owning slice than to keep the diff artificially "simple" by hiding everything in one component.
+
+Prefer names by domain purpose, not vague technical buckets. Use `payment-plan-editor.tsx`, `ticket-finance-summary.ts`, or `email-preview.ts`; avoid dumping unrelated code into `utils.tsx`, `helpers.tsx`, or `big-widget.tsx`.
+
+### Tests For TypeScript Changes
+
+When adding or changing TypeScript behavior, prefer focused tests near the owning boundary:
+
+- domain parsing: `src/entities/**`
+- API error parsing and page client behavior: `src/pages/**`
+- env parsing: `src/shared/config`
+- Stripe webhook/logging behavior: `src/app/stripe`
 
 ## Database Rules
 
@@ -147,4 +266,3 @@ git show 40a4650^:widgets/ticket-card/ticket-payment.tsx
 ## When In Doubt
 
 Pause and ask. The cost of a question is tiny compared with breaking production data, ticket emails, QR codes, or payment records.
-

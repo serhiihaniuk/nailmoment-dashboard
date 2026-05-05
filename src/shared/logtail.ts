@@ -1,4 +1,5 @@
 import { Logtail } from "@logtail/node";
+import { readOptionalLogtailConfig } from "@/shared/config/env";
 
 type Logger = {
   info: (message: string, context?: Record<string, unknown>) => Promise<unknown>;
@@ -41,8 +42,9 @@ function createNoopLogger(): Logger {
 }
 
 function createLogger(): Logger {
-  const token = process.env.LOGTAIL_TOKEN?.trim();
-  const endpoint = normalizeLogtailEndpoint(process.env.LOGTAIL_URL);
+  const config = readOptionalLogtailConfig();
+  const token = config.token;
+  const endpoint = normalizeLogtailEndpoint(config.endpoint);
 
   if (!token || !endpoint) {
     return createNoopLogger();

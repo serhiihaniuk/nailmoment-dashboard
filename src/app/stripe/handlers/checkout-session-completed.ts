@@ -40,7 +40,7 @@ type StripeWebhookClaim =
   | {
       kind: "ignored";
       reason: string;
-      stripeSessionId?: string;
+      stripeSessionId?: string | undefined;
     };
 
 type FulfillmentResult = "created" | "already_fulfilled";

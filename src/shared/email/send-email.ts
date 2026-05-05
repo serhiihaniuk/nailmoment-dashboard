@@ -3,8 +3,13 @@ import { Resend } from "resend";
 import { put } from "@vercel/blob";
 import { EmailTemplate } from "./email-template";
 import { BattleTicketEmailTemplate } from "./battle-email-template";
+import { readResendApiKey } from "@/shared/config/env";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Keep Resend config lazy so importing QR/email helpers during build or tests
+// does not require unrelated secrets until an email is actually sent.
+function createResendClient() {
+  return new Resend(readResendApiKey());
+}
 
 export async function generateAndStoreQRCode(
   url: string,
@@ -33,6 +38,7 @@ export async function sendTicketEmail(
   ticketId?: string
 ) {
   try {
+    const resend = createResendClient();
     const shortCode = ticketId
       ? ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(-5).toLowerCase()
       : "";
@@ -62,7 +68,12 @@ export async function sendTicketEmail(
       to,
       subject: "Ваш квиток на фестиваль Nail Moment у Варшаві",
       text: plainText,
-      react: EmailTemplate({ name, qrCodeUrl, ticketType, ticketId }),
+      react: EmailTemplate({
+        name,
+        qrCodeUrl,
+        ticketType,
+        ...(ticketId ? { ticketId } : {}),
+      }),
     });
 
     if (error) {
@@ -82,6 +93,7 @@ export async function sendBattleEmail(
   ticketId: string
 ) {
   try {
+    const resend = createResendClient();
     const { data, error } = await resend.emails.send({
       from: "nailmoment-battle@nailmoment.pl",
       to,

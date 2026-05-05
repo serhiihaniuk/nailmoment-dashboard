@@ -62,17 +62,17 @@ export function createBattleTicketService(db: DrizzleDB): IBattleTicketService {
   ): Promise<BattleTicket> => {
     const validatedData = insertBattleTicketSchema.parse(ticketData);
 
-    const newBattleTickets = await db
+    const [newBattleTicket] = await db
       .insert(battleTicketTable)
       .values(validatedData)
       .returning();
 
-    if (newBattleTickets.length === 0) {
+    if (!newBattleTicket) {
       throw new Error(
         "Battle ticket insertion failed to return the new record."
       );
     }
-    return newBattleTickets[0];
+    return newBattleTicket;
   };
 
   const updateBattleTicket = async (

@@ -24,9 +24,9 @@ export function formatInstagramLink(instagram: string) {
 export function extractInstagramName(link: string) {
   let username = link.replace("https://www.instagram.com/", "");
 
-  username = username.split("/")[0];
-  username = username.split("?")[0];
-  username = username.split("#")[0];
+  username = username.split("/")[0] ?? "";
+  username = username.split("?")[0] ?? "";
+  username = username.split("#")[0] ?? "";
 
   return username;
 }

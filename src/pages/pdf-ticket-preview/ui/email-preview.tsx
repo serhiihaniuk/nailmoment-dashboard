@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { previewCustomEmail, sendCustomEmail } from "@/app/actions/get-email";
+import { previewCustomEmail, sendCustomEmail } from "../api/email-preview";
 
 type Tab = "html" | "text" | "compose";
 

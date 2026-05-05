@@ -1,15 +1,23 @@
-import { TICKET_TYPE_LIST } from '@/entities/ticket';
 import {
-  invoiceStatusEnum,
-  paymentMethodEnum,
-  paymentPlanEnum,
-  saleSourceEnum,
-} from '@/shared/db/schema';
+  invoiceStatusSchema,
+  paymentMethodSchema,
+  paymentPlanSchema,
+  saleSourceSchema,
+  TICKET_TYPE_LIST,
+  type InvoiceStatus,
+  type PaymentMethod,
+  type PaymentPlan,
+  type SaleSource,
+} from '@/entities/ticket';
 
+// UI labels stay page-owned, but enum values come from the ticket entity so the
+// finance table cannot drift from the API/domain contract.
 type SelectOption<TValue extends string> = {
   value: TValue;
   label: string;
 };
+
+export type { InvoiceStatus, PaymentMethod, PaymentPlan, SaleSource };
 
 function enumOptions<TValue extends string>(
   values: readonly TValue[],
@@ -21,12 +29,8 @@ function enumOptions<TValue extends string>(
   }));
 }
 
-export type SaleSource = (typeof saleSourceEnum.enumValues)[number];
-export type PaymentPlan = (typeof paymentPlanEnum.enumValues)[number];
-export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
 export type TicketGrade = (typeof TICKET_TYPE_LIST)[number];
-type InvoiceStatusValue = (typeof invoiceStatusEnum.enumValues)[number];
-type EditableInvoiceStatus = Exclude<InvoiceStatusValue, "not_sent">;
+type EditableInvoiceStatus = Exclude<InvoiceStatus, "not_sent">;
 
 const SALE_SOURCE_LABELS = {
   site: "Сайт",
@@ -58,20 +62,20 @@ const INVOICE_STATUS_LABELS = {
   sent: "Надіслана",
 } satisfies Record<EditableInvoiceStatus, string>;
 
-const editableInvoiceStatusValues = invoiceStatusEnum.enumValues.filter(
+const editableInvoiceStatusValues = invoiceStatusSchema.options.filter(
   (value): value is EditableInvoiceStatus => value !== "not_sent"
 );
 
 export const SALE_SOURCE_OPTIONS = enumOptions(
-  saleSourceEnum.enumValues,
+  saleSourceSchema.options,
   SALE_SOURCE_LABELS
 );
 export const PAYMENT_PLAN_OPTIONS = enumOptions(
-  paymentPlanEnum.enumValues,
+  paymentPlanSchema.options,
   PAYMENT_PLAN_LABELS
 );
 export const PAYMENT_METHOD_OPTIONS = enumOptions(
-  paymentMethodEnum.enumValues,
+  paymentMethodSchema.options,
   PAYMENT_METHOD_LABELS
 );
 export const INVOICE_STATUS_OPTIONS = enumOptions(
@@ -84,5 +88,5 @@ export const GRADE_SELECT_OPTIONS = TICKET_TYPE_LIST.map((value) => ({
   label: value,
 })) as { value: TicketGrade; label: TicketGrade }[];
 
-export const saleSourceValues = saleSourceEnum.enumValues;
-export const paymentPlanValues = paymentPlanEnum.enumValues;
+export const saleSourceValues = saleSourceSchema.options;
+export const paymentPlanValues = paymentPlanSchema.options;

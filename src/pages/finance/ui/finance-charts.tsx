@@ -24,7 +24,7 @@ import {
 } from '@/shared/ui/chart';
 import { TICKET_TYPE_LIST } from '@/entities/ticket';
 import { TICKET_TYPE_BADGE_COLORS } from '@/entities/ticket/index.client';
-import type { TicketWithFinance } from '@/shared/db/schema';
+import type { TicketWithFinance } from '@/entities/ticket';
 import {
   SALE_SOURCE_OPTIONS,
   type SaleSource,

@@ -1,4 +1,4 @@
-import type { TicketWithFinance } from '@/shared/db/schema';
+import type { TicketWithFinance } from '@/entities/ticket';
 import type { UpsertTicketFinanceInput } from '@/shared/db/schema.zod';
 import { TICKET_PRICE_BY_GRADE } from '@/entities/ticket';
 import { INVOICE_STATUS_OPTIONS, type PaymentPlan } from './constants';
@@ -10,6 +10,23 @@ import type {
   InvoiceStatus,
 } from './types';
 import { ApiError } from './types';
+import { z } from 'zod';
+
+// API routes currently return a few compatible error shapes. Normalize them
+// here so finance forms can keep one `ApiError`/`fieldErrors` path.
+const apiIssueSchema = z.object({
+  message: z.string().optional(),
+  path: z.array(z.union([z.string(), z.number()])).optional(),
+});
+
+const apiErrorPayloadSchema = z
+  .object({
+    error: z.array(apiIssueSchema).optional(),
+    errors: z.array(apiIssueSchema).optional(),
+    issues: z.array(apiIssueSchema).optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
 
 export function normalizeNewTicketFinanceForm(
   form: CreateTicketWithFinanceInput
@@ -58,42 +75,46 @@ export async function readApiError(
   const fallbackMessage = response.statusText || "Запит не вдався.";
   const payload = await response.json().catch(() => null);
 
-  if (
-    payload &&
-    typeof payload === "object" &&
-    Array.isArray(payload.issues)
-  ) {
-    const issues = payload.issues as ApiIssue[];
+  const parsedPayload = apiErrorPayloadSchema.safeParse(payload);
+  if (!parsedPayload.success) {
+    return new ApiError(fallbackMessage);
+  }
+
+  if (parsedPayload.data.issues) {
+    const issues = parsedPayload.data.issues;
     const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
     return new ApiError(
       getFirstIssueMessage(issues) ??
-        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+        parsedPayload.data.message ??
+        fallbackMessage,
       fieldErrors
     );
   }
 
-  if (payload && typeof payload === "object" && Array.isArray(payload.error)) {
-    const issues = payload.error as ApiIssue[];
+  if (parsedPayload.data.error) {
+    const issues = parsedPayload.data.error;
     const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
     return new ApiError(
       getFirstIssueMessage(issues) ??
-        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+        parsedPayload.data.message ??
+        fallbackMessage,
       fieldErrors
     );
   }
 
-  if (payload && typeof payload === "object" && Array.isArray(payload.errors)) {
-    const issues = payload.errors as ApiIssue[];
+  if (parsedPayload.data.errors) {
+    const issues = parsedPayload.data.errors;
     const fieldErrors = zodIssuesToFieldErrors(issues, fieldMap);
     return new ApiError(
       getFirstIssueMessage(issues) ??
-        (typeof payload.message === "string" ? payload.message : fallbackMessage),
+        parsedPayload.data.message ??
+        fallbackMessage,
       fieldErrors
     );
   }
 
-  if (payload && typeof payload === "object" && typeof payload.message === "string") {
-    return new ApiError(payload.message);
+  if (parsedPayload.data.message) {
+    return new ApiError(parsedPayload.data.message);
   }
 
   return new ApiError(fallbackMessage);
@@ -161,11 +182,10 @@ export function getTicketInvoiceCounts(ticket: TicketWithFinance): InvoiceCounts
 }
 
 export function getInvoiceStatus(value: string | null | undefined): InvoiceStatus {
-  if (INVOICE_STATUS_OPTIONS.some((option) => option.value === value)) {
-    return value as InvoiceStatus;
-  }
-
-  return "not_needed";
+  return (
+    INVOICE_STATUS_OPTIONS.find((option) => option.value === value)?.value ??
+    "not_needed"
+  );
 }
 
 export function getInvoiceCountsTitle(counts: InvoiceCounts): string {

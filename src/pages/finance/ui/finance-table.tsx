@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
-import type { TicketWithFinance } from '@/shared/db/schema';
+import type { TicketWithFinance } from '@/entities/ticket';
 import type {
   InsertPaymentInstallmentInput,
   PatchPaymentInstallmentInput,
@@ -214,8 +214,7 @@ export function FinanceTable() {
         .sort((a, b) => a.installment_number - b.installment_number);
       let unpaidPaymentIndex = 0;
 
-      for (let index = 0; index < remainingPayments.length; index += 1) {
-        const payment = remainingPayments[index];
+      for (const [index, payment] of remainingPayments.entries()) {
         const patch: PatchPaymentInstallmentInput = {};
 
         if (payment.installment_number !== index + 1) {

@@ -3,8 +3,8 @@ import type Stripe from "stripe";
 export type StripeLogLevel = "info" | "warn" | "error";
 
 export interface StripeLogContext {
-  stripeEventId?: string;
-  stripeSessionId?: string;
+  stripeEventId?: string | undefined;
+  stripeSessionId?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -16,9 +16,9 @@ export type StripeWebhookHandlerResultKind =
 export interface StripeWebhookHandlerResult {
   kind: StripeWebhookHandlerResultKind;
   reason: string;
-  stripeEventId?: string;
-  stripeSessionId?: string;
-  context?: Record<string, unknown>;
+  stripeEventId?: string | undefined;
+  stripeSessionId?: string | undefined;
+  context?: Record<string, unknown> | undefined;
 }
 
 export type StripeWebhookHandler = (
@@ -40,5 +40,5 @@ export type StripeWebhookVerificationResult =
       body: Record<string, unknown>;
       logLevel: StripeLogLevel;
       logMessage: string;
-      logContext?: StripeLogContext;
+      logContext?: StripeLogContext | undefined;
     };

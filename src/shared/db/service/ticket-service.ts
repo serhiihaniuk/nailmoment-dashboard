@@ -66,16 +66,16 @@ export function createTicketService(db: DrizzleDB): ITicketService {
   const addTicket = async (ticketData: InsertTicketInput): Promise<DbTicket> => {
     const validatedData = insertTicketSchema.parse(ticketData);
 
-    const newTickets = await db
+    const [newTicket] = await db
       .insert(ticketTable)
       .values(validatedData)
       .returning();
 
-    if (newTickets.length === 0) {
+    if (!newTicket) {
       throw new Error("Ticket insertion failed to return the new record.");
     }
 
-    return newTickets[0];
+    return newTicket;
   };
 
   const updateTicket = async (

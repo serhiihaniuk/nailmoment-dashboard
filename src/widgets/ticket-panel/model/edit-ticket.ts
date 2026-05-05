@@ -1,4 +1,4 @@
-import { Ticket } from "@/shared/db/schema";
+import { type Ticket } from "@/entities/ticket";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 
 export type EditTicketFormValues = Pick<

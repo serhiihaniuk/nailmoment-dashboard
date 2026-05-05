@@ -1,5 +1,5 @@
 import { TicketTypeBadge } from '@/entities/ticket/index.client';
-import type { TicketWithFinance } from '@/shared/db/schema';
+import type { TicketWithFinance } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import type { PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
 import {

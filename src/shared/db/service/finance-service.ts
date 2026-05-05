@@ -67,16 +67,20 @@ export function createFinanceService(db: DrizzleDB): IFinanceService {
     if (existingFinance) {
       if (Object.keys(validatedData).length === 0) return existingFinance;
 
-      const updated = await db
+      const [updatedFinance] = await db
         .update(ticketFinanceTable)
         .set(validatedData)
         .where(eq(ticketFinanceTable.id, existingFinance.id))
         .returning();
 
-      return updated[0];
+      if (!updatedFinance) {
+        throw new Error("Ticket finance update failed.");
+      }
+
+      return updatedFinance;
     }
 
-    const inserted = await db
+    const [insertedFinance] = await db
       .insert(ticketFinanceTable)
       .values({
         id: nanoid(10),
@@ -85,11 +89,11 @@ export function createFinanceService(db: DrizzleDB): IFinanceService {
       })
       .returning();
 
-    if (inserted.length === 0) {
+    if (!insertedFinance) {
       throw new Error("Ticket finance insertion failed.");
     }
 
-    return inserted[0];
+    return insertedFinance;
   };
 
   const addPaymentForTicket = async (
@@ -99,7 +103,7 @@ export function createFinanceService(db: DrizzleDB): IFinanceService {
     const validatedData =
       insertPaymentInstallmentApiInputSchema.parse(paymentData);
 
-    const inserted = await db
+    const [insertedPayment] = await db
       .insert(paymentInstallmentTable)
       .values({
         id: nanoid(10),
@@ -108,11 +112,11 @@ export function createFinanceService(db: DrizzleDB): IFinanceService {
       })
       .returning();
 
-    if (inserted.length === 0) {
+    if (!insertedPayment) {
       throw new Error("Payment insertion failed.");
     }
 
-    return inserted[0];
+    return insertedPayment;
   };
 
   const updatePayment = async (

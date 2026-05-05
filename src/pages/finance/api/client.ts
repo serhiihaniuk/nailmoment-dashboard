@@ -1,4 +1,15 @@
-import type { TicketWithFinance } from '@/shared/db/schema';
+import {
+  paymentInstallmentSchema,
+  parseTicketWithFinanceList,
+  splitMoney,
+  ticketFinanceSchema,
+  ticketSchema,
+  toMoneyNumber,
+  type PaymentInstallment,
+  type Ticket,
+  type TicketFinance,
+  type TicketWithFinance,
+} from '@/entities/ticket';
 import type {
   InsertPaymentInstallmentInput,
   PatchPaymentInstallmentInput,
@@ -13,27 +24,45 @@ import { ApiError } from '../model/types';
 import {
   getExpectedPaymentCount,
   readApiError,
-  splitMoney,
-  toMoneyNumber,
 } from '../model/utils';
+import { z } from 'zod';
+
+/**
+ * Browser API boundary for the finance page.
+ *
+ * Every function parses response JSON before returning. React Query and UI code
+ * should receive `@/entities/ticket` domain types, not trusted response.json()
+ * values or raw Drizzle row assumptions.
+ */
+const createTicketResponseSchema = z.object({
+  mailError: z.string().nullable().optional(),
+  mailSent: z.boolean().optional(),
+  ticket: z.object({
+    id: z.string().min(1),
+  }),
+});
+
+const deletePaymentResponseSchema = z.object({
+  id: z.string().min(1),
+});
 
 export async function fetchTickets(): Promise<TicketWithFinance[]> {
   const response = await fetch("/api/ticket");
   if (!response.ok) throw await readApiError(response);
-  return response.json();
+  return parseTicketWithFinanceList(await response.json());
 }
 
 export async function saveFinance(
   ticketId: string,
   data: UpsertTicketFinanceInput
-): Promise<unknown> {
+): Promise<TicketFinance> {
   const response = await fetch(`/api/ticket/${ticketId}/finance`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw await readApiError(response);
-  return response.json();
+  return ticketFinanceSchema.parse(await response.json());
 }
 
 export async function createTicket(body: CreateTicketInput): Promise<{ ticket: { id: string } }> {
@@ -54,7 +83,7 @@ export async function createTicket(body: CreateTicketInput): Promise<{ ticket: {
     }
     throw new ApiError(response.statusText || "Не вдалося створити квиток.");
   }
-  return json;
+  return createTicketResponseSchema.parse(json);
 }
 
 export async function patchTicket(
@@ -63,7 +92,7 @@ export async function patchTicket(
     updated_grade?: string | null;
     comment?: string;
   }
-): Promise<unknown> {
+): Promise<Ticket> {
   const response = await fetch(`/api/ticket/${ticketId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -81,23 +110,29 @@ export async function patchTicket(
     }
     throw new ApiError(response.statusText || "Не вдалося оновити квиток.");
   }
-  return json;
+  return ticketSchema.parse(json);
 }
 
 export async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
 ): Promise<CreatedFinanceTicket> {
+  // "free" and "sponsor" plans intentionally create finance with zero totals
+  // and no installments; keep that normalization before dependent requests.
   const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
   const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
   const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;
   const taxAmount = isZeroPaymentPlan ? "0.00" : data.tax_amount;
-  const { ticket } = await createTicket({
+  const ticketInput: CreateTicketInput = {
     name: data.name,
     email: data.email,
     phone: data.phone,
-    instagram: data.instagram,
     grade: data.grade,
-  });
+  };
+  if (data.instagram !== undefined) {
+    ticketInput.instagram = data.instagram;
+  }
+
+  const { ticket } = await createTicket(ticketInput);
   const netTotal = Math.max(
     toMoneyNumber(grossTotal) - toMoneyNumber(taxAmount),
     0
@@ -137,7 +172,7 @@ export async function createTicketWithFinance(
 export async function createPayment(
   ticketId: string,
   data: InsertPaymentInstallmentInput
-): Promise<unknown> {
+): Promise<PaymentInstallment> {
   const response = await fetch(`/api/ticket/${ticketId}/payments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -146,26 +181,26 @@ export async function createPayment(
   if (!response.ok) {
     throw await readApiError(response, { sale_source: "payment_sale_source" });
   }
-  return response.json();
+  return paymentInstallmentSchema.parse(await response.json());
 }
 
 export async function updatePayment(
   paymentId: string,
   data: PatchPaymentInstallmentInput
-): Promise<unknown> {
+): Promise<PaymentInstallment> {
   const response = await fetch(`/api/payments/${paymentId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw await readApiError(response);
-  return response.json();
+  return paymentInstallmentSchema.parse(await response.json());
 }
 
-export async function deletePayment(paymentId: string): Promise<unknown> {
+export async function deletePayment(paymentId: string): Promise<{ id: string }> {
   const response = await fetch(`/api/payments/${paymentId}`, {
     method: "DELETE",
   });
   if (!response.ok) throw await readApiError(response);
-  return response.json();
+  return deletePaymentResponseSchema.parse(await response.json());
 }

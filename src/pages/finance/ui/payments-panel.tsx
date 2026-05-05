@@ -30,7 +30,7 @@ import {
 import { Input } from '@/shared/ui/input';
 import { Separator } from '@/shared/ui/separator';
 import { Switch } from '@/shared/ui/switch';
-import type { TicketWithFinance } from '@/shared/db/schema';
+import type { TicketWithFinance } from '@/entities/ticket';
 import type {
   InsertPaymentInstallmentInput,
   PatchPaymentInstallmentInput,
@@ -87,7 +87,7 @@ export function PaymentsPanel({
   ticket: TicketWithFinance;
   open: boolean;
   onClose: () => void;
-  planError?: string;
+  planError?: string | undefined;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
   onUpdate: (paymentId: string, data: PatchPaymentInstallmentInput) => void;
   onDelete: (paymentId: string) => void;

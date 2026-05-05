@@ -23,7 +23,11 @@ export function EmailDemoPage({ tickets, battleHtml, battleText }: Props) {
   const [activeTab, setActiveTab] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("html");
 
-  const current = tabs[activeTab];
+  const current = tabs[activeTab] ?? tabs[0];
+
+  if (!current) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

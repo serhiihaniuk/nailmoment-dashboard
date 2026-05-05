@@ -9,7 +9,7 @@ export type CreateTicketInput = {
   name: string;
   email: string;
   phone: string;
-  instagram?: string;
+  instagram?: string | undefined;
   grade: TicketGrade;
 };
 
@@ -31,8 +31,8 @@ export type CreateTicketField = keyof CreateTicketWithFinanceInput;
 export type FieldErrors<TField extends string = string> = Partial<Record<TField, string>>;
 
 export type ApiIssue = {
-  message?: string;
-  path?: Array<string | number>;
+  message?: string | undefined;
+  path?: Array<string | number> | undefined;
 };
 
 export class ApiError extends Error {

@@ -24,7 +24,7 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Loader2, Pencil } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
-import { Ticket } from "@/shared/db/schema";
+import { type Ticket } from "@/entities/ticket";
 import { TicketTypeBadge } from "@/entities/ticket/index.client";
 import { Textarea } from "@/shared/ui/textarea";
 import { TICKET_TYPE_LIST } from "@/entities/ticket";

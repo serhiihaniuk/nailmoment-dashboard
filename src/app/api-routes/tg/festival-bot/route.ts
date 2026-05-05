@@ -21,11 +21,9 @@ import {
   PARSE_MODE,
   sleep,
 } from "./const";
+import { readTelegramFestivalBotToken } from "@/shared/config/env";
 
-const token = process.env.TG_FESTIVAL_BOT;
-if (!token) throw new Error("TG_FESTIVAL_BOT is unset");
-
-const bot = new Bot(token);
+const bot = new Bot(readTelegramFestivalBotToken());
 
 // --- HELPERS ---
 
@@ -97,7 +95,7 @@ async function initiateVotingFlow(ctx: Context) {
       .limit(1);
     
     const votedForContestantId =
-      existingVote.length > 0 ? existingVote[0].voted_for_contestant_id : null;
+      existingVote[0]?.voted_for_contestant_id ?? null;
 
     await ctx.reply(
       escapeMarkdownV2(`Голосування за найкращого учасника фестивалю! 🏆`),
@@ -120,6 +118,7 @@ async function initiateVotingFlow(ctx: Context) {
         hasVotedForThis
       );
       const firstMedia = contestant.media[0];
+      if (!firstMedia) continue;
       const replyOptions = {
         caption,
         reply_markup: keyboard,
@@ -218,7 +217,16 @@ bot.callbackQuery("show_votes", async (ctx) => {
 
 bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   if (!ctx.from) return;
-  const [, direction, contestantId, currentIndexStr] = ctx.match;
+  const direction = ctx.match[1];
+  const contestantId = ctx.match[2];
+  const currentIndexStr = ctx.match[3];
+  if (
+    (direction !== "prev" && direction !== "next") ||
+    !contestantId ||
+    !currentIndexStr
+  ) {
+    return;
+  }
   const currentIndex = parseInt(currentIndexStr, 10);
   
   // Find contestant from the fixed set of contestants
@@ -242,8 +250,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     .limit(1);
   
   const hasVotedForThis =
-    existingVote.length > 0 &&
-    existingVote[0].voted_for_contestant_id === contestantId;
+    existingVote[0]?.voted_for_contestant_id === contestantId;
   const newCaption = escapeMarkdownV2(
     hasVotedForThis
       ? `✅ Ви вже проголосували за: ${contestant.name}`
@@ -256,6 +263,7 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     hasVotedForThis
   );
   const newMediaItem = contestant.media[newIndex];
+  if (!newMediaItem) return await ctx.answerCallbackQuery();
 
 
   const commonProps = {
@@ -288,6 +296,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
 
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
+  if (!contestantId) return;
   const telegramUserId = ctx.from.id;
   
   // Find contestant from the fixed set of contestants
@@ -321,10 +330,10 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     });
 
     const buttonText =
-      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
+      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0]?.[1]?.text ||
       "Медіа 1/";
     const match = buttonText.match(/Медіа (\d+)\//);
-    const currentMediaIndex = match ? parseInt(match[1], 10) - 1 : 0;
+    const currentMediaIndex = match?.[1] ? parseInt(match[1], 10) - 1 : 0;
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       currentMediaIndex,
@@ -352,6 +361,7 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
+  if (!contestantId) return;
   const telegramUserId = ctx.from.id;
   
   // Find contestant from the fixed set of contestants
@@ -372,6 +382,7 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       false
     );
     const firstMediaItem = contestant.media[0];
+    if (!firstMediaItem) return;
     
     const commonProps = {
         caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
@@ -523,6 +534,8 @@ bot.command("send_message", async (ctx) => {
 
 bot.on("message:photo", async (ctx) => {
   const photo = ctx.message.photo[ctx.message.photo.length - 1];
+  if (!photo) return;
+
   const fileId = photo.file_id;
   const safeText = escapeMarkdownV2(`Отримано фото. \n\nВаш file_id: `);
   await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });

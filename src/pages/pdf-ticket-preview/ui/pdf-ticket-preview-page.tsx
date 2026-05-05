@@ -1,4 +1,4 @@
-import { getTicketHtml, getTicketText } from "@/app/actions/get-email";
+import { getTicketHtml, getTicketText } from "../api/email-preview";
 import { EmailPreview } from "./email-preview";
 
 export const dynamic = "force-dynamic";

@@ -12,26 +12,20 @@ import {
   insertTicketSchema, // DB shape (id, stripe_event_id …)
   insertTicketClientSchema, // allowed client fields
 } from "@/shared/db/schema.zod";
-import { extractInstagramUsername } from "@/entities/ticket";
+import { extractInstagramUsername, parseTicketGrade } from "@/entities/ticket";
 import {
   generateAndStoreQRCode,
   sendTicketEmail,
 } from "@/shared/email/send-email";
+import { parseRequestJson } from "@/app/api-routes/lib/request";
 
 const ticketService = createTicketService(db);
 
 const parseBody = async (req: NextRequest) => {
-  const parsed = insertTicketClientSchema.safeParse(await req.json());
-  if (!parsed.success) {
-    throw new NextResponse(
-      JSON.stringify({
-        message: "Validation failed",
-        error: parsed.error.issues,
-      }),
-      { status: 400 }
-    );
-  }
-  return parsed.data;
+  const parsed = await parseRequestJson(req, insertTicketClientSchema, {
+    issueKey: "error",
+  });
+  return parsed.ok ? parsed.data : parsed.response;
 };
 
 const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
@@ -54,7 +48,7 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
     phone: body.phone,
     instagram,
     qr_code,
-    grade: (body.grade ?? "standard").toLowerCase(),
+    grade: parseTicketGrade(body.grade),
     mail_sent: false,
   });
 };
@@ -87,6 +81,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const body = await parseBody(req);
+    if (body instanceof NextResponse) return body;
+
     const dbPayload = await toDbPayload(body);
 
     const ticket = await ticketService.addTicket(dbPayload);
@@ -114,8 +110,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ticket, mailSent, mailError }, { status: 201 });
   } catch (err) {
-    if (err instanceof NextResponse) return err;
-
     console.error("API Error adding ticket:", err);
     return NextResponse.json(
       { message: "Internal Server Error: Could not add ticket." },

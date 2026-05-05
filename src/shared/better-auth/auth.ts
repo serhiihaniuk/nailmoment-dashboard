@@ -2,10 +2,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/shared/db";
 import * as schema from "@/shared/db/schema";
+import { readVercelUrl } from "@/shared/config/env";
 
-const vercelOrigin = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : undefined;
+const vercelUrl = readVercelUrl();
+const vercelOrigin = vercelUrl ? `https://${vercelUrl}` : undefined;
 
 const trustedOrigins = [
   "http://localhost:3000",
@@ -17,7 +17,7 @@ const trustedOrigins = [
   "https://nailmoment-dashboard-serhiihaniuks-projects.vercel.app",
   "https://nailmoment-dashboard-serhiihaniuk-serhiihaniuks-projects.vercel.app",
   vercelOrigin,
-].filter(Boolean) as string[];
+].filter((origin): origin is string => Boolean(origin));
 
 export const auth = betterAuth({
   baseURL: vercelOrigin ?? "https://dashboard.nailmoment.pl",

@@ -19,8 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import { TicketWithFinance } from "@/shared/db/schema";
-import { TICKET_TYPE, TICKET_TYPE_LIST } from "@/entities/ticket";
+import {
+  parseTicketWithFinanceList,
+  TICKET_TYPE,
+  TICKET_TYPE_LIST,
+  type TicketWithFinance,
+} from "@/entities/ticket";
 import { cn } from "@/shared/lib/cn";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Loader, Search } from "lucide-react";
@@ -30,7 +34,7 @@ import { TicketTypeBadge } from "@/entities/ticket/index.client";
 async function fetchTickets(): Promise<TicketWithFinance[]> {
   const res = await fetch("/api/ticket");
   if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return parseTicketWithFinanceList(await res.json());
 }
 
 function matchesSubsequence(query: string, value?: string | null) {

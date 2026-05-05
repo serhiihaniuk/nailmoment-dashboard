@@ -8,6 +8,11 @@ import { z } from "zod";
 import { sendTicketEmail } from "@/shared/email/send-email";
 import { ticketTable } from "@/shared/db/schema";
 import { eq } from "drizzle-orm";
+import {
+  parseRequestJson,
+  parseRouteParams,
+} from "@/app/api-routes/lib/request";
+import { ticketIdSchema } from "@/entities/ticket";
 
 const ticketService = createTicketService(db);
 
@@ -21,7 +26,13 @@ export async function GET(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const parsedParams = await parseRouteParams(
+      params,
+      z.object({ id: ticketIdSchema })
+    );
+    if (!parsedParams.ok) return parsedParams.response;
+
+    const { id } = parsedParams.data;
 
     const ticket = await ticketService.getTicket(id);
     if (!ticket)
@@ -45,18 +56,17 @@ export async function PATCH(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ id: ticketIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
 
-  const body = (await req.json()) ?? {};
-  let patch: Patch;
-  try {
-    patch = updateTicketSchema.parse(body);
-  } catch (e) {
-    return NextResponse.json(
-      { message: "Validation failed", issues: (e as z.ZodError).issues },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseRequestJson(req, updateTicketSchema);
+  if (!parsedBody.ok) return parsedBody.response;
+
+  const { id } = parsedParams.data;
+  const patch: Patch = parsedBody.data;
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
@@ -78,7 +88,13 @@ export async function POST(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ id: ticketIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
+
+  const { id } = parsedParams.data;
   const ticket = await ticketService.getTicket(id);
   if (!ticket) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });

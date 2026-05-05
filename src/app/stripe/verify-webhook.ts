@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { readStripeWebhookEnv } from "@/shared/config/env";
 import { logStripeStep } from "./log";
 import type { StripeWebhookVerificationResult } from "./types";
 
@@ -53,8 +54,9 @@ export function readStripeWebhookConfig(
 ):
   | { ok: true; config: StripeWebhookConfig }
   | { ok: false; missingKeys: string[] } {
-  const secretKey = env.STRIPE_SECRET_KEY;
-  const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+  const stripeEnv = readStripeWebhookEnv(env);
+  const secretKey = stripeEnv.secretKey;
+  const webhookSecret = stripeEnv.webhookSecret;
 
   if (!secretKey || !webhookSecret) {
     return {
@@ -69,14 +71,14 @@ export function readStripeWebhookConfig(
   return {
     ok: true,
     config: {
-      allowedCurrencies: parseCsv(env.STRIPE_WEBHOOK_ALLOWED_CURRENCIES).map(
+      allowedCurrencies: parseCsv(stripeEnv.allowedCurrencies).map(
         (currency) => currency.toLowerCase()
       ),
-      allowedPriceIds: parseCsv(env.STRIPE_WEBHOOK_ALLOWED_PRICE_IDS),
+      allowedPriceIds: parseCsv(stripeEnv.allowedPriceIds),
       expectedLivemode:
-        env.STRIPE_WEBHOOK_EXPECT_LIVEMODE === undefined
+        stripeEnv.expectLivemode === undefined
           ? inferLivemode(secretKey)
-          : env.STRIPE_WEBHOOK_EXPECT_LIVEMODE === "true",
+          : stripeEnv.expectLivemode === "true",
       secretKey,
       webhookSecret,
     },

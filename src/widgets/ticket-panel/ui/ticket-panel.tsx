@@ -3,14 +3,17 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { formatInstagramLink } from "@/entities/ticket";
+import {
+  formatInstagramLink,
+  parseTicketWithFinance,
+  type TicketWithFinance,
+} from "@/entities/ticket";
 import { cn } from "@/shared/lib/cn";
 import { linkStyles } from "@/shared/lib/link-styles";
 import { Loader2, AlertTriangle, Ghost, ArrowRight, Check } from "lucide-react";
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
 import { TicketTypeBadge } from "@/entities/ticket/index.client";
 import Link from "next/link";
-import { TicketWithFinance } from "@/shared/db/schema";
 import { Badge } from "@/shared/ui/badge";
 import { SlidePanel } from "@/shared/ui/slide-panel";
 import { EditTicketDialog } from "./edit-ticket-dialog";
@@ -19,7 +22,7 @@ async function fetchTicket(id: string): Promise<TicketWithFinance | null> {
   const r = await fetch(`/api/ticket/${id}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return parseTicketWithFinance(await r.json());
 }
 
 async function patchArrived(
@@ -32,7 +35,7 @@ async function patchArrived(
     body: JSON.stringify({ arrived } satisfies UpdateTicketInput),
   });
   if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return parseTicketWithFinance(await r.json());
 }
 
 export function TicketPanelWrapper({

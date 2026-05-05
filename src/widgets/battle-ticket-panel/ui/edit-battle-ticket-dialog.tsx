@@ -169,7 +169,7 @@ export function EditBattleTicketDialog({
                     <Toggle
                       id="photos-sent-toggle"
                       aria-label="Toggle photos sent status"
-                      pressed={field.value}
+                      pressed={field.value === true}
                       onPressedChange={field.onChange}
                       variant="outline"
                       className="w-full data-[state=on]:bg-green-100 data-[state=on]:text-green-700 dark:data-[state=on]:bg-green-800 dark:data-[state=on]:text-green-200 data-[state=off]:bg-red-100 data-[state=off]:text-red-700 dark:data-[state=off]:bg-red-800 dark:data-[state=off]:text-red-200"

@@ -13,11 +13,9 @@ import { battleVoteTGTable, telegramUsersTable } from "@/shared/db/schema";
 import { nanoid } from "nanoid";
 import { BATTLE_CATEGORIES, BROADCAST_MESSAGES } from "@/entities/voting";
 import { waitUntil } from "@vercel/functions";
+import { readTelegramSpeakerBotToken } from "@/shared/config/env";
 
-const token = process.env.TG_BOT;
-if (!token) throw new Error("BOT_TOKEN is unset");
-
-const bot = new Bot(token);
+const bot = new Bot(readTelegramSpeakerBotToken());
 
 // --- CONSTANTS & HELPERS ---
 const BATTLE_WELCOME_1 = `👋 Привіт! Я — чат-бот, який допоможе визначити переможця конкурсу «Битва майстрів», що проходить у межах манікюрного фестивалю Nail Moment.
@@ -130,7 +128,7 @@ async function initiateVotingFlow(ctx: Context) {
       )
       .limit(1);
     const votedForContestantId =
-      existingVote.length > 0 ? existingVote[0].voted_for_contestant_id : null;
+      existingVote[0]?.voted_for_contestant_id ?? null;
     await ctx.reply(
       escapeMarkdownV2(`Голосування в категорії: *${activeCategory.name}*`),
       { parse_mode: "MarkdownV2" }
@@ -149,7 +147,10 @@ async function initiateVotingFlow(ctx: Context) {
         contestant.photo_file_ids.length,
         hasVotedForThis
       );
-      await ctx.replyWithPhoto(contestant.photo_file_ids[0], {
+      const firstPhoto = contestant.photo_file_ids[0];
+      if (!firstPhoto) continue;
+
+      await ctx.replyWithPhoto(firstPhoto, {
         caption,
         reply_markup: keyboard,
         parse_mode: "MarkdownV2",
@@ -269,9 +270,20 @@ bot.callbackQuery("main_menu", async (ctx) => {
 
 bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
   if (!ctx.from) return;
-  const [, direction, contestantId, currentIndexStr] = ctx.match;
+  const direction = ctx.match[1];
+  const contestantId = ctx.match[2];
+  const currentIndexStr = ctx.match[3];
+  if (
+    (direction !== "prev" && direction !== "next") ||
+    !contestantId ||
+    !currentIndexStr
+  ) {
+    return;
+  }
   const currentIndex = parseInt(currentIndexStr, 10);
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
+  if (!activeCategory) return await ctx.answerCallbackQuery();
+
   const contestant = activeCategory?.contestants.find(
     (c) => c.id === contestantId
   );
@@ -289,13 +301,12 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     .where(
       and(
         eq(battleVoteTGTable.telegram_user_id, ctx.from.id),
-        eq(battleVoteTGTable.category_id, activeCategory!.id)
+        eq(battleVoteTGTable.category_id, activeCategory.id)
       )
     )
     .limit(1);
   const hasVotedForThis =
-    existingVote.length > 0 &&
-    existingVote[0].voted_for_contestant_id === contestantId;
+    existingVote[0]?.voted_for_contestant_id === contestantId;
   const newCaption = escapeMarkdownV2(
     hasVotedForThis
       ? `✅ Ви вже проголосували за: ${contestant.name}`
@@ -307,9 +318,12 @@ bot.callbackQuery(/^slide:(prev|next):(.+):(\d+)$/, async (ctx) => {
     contestant.photo_file_ids.length,
     hasVotedForThis
   );
+  const newPhotoFileId = contestant.photo_file_ids[newIndex];
+  if (!newPhotoFileId) return await ctx.answerCallbackQuery();
+
   const newPhoto: InputMediaPhoto<string> = {
     type: "photo",
-    media: contestant.photo_file_ids[newIndex],
+    media: newPhotoFileId,
     caption: newCaption,
     parse_mode: "MarkdownV2",
   };
@@ -322,6 +336,7 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
 
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
+  if (!contestantId) return;
   const telegramUserId = ctx.from.id;
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
   const contestant = activeCategory?.contestants.find(
@@ -354,10 +369,10 @@ bot.callbackQuery(/^vote:(.+)$/, async (ctx) => {
     });
     await ctx.answerCallbackQuery({ text: "Дякую! Ваш голос збережено." });
     const buttonText =
-      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0][1]?.text ||
+      ctx.callbackQuery.message?.reply_markup?.inline_keyboard[0]?.[1]?.text ||
       "Фото 1/";
     const match = buttonText.match(/Фото (\d+)\//);
-    const currentPhotoIndex = match ? parseInt(match[1], 10) - 1 : 0;
+    const currentPhotoIndex = match?.[1] ? parseInt(match[1], 10) - 1 : 0;
     const newKeyboard = generateSliderKeyboard(
       contestant.id,
       currentPhotoIndex,
@@ -385,6 +400,7 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
 
   if (!ctx.from) return;
   const contestantId = ctx.match[1];
+  if (!contestantId) return;
   const telegramUserId = ctx.from.id;
   const activeCategory = BATTLE_CATEGORIES.find((cat) => cat.isActive);
   const contestant = activeCategory?.contestants.find(
@@ -409,9 +425,12 @@ bot.callbackQuery(/^reset_vote:(.+)$/, async (ctx) => {
       contestant.photo_file_ids.length,
       false
     );
+    const firstPhotoFileId = contestant.photo_file_ids[0];
+    if (!firstPhotoFileId) return;
+
     const firstPhoto: InputMediaPhoto<string> = {
       type: "photo",
-      media: contestant.photo_file_ids[0],
+      media: firstPhotoFileId,
       caption: escapeMarkdownV2(`Учасник: ${contestant.name}`),
       parse_mode: "MarkdownV2",
     };
@@ -570,6 +589,8 @@ bot.command("send_message", async (ctx) => {
 
 bot.on("message:photo", async (ctx) => {
   const photo = ctx.message.photo[ctx.message.photo.length - 1];
+  if (!photo) return;
+
   const fileId = photo.file_id;
   const safeText = escapeMarkdownV2(`Отримано фото. \n\nВаш file_id: `);
   await ctx.reply(`${safeText}\`${fileId}\``, { parse_mode: "MarkdownV2" });

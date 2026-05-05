@@ -1,7 +1,7 @@
 "use client";
 
 import { UpdateTicketInput } from "@/shared/db/schema.zod";
-import { Ticket } from "@/shared/db/schema";
+import { parseTicket, type Ticket } from "@/entities/ticket";
 
 export async function patchTicket(
   id: string,
@@ -18,5 +18,5 @@ export async function patchTicket(
     throw new Error(errorResponse?.message || response.statusText);
   }
 
-  return response.json();
+  return parseTicket(await response.json());
 }

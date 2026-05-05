@@ -1,5 +1,7 @@
 "use server";
 
+// Page-owned server actions live in this slice instead of `src/app/actions`.
+// That keeps lower FSD layers from importing upward from `@/app/*`.
 import { db } from "@/shared/db";
 import { createTicketService } from "@/shared/db/service/ticket-service";
 import { auth } from "@/shared/better-auth/auth";
@@ -8,6 +10,7 @@ import { EmailTemplate } from "@/shared/email/email-template";
 import { CustomEmailTemplate } from "@/shared/email/custom-email-template";
 import { headers } from "next/headers";
 import { Resend } from "resend";
+import { readResendApiKey } from "@/shared/config/env";
 
 const ticketService = createTicketService(db);
 
@@ -87,7 +90,7 @@ export async function sendCustomEmail(
   const ticket = await ticketService.getTicket(ticketId);
   if (!ticket) return { success: false, error: "Ticket not found" };
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = new Resend(readResendApiKey());
 
   const html = await render(
     CustomEmailTemplate({ name: ticket.name, subject, body })

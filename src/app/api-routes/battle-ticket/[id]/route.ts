@@ -4,11 +4,16 @@ import { z } from "zod";
 
 import { auth } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
-import { createBattleTicketService } from "@/shared/db/service/battle-ticket-service"; // Ensure this path is correct
+import { createBattleTicketService } from "@/shared/db/service/battle-ticket-service";
 import {
   updateBattleTicketSchema,
-  UpdateBattleTicketInput, // Ensure this type is exported from schema.zod.ts
-} from "@/shared/db/schema.zod"; // Ensure this path is correct
+  UpdateBattleTicketInput,
+} from "@/shared/db/schema.zod";
+import {
+  parseRequestJson,
+  parseRouteParams,
+} from "@/app/api-routes/lib/request";
+import { ticketIdSchema } from "@/entities/ticket";
 
 const battleTicketService = createBattleTicketService(db);
 
@@ -22,7 +27,13 @@ export async function GET(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const parsedParams = await parseRouteParams(
+      params,
+      z.object({ id: ticketIdSchema })
+    );
+    if (!parsedParams.ok) return parsedParams.response;
+
+    const { id } = parsedParams.data;
     const battleTicket = await battleTicketService.getBattleTicket(id);
     if (!battleTicket) {
       return NextResponse.json(
@@ -49,35 +60,19 @@ export async function PATCH(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const parsedParams = await parseRouteParams(
+      params,
+      z.object({ id: ticketIdSchema })
+    );
+    if (!parsedParams.ok) return parsedParams.response;
 
-    let body;
-    try {
-      body = await req.json();
-    } catch (error) {
-      console.error(error);
-      return NextResponse.json(
-        { message: "Invalid JSON body" },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await parseRequestJson(req, updateBattleTicketSchema, {
+      errorFormat: "fieldErrors",
+    });
+    if (!parsedBody.ok) return parsedBody.response;
 
-    let patchData: UpdateBattleTicketInput;
-    try {
-      patchData = updateBattleTicketSchema.parse(body);
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        return NextResponse.json(
-          { message: "Validation failed", errors: e.flatten().fieldErrors },
-          { status: 400 }
-        );
-      }
-      // Should not happen if Zod is the only source of parsing errors
-      return NextResponse.json(
-        { message: "Invalid request body" },
-        { status: 400 }
-      );
-    }
+    const { id } = parsedParams.data;
+    const patchData: UpdateBattleTicketInput = parsedBody.data;
 
     if (Object.keys(patchData).length === 0) {
       return NextResponse.json(
@@ -101,7 +96,6 @@ export async function PATCH(
     return NextResponse.json(updatedBattleTicket, { status: 200 });
   } catch (e) {
     console.error("PATCH /api/battle-ticket/:id failed:", e);
-    // Consider more specific error handling, e.g., for database constraint violations
     const message =
       e instanceof Error ? e.message : "Server error during update";
     return NextResponse.json({ message }, { status: 500 });

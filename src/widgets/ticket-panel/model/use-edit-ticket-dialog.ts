@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Ticket } from "@/shared/db/schema";
+import { type Ticket } from "@/entities/ticket";
 import {
   createEditTicketDefaultValues,
   createEditTicketPayload,

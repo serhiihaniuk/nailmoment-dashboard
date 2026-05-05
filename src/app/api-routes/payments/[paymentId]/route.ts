@@ -7,6 +7,12 @@ import { db } from "@/shared/db";
 import { createFinanceService } from "@/shared/db/service/finance-service";
 import { patchPaymentInstallmentSchema } from "@/shared/db/schema.zod";
 import { paymentInstallmentTable, ticketTable } from "@/shared/db/schema";
+import {
+  objectKeys,
+  parseRequestJson,
+  parseRouteParams,
+} from "@/app/api-routes/lib/request";
+import { paymentInstallmentIdSchema } from "@/entities/ticket";
 
 const financeService = createFinanceService(db);
 const STRIPE_EDITABLE_PAYMENT_FIELDS = new Set([
@@ -47,23 +53,18 @@ export async function PATCH(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { paymentId } = await params;
-  let data: z.input<typeof patchPaymentInstallmentSchema>;
-  let requestedPaymentFields: string[] = [];
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ paymentId: paymentInstallmentIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
 
-  try {
-    const rawData = (await req.json()) ?? {};
-    requestedPaymentFields =
-      rawData && typeof rawData === "object" && !Array.isArray(rawData)
-        ? Object.keys(rawData)
-        : [];
-    data = patchPaymentInstallmentSchema.parse(rawData);
-  } catch (e) {
-    return NextResponse.json(
-      { message: "Validation failed", issues: (e as z.ZodError).issues },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseRequestJson(req, patchPaymentInstallmentSchema);
+  if (!parsedBody.ok) return parsedBody.response;
+
+  const { paymentId } = parsedParams.data;
+  const data = parsedBody.data;
+  const requestedPaymentFields = objectKeys(parsedBody.raw);
 
   const paymentGuard = await getPaymentGuard(paymentId);
   if (!paymentGuard) {
@@ -96,7 +97,13 @@ export async function DELETE(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { paymentId } = await params;
+  const parsedParams = await parseRouteParams(
+    params,
+    z.object({ paymentId: paymentInstallmentIdSchema })
+  );
+  if (!parsedParams.ok) return parsedParams.response;
+
+  const { paymentId } = parsedParams.data;
   const paymentGuard = await getPaymentGuard(paymentId);
   if (!paymentGuard) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
