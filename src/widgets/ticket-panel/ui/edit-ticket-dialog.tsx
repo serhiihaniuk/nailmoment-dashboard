@@ -129,7 +129,6 @@ export function EditTicketDialog({
                   <FormControl>
                     <Textarea
                       {...field}
-                      className="h-36"
                       value={field.value ?? ""}
                     />
                   </FormControl>

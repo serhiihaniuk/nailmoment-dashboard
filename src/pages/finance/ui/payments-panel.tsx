@@ -78,6 +78,7 @@ import {
   SaveStatusLine,
   SmallSelect,
   TextCell,
+  TextareaCell,
 } from './edit-cells';
 import { DiscountCombobox } from './discount-combobox';
 
@@ -429,7 +430,7 @@ export function PaymentsPanel({
           label="Коментар"
           saveStatus={getFieldStatus(financeNoteFieldKey)}
         >
-          <TextCell
+          <TextareaCell
             value={ticket.finance?.finance_note ?? ""}
             onSave={(finance_note) =>
               onFinanceChange({ finance_note }, financeNoteFieldKey)
@@ -439,7 +440,7 @@ export function PaymentsPanel({
       </div>
 
       {/* Payments section */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-2.5">
         <h3 className="text-label-caps">Платежі</h3>
         {paymentActionError && (
           <p className="flex items-center gap-1.5 text-[12px] text-destructive">
@@ -447,7 +448,7 @@ export function PaymentsPanel({
             {paymentActionError}
           </p>
         )}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {sortedPayments.map((payment) => (
             <PaymentCard
               key={payment.id}
@@ -522,9 +523,9 @@ function PaymentCard({
         isLocked && "bg-muted/20"
       )}
     >
-      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <Badge variant="secondary" className="rounded-md px-2 py-1 text-[13px]">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge variant="secondary" className="rounded-md px-1.5 py-0.5 text-[12px]">
             #{payment.installment_number}
           </Badge>
           <div className="min-w-0">
@@ -537,9 +538,9 @@ function PaymentCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="flex flex-col items-end">
-            <label className="flex items-center gap-2 whitespace-nowrap text-[12px] font-medium">
+            <label className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium">
               <span>Оплачено</span>
               <Switch
                 checked={isPaid}
@@ -561,7 +562,7 @@ function PaymentCard({
             </label>
             <SaveStatusLine
               status={getFieldStatus(isPaidFieldKey)}
-              className="justify-end"
+              className="min-h-3 justify-end"
             />
           </div>
           <DeletePaymentButton
@@ -575,8 +576,9 @@ function PaymentCard({
       </CardHeader>
 
       <Separator />
-      <CardContent className="grid grid-cols-1 gap-3 p-4">
+      <CardContent className="grid grid-cols-1 gap-2 px-3 py-2.5">
         <PaymentField
+          compact
           label="Сума"
           saveStatus={getFieldStatus(amountFieldKey)}
         >
@@ -587,6 +589,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Дата оплати"
           saveStatus={getFieldStatus(paidDateFieldKey)}
         >
@@ -599,6 +602,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Термін оплати"
           saveStatus={getFieldStatus(dueDateFieldKey)}
         >
@@ -611,6 +615,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Джерело платежу"
           saveStatus={getFieldStatus(saleSourceFieldKey)}
         >
@@ -624,6 +629,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Спосіб оплати"
           saveStatus={getFieldStatus(paymentMethodFieldKey)}
         >
@@ -637,6 +643,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Рахунок-фактура"
           saveStatus={getFieldStatus(invoiceStatusFieldKey)}
         >
@@ -650,6 +657,7 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="№ рахунку-фактури"
           saveStatus={getFieldStatus(invoiceNumberFieldKey)}
         >
@@ -662,10 +670,11 @@ function PaymentCard({
           />
         </PaymentField>
         <PaymentField
+          compact
           label="Коментар"
           saveStatus={getFieldStatus(commentFieldKey)}
         >
-          <TextCell
+          <TextareaCell
             value={payment.comment}
             disabled={isLocked}
             onSave={(comment) => onUpdate(payment.id, { comment }, commentFieldKey)}

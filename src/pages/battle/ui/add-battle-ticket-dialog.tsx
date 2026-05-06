@@ -180,7 +180,6 @@ export function AddBattleTicketDialog() {
                         {...field}
                         value={field.value ?? ""}
                         placeholder="Додаткова інформація"
-                        className="h-24"
                         disabled={isLocked}
                       />
                     </FormControl>
