@@ -1,0 +1,4 @@
+interface:
+  display_name: "TypeScript"
+  short_description: "Strict TS with Zod, FSD, and Drizzle"
+  default_prompt: "Use $typescript to implement this TypeScript change with shift-left validation, Zod, branded types, FSD ownership, Drizzle-inferred persistence types, and minimal casting."

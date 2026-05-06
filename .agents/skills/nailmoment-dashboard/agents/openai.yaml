@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nail Moment Dashboard"
+  short_description: "Develop this production dashboard safely"
+  default_prompt: "Use $nailmoment-dashboard to implement a safe change in this repo."

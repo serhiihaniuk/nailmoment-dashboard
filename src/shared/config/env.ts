@@ -64,7 +64,18 @@ export function readVercelUrl(env: Env = process.env) {
   return readOptionalEnv("VERCEL_URL", env);
 }
 
-/** Stripe has multiple optional guard vars, so return one scoped config object. */
+/**
+ * Stripe webhook env reader.
+ *
+ * Webhook verification needs two required secrets at request time:
+ *
+ * - `STRIPE_SECRET_KEY` to create a Stripe SDK client;
+ * - `STRIPE_WEBHOOK_SECRET` to verify the signed raw request body.
+ *
+ * The other vars are optional guards. They let an environment reject a checkout
+ * that is signed by Stripe but belongs to the wrong currency, wrong live/test
+ * mode, or wrong Price id before ticket/finance side effects run.
+ */
 export function readStripeWebhookEnv(env: Env = process.env) {
   return {
     allowedCurrencies: readOptionalEnv("STRIPE_WEBHOOK_ALLOWED_CURRENCIES", env),

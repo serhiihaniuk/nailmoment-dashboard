@@ -3,8 +3,36 @@ import { readStripeWebhookEnv } from "@/shared/config/env";
 import { logStripeStep } from "./log";
 import type { StripeWebhookVerificationResult } from "./types";
 
+/**
+ * Verification layer for Stripe webhook requests.
+ *
+ * This file runs before any ticket, finance, payment, QR, or email side effect.
+ * Its job is to answer only one question: "Can this raw HTTP request be trusted
+ * enough for a business handler to inspect it?"
+ *
+ * It verifies trust in layers:
+ *
+ * 1. Required Stripe env vars exist.
+ * 2. The `stripe-signature` header is present.
+ * 3. Stripe's SDK can reconstruct the event from the exact raw request body.
+ * 4. For `checkout.session.completed`, optional app guards validate that the
+ *    session is the expected mode, livemode, currency, and price set.
+ *
+ * No dashboard totals are written here. The total connection happens later in
+ * `checkout-session-completed.ts`, where Stripe `amount_total` becomes finance
+ * `gross_total` and the paid installment amount.
+ */
+
 const STRIPE_API_VERSION = "2026-03-25.dahlia";
 
+/**
+ * Runtime config for the webhook verifier.
+ *
+ * `secretKey` lets the app call Stripe when extra validation is needed.
+ * `webhookSecret` verifies that Stripe signed this exact request.
+ * The allow-lists are optional safety rails used to reject sessions from a
+ * wrong currency, wrong livemode, or wrong Stripe Price.
+ */
 export interface StripeWebhookConfig {
   allowedCurrencies: string[];
   allowedPriceIds: string[];
@@ -22,10 +50,18 @@ type StripeCheckoutValidationResult =
   | { ok: true }
   | { ok: false; rejection: StripeWebhookRejection };
 
+/** Keeps optional env parsing concise while preserving strict string checks. */
 function isPresent(value: string | false | undefined): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+/**
+ * Parses comma-separated env allow-lists.
+ *
+ * Empty or missing values mean "no allow-list for this dimension", not "reject
+ * everything". That keeps the webhook usable in environments where a guard has
+ * not been configured yet.
+ */
 function parseCsv(value: string | undefined) {
   return (value ?? "")
     .split(",")
@@ -33,12 +69,25 @@ function parseCsv(value: string | undefined) {
     .filter((entry): entry is string => entry.length > 0);
 }
 
+/**
+ * Infers whether this webhook should expect live-mode Stripe events.
+ *
+ * If `STRIPE_WEBHOOK_EXPECT_LIVEMODE` is not set, the app derives the expected
+ * mode from the secret key. This catches a common dangerous mismatch: a live
+ * webhook hitting a preview/dev key, or a test webhook hitting production code.
+ */
 function inferLivemode(secretKey: string) {
   return (
     secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_")
   );
 }
 
+/**
+ * Shared context for checkout-session verification logs.
+ *
+ * These values are safe to log and explain why a session was accepted or
+ * rejected before fulfillment. The full raw payload is intentionally not logged.
+ */
 function getCheckoutSessionLogContext(session: Stripe.Checkout.Session) {
   return {
     checkoutMode: session.mode,
@@ -49,6 +98,14 @@ function getCheckoutSessionLogContext(session: Stripe.Checkout.Session) {
   };
 }
 
+/**
+ * Reads only the Stripe webhook-related environment variables.
+ *
+ * This keeps env validation scoped: importing Stripe webhook code should not
+ * require unrelated secrets such as Resend, Telegram, or database URLs. Missing
+ * required Stripe keys are returned as data so the route can log and respond
+ * with a controlled error instead of crashing during module import.
+ */
 export function readStripeWebhookConfig(
   env: NodeJS.ProcessEnv = process.env
 ):
@@ -85,6 +142,22 @@ export function readStripeWebhookConfig(
   };
 }
 
+/**
+ * Performs app-level validation after Stripe signature verification.
+ *
+ * Signature verification proves the event came from Stripe. It does not prove
+ * this checkout is one this app should fulfill. These checks reject sessions
+ * that are valid Stripe objects but unsafe for local side effects:
+ *
+ * - only one-time `payment` Checkout Sessions are fulfilled;
+ * - live/test mode must match this deployment;
+ * - configured currency allow-list must match;
+ * - configured Stripe Price allow-list must match.
+ *
+ * Rejected checkout sessions return 200 because the app intentionally decided
+ * not to process them. Returning 500 would tell Stripe to retry an event that
+ * will never become valid.
+ */
 export async function validateCheckoutSessionCompletedEvent(
   session: Stripe.Checkout.Session,
   config: Pick<
@@ -152,6 +225,9 @@ export async function validateCheckoutSessionCompletedEvent(
   }
 
   if (config.allowedPriceIds.length > 0) {
+    // Price ids are not included directly on every Checkout Session event, so
+    // the verifier fetches line items from Stripe only when a price allow-list
+    // has been configured.
     logStripeStep("info", "VERIFY", "Fetching Stripe line items for allow-list validation", {
       allowedPriceIds: config.allowedPriceIds,
       stripeSessionId: session.id,
@@ -189,12 +265,25 @@ export async function validateCheckoutSessionCompletedEvent(
   return { ok: true };
 }
 
+/**
+ * Creates the Stripe SDK client used by webhook verification.
+ *
+ * Keep the API version pinned so Stripe payload shapes do not silently change
+ * when the account default API version changes.
+ */
 export function createStripeClient(secretKey: string) {
   return new Stripe(secretKey, {
     apiVersion: STRIPE_API_VERSION,
   });
 }
 
+/**
+ * Factory for the request verifier.
+ *
+ * Tests inject a fake env/client through this factory. Production uses the
+ * exported `verifyStripeWebhookRequest` below, which reads process env and
+ * creates a real Stripe client.
+ */
 export function createStripeWebhookVerifier(
   dependencies: {
     createClient?: typeof createStripeClient;
@@ -207,6 +296,8 @@ export function createStripeWebhookVerifier(
   return async function verifyStripeWebhookRequest(
     request: Request
   ): Promise<StripeWebhookVerificationResult> {
+    // Load config inside the request handler so missing env vars produce a
+    // logged HTTP response instead of crashing the Next.js module at import time.
     const configResult = readStripeWebhookConfig(env);
 
     logStripeStep("info", "VERIFY", "Loaded Stripe webhook config", {
@@ -234,6 +325,8 @@ export function createStripeWebhookVerifier(
     const signature = request.headers.get("stripe-signature");
 
     if (!signature) {
+      // Missing signature means there is no trustworthy way to parse the body as
+      // a Stripe event. Return 400 because this is a malformed webhook request.
       return {
         kind: "rejected",
         status: 400,
@@ -253,12 +346,16 @@ export function createStripeWebhookVerifier(
     let event: Stripe.Event;
 
     try {
+      // Stripe signs the exact raw body string. This is why callers must not
+      // parse JSON before verification.
       event = stripe.webhooks.constructEvent(
         body,
         signature,
         configResult.config.webhookSecret
       );
     } catch (error) {
+      // Bad signatures are rejected before any event-specific logic runs. This
+      // protects ticket creation and finance totals from forged HTTP requests.
       return {
         kind: "rejected",
         status: 400,
@@ -281,6 +378,9 @@ export function createStripeWebhookVerifier(
     });
 
     if (event.type === "checkout.session.completed") {
+      // From this point the payload is authentic, but still not necessarily one
+      // this app should fulfill. The app-level session checks run before the
+      // event reaches ticket/payment creation.
       logStripeStep("info", "VERIFY", "Validating checkout session payload", {
         eventType: event.type,
         stripeEventId: event.id,
