@@ -12,7 +12,10 @@ import {
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Textarea } from '@/shared/ui/textarea';
-import { TICKET_PRICE_BY_GRADE } from '@/entities/ticket';
+import {
+  calculateTicketFinanceTotals,
+  TICKET_PRICE_BY_GRADE,
+} from '@/entities/ticket';
 import {
   GRADE_SELECT_OPTIONS,
   PAYMENT_PLAN_OPTIONS,
@@ -33,15 +36,17 @@ import {
   getExpectedPaymentCount,
   normalizeMoney,
   normalizeNewTicketFinanceForm,
-  toMoneyNumber,
   zodIssuesToFieldErrors,
 } from '../model/utils';
 import { PaymentField, ReadOnlyMoney, SmallSelect } from './edit-cells';
+import { DiscountCombobox } from './discount-combobox';
 
 export function NewTicketFinanceDialog({
+  discountOptions,
   isPending,
   onCreate,
 }: {
+  discountOptions: readonly string[];
   isPending: boolean;
   onCreate: (data: CreateTicketWithFinanceInput) => Promise<CreatedFinanceTicket>;
 }) {
@@ -149,6 +154,13 @@ export function NewTicketFinanceDialog({
     }
   };
 
+  const formTotals = calculateTicketFinanceTotals({
+    discount_amount: form.discount_amount,
+    gross_total: form.gross_total,
+    payment_plan: form.payment_plan,
+    tax_amount: form.tax_amount,
+  });
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -235,7 +247,7 @@ export function NewTicketFinanceDialog({
                 onChange={handlePaymentPlanChange}
               />
             </PaymentField>
-            <PaymentField label="До оплати" error={fieldErrors.gross_total}>
+            <PaymentField label="Ціна до знижки" error={fieldErrors.gross_total}>
               <Input
                 type="number"
                 min="0"
@@ -251,18 +263,13 @@ export function NewTicketFinanceDialog({
               />
             </PaymentField>
             <PaymentField label="Знижка" error={fieldErrors.discount_amount}>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                aria-invalid={Boolean(fieldErrors.discount_amount)}
+              <DiscountCombobox
                 value={form.discount_amount}
-                onChange={(event) =>
-                  updateForm({ discount_amount: event.target.value })
-                }
-                onBlur={() =>
+                grossTotal={form.gross_total}
+                options={discountOptions}
+                onSave={(discount_amount) =>
                   updateForm({
-                    discount_amount: normalizeMoney(form.discount_amount),
+                    discount_amount,
                   })
                 }
               />
@@ -282,13 +289,11 @@ export function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
+            <PaymentField label="До оплати">
+              <ReadOnlyMoney value={formTotals.payableTotal.toFixed(2)} />
+            </PaymentField>
             <PaymentField label="Нетто">
-              <ReadOnlyMoney
-                value={Math.max(
-                  toMoneyNumber(form.gross_total) - toMoneyNumber(form.tax_amount),
-                  0
-                ).toFixed(2)}
-              />
+              <ReadOnlyMoney value={formTotals.netTotal.toFixed(2)} />
             </PaymentField>
             <PaymentField label="NIP" error={fieldErrors.nip}>
               <Input

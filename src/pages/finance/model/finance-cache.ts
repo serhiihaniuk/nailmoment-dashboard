@@ -272,7 +272,7 @@ export function patchPaymentPlanInFinanceCache(
 
     return recalculateTicket({
       ...patchedTicket,
-      payments: patchedTicket.payments.filter((payment) => payment.paid_date),
+      payments: patchedTicket.payments.filter((payment) => payment.is_paid),
     });
   });
 }
@@ -285,6 +285,9 @@ function patchPayment(
 
   if (patch.installment_number !== undefined) {
     nextPayment.installment_number = Number(patch.installment_number);
+  }
+  if (patch.is_paid !== undefined) {
+    nextPayment.is_paid = Boolean(patch.is_paid);
   }
   if (patch.amount !== undefined) {
     nextPayment.amount = normalizeMoneyString(patch.amount);

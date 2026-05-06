@@ -134,6 +134,20 @@
       "when": 1777887000000,
       "tag": "0018_payment_sale_source",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778019300000,
+      "tag": "0019_payment_installment_is_paid",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778022000000,
+      "tag": "0020_finance_discount_storage_backfill",
+      "breakpoints": true
     }
   ]
 }

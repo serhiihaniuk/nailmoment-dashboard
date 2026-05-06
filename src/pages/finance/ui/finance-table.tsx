@@ -21,6 +21,7 @@ import {
   fetchTickets,
 } from '../api/client';
 import type { PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
+import { buildDiscountOptions } from '../model/discount-options';
 import { ticketsQueryKey } from '../model/finance-cache';
 import { useFinanceAutosave } from '../model/use-finance-autosave';
 import {
@@ -41,6 +42,8 @@ import {
   StatusIndicator,
 } from './table-cells';
 
+const discountOptionsQueryKey = ["finance", "discount-options", "percent-notes"] as const;
+
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
@@ -59,6 +62,12 @@ export function FinanceTable() {
   >({
     queryKey: ticketsQueryKey,
     queryFn: fetchTickets,
+    staleTime: Infinity,
+  });
+  const { data: stableDiscountOptions } = useQuery<string[], Error>({
+    queryKey: discountOptionsQueryKey,
+    queryFn: () => Promise.resolve(buildDiscountOptions(data ?? [])),
+    enabled: data !== undefined,
     staleTime: Infinity,
   });
 
@@ -117,6 +126,11 @@ export function FinanceTable() {
   }, [tickets]);
 
   const financeCharts = useMemo(() => buildFinanceCharts(tickets), [tickets]);
+  const liveDiscountOptions = useMemo(
+    () => buildDiscountOptions(data ?? []),
+    [data]
+  );
+  const discountOptions = stableDiscountOptions ?? liveDiscountOptions;
 
   const selectedTicket = useMemo(
     () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
@@ -215,6 +229,7 @@ export function FinanceTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-heading-1">Фінанси</h2>
         <NewTicketFinanceDialog
+          discountOptions={discountOptions}
           isPending={createTicketMutation.isPending}
           onCreate={(data) => createTicketMutation.mutateAsync(data)}
         />
@@ -371,7 +386,7 @@ export function FinanceTable() {
                         className="rounded-md px-2 py-1 text-[12px] tabular-nums"
                       >
                         {
-                          ticket.payments.filter((payment) => payment.paid_date)
+                          ticket.payments.filter((payment) => payment.is_paid)
                             .length
                         }/{displayedPaymentCount}
                       </Badge>
@@ -413,6 +428,7 @@ export function FinanceTable() {
           onClose={requestClosePaymentsPanel}
           closeBlockedByError={blockedCloseTicketId === selectedTicket.id}
           closePending={pendingCloseTicketId === selectedTicket.id}
+          discountOptions={discountOptions}
           paymentActionError={financeAutosave.getPaymentActionError(
             selectedTicket.id
           )}

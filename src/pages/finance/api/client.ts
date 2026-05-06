@@ -1,11 +1,11 @@
 import {
+  calculateTicketFinanceTotals,
   paymentInstallmentSchema,
   parseTicketWithFinanceList,
   parseTicketWithFinance,
   splitMoney,
   ticketFinanceSchema,
   ticketSchema,
-  toMoneyNumber,
   getExpectedPaymentCount,
   type PaymentInstallment,
   type PaymentPlan,
@@ -148,10 +148,14 @@ export async function createTicketWithFinance(
   }
 
   const { ticket } = await createTicket(ticketInput);
-  const netTotal = Math.max(
-    toMoneyNumber(grossTotal) - toMoneyNumber(taxAmount),
-    0
-  ).toFixed(2);
+  const financeTotals = calculateTicketFinanceTotals({
+    discount_amount: discountAmount,
+    gross_total: grossTotal,
+    payment_plan: data.payment_plan,
+    tax_amount: taxAmount,
+  });
+  const payableTotal = financeTotals.payableTotal.toFixed(2);
+  const netTotal = financeTotals.netTotal.toFixed(2);
 
   await saveFinance(ticket.id, {
     payment_plan: data.payment_plan,
@@ -165,12 +169,13 @@ export async function createTicketWithFinance(
 
   const paymentCount = getExpectedPaymentCount(data.payment_plan);
   if (paymentCount && paymentCount > 0) {
-    const amounts = splitMoney(grossTotal, paymentCount);
+    const amounts = splitMoney(payableTotal, paymentCount);
     for (let index = 0; index < paymentCount; index += 1) {
       await createPayment(ticket.id, {
         installment_number: index + 1,
         amount: amounts[index] ?? "0.00",
         sale_source: data.payment_sale_source,
+        is_paid: false,
         paid_date: "",
         due_date: "",
         payment_method: "other",

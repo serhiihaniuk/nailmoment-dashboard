@@ -19,6 +19,7 @@ import {
   type UpsertTicketFinanceInput,
 } from "@/shared/db/schema.zod";
 import {
+  calculateTicketFinanceTotals,
   getExpectedPaymentCount,
   splitMoney,
   ticketIdSchema,
@@ -65,7 +66,7 @@ export async function PATCH(
   const sortedPayments = [...ticket.payments].sort(
     (a, b) => a.installment_number - b.installment_number
   );
-  const paidPayments = sortedPayments.filter((payment) => payment.paid_date);
+  const paidPayments = sortedPayments.filter((payment) => payment.is_paid);
 
   if (
     expectedPaymentCount !== null &&
@@ -93,9 +94,7 @@ export async function PATCH(
       net_total: "0.00",
     });
 
-    for (const payment of sortedPayments.filter(
-      (payment) => !payment.paid_date
-    )) {
+    for (const payment of sortedPayments.filter((payment) => !payment.is_paid)) {
       await db
         .delete(paymentInstallmentTable)
         .where(eq(paymentInstallmentTable.id, payment.id));
@@ -105,8 +104,9 @@ export async function PATCH(
       payment_plan: paymentPlan,
     });
 
+    const { payableTotal } = calculateTicketFinanceTotals(ticket.finance);
     const remainingAfterPaid = Math.max(
-      toMoneyNumber(ticket.finance?.gross_total) -
+      payableTotal -
         paidPayments.reduce(
           (total, payment) => total + toMoneyNumber(payment.amount),
           0
@@ -149,7 +149,7 @@ export async function PATCH(
         patch.installment_number = index + 1;
       }
 
-      if (!payment.paid_date) {
+      if (!payment.is_paid) {
         patch.amount = splitAmounts[unpaidPaymentIndex] ?? "0.00";
         unpaidPaymentIndex += 1;
       }
@@ -172,6 +172,7 @@ export async function PATCH(
         installment_number: index,
         amount: splitAmounts[unpaidPaymentIndex] ?? "0.00",
         sale_source: "direct_transfer",
+        is_paid: false,
         paid_date: "",
         due_date: "",
         payment_method: "other",

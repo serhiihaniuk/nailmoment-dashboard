@@ -44,6 +44,7 @@ function makePayment(
     amount: "40.00",
     sale_source: "site",
     due_date: futureDueDate,
+    is_paid: false,
     paid_date: null,
     payment_method: "blik",
     invoice_status: "not_needed",
@@ -127,13 +128,28 @@ describe("finance optimistic cache helpers", () => {
     expect(ticket.finance_summary.payment_status).toBe("unpaid");
   });
 
+  test("applies finance discounts when recalculating the summary", () => {
+    const result = patchTicketFinanceInCache([makeTicket()], "ticket-1", {
+      discount_amount: "25",
+      gross_total: "100",
+    });
+
+    const ticket = readTicket(result);
+    expect(ticket.finance?.gross_total).toBe("100.00");
+    expect(ticket.finance?.discount_amount).toBe("25.00");
+    expect(ticket.finance_summary.gross_total).toBe("75.00");
+    expect(ticket.finance_summary.remaining_total).toBe("75.00");
+  });
+
   test("patches payment fields and recalculates paid and remaining totals", () => {
     const paidDate = new Date("2026-02-01T10:00:00.000Z");
     const result = patchPaymentInFinanceCache([makeTicket()], "payment-1", {
+      is_paid: true,
       paid_date: paidDate,
     });
 
     const ticket = readTicket(result);
+    expect(ticket.payments[0]?.is_paid).toBe(true);
     expect(ticket.payments[0]?.paid_date).toEqual(paidDate);
     expect(ticket.finance_summary.paid_total).toBe("40.00");
     expect(ticket.finance_summary.remaining_total).toBe("60.00");
@@ -154,11 +170,13 @@ describe("finance optimistic cache helpers", () => {
   test("applies zero-payment plans to cached finance and unpaid payments", () => {
     const paidPayment = makePayment({
       id: "payment-paid",
+      is_paid: true,
       paid_date: new Date("2026-02-01T10:00:00.000Z"),
     });
     const unpaidPayment = makePayment({
       id: "payment-unpaid",
       installment_number: 2,
+      is_paid: false,
       paid_date: null,
     });
 

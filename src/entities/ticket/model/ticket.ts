@@ -196,6 +196,7 @@ export const paymentInstallmentSchema = z.object({
   due_date: nullableDateSchema,
   id: z.string(),
   installment_number: z.number().int(),
+  is_paid: z.boolean(),
   invoice_number: z.string(),
   invoice_status: invoiceStatusSchema,
   paid_date: nullableDateSchema,
