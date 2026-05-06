@@ -12,14 +12,20 @@ import {
   insertTicketSchema, // DB shape (id, stripe_event_id …)
   insertTicketClientSchema, // allowed client fields
 } from "@/shared/db/schema.zod";
-import { extractInstagramUsername, parseTicketGrade } from "@/entities/ticket";
+import {
+  buildTicketFinanceSummary,
+  extractInstagramUsername,
+  parseTicketGrade,
+} from "@/entities/ticket";
 import {
   generateAndStoreQRCode,
   sendTicketEmail,
 } from "@/shared/email/send-email";
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 
-const ticketService = createTicketService(db);
+const ticketService = createTicketService(db, {
+  buildFinanceSummary: buildTicketFinanceSummary,
+});
 
 const parseBody = async (req: NextRequest) => {
   const parsed = await parseRequestJson(req, insertTicketClientSchema, {

@@ -19,6 +19,7 @@ import {
   type UpsertTicketFinanceInput,
 } from "@/shared/db/schema.zod";
 import {
+  buildTicketFinanceSummary,
   calculateTicketFinanceTotals,
   getExpectedPaymentCount,
   splitMoney,
@@ -31,7 +32,9 @@ import {
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
 
-const ticketService = createTicketService(db);
+const ticketService = createTicketService(db, {
+  buildFinanceSummary: buildTicketFinanceSummary,
+});
 const paymentPlanRequestSchema = z.object({
   payment_plan: paymentPlanSchema,
 });

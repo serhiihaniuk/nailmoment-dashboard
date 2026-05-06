@@ -21,6 +21,15 @@ export interface GetTicketsFilters {
   archived?: boolean;
 }
 
+export type BuildTicketFinanceSummary = (
+  finance: TicketFinance | null,
+  payments: PaymentInstallment[]
+) => TicketFinanceSummary;
+
+export interface TicketServiceDependencies {
+  buildFinanceSummary: BuildTicketFinanceSummary;
+}
+
 export interface ITicketService {
   getTickets: (filters?: GetTicketsFilters) => Promise<TicketWithFinance[]>;
   getTicket: (id: string) => Promise<TicketWithFinance | undefined>;
@@ -32,7 +41,10 @@ export interface ITicketService {
   markTicketArrived: (id: string) => Promise<DbTicket | undefined>;
 }
 
-export function createTicketService(db: DrizzleDB): ITicketService {
+export function createTicketService(
+  db: DrizzleDB,
+  { buildFinanceSummary }: TicketServiceDependencies
+): ITicketService {
   const getTickets = async (
     filters?: GetTicketsFilters
   ): Promise<TicketWithFinance[]> => {
@@ -125,28 +137,12 @@ export function createTicketService(db: DrizzleDB): ITicketService {
         .orderBy(paymentInstallmentTable.installment_number),
     ]);
 
-    const financesByTicket = new Map(
-      finances.map((finance) => [finance.ticket_id, finance])
+    return hydrateTicketFinanceRows(
+      tickets,
+      finances,
+      payments,
+      buildFinanceSummary
     );
-    const paymentsByTicket = new Map<string, PaymentInstallment[]>();
-
-    for (const payment of payments) {
-      const ticketPayments = paymentsByTicket.get(payment.ticket_id) ?? [];
-      ticketPayments.push(payment);
-      paymentsByTicket.set(payment.ticket_id, ticketPayments);
-    }
-
-    return tickets.map((ticket) => {
-      const finance = financesByTicket.get(ticket.id) ?? null;
-      const ticketPayments = paymentsByTicket.get(ticket.id) ?? [];
-
-      return {
-        ...ticket,
-        finance,
-        payments: ticketPayments,
-        finance_summary: buildFinanceSummary(finance, ticketPayments),
-      };
-    });
   }
 
   return {
@@ -158,80 +154,32 @@ export function createTicketService(db: DrizzleDB): ITicketService {
   };
 }
 
-function buildFinanceSummary(
-  finance: TicketFinance | null,
-  payments: PaymentInstallment[]
-): TicketFinanceSummary {
-  const isZeroPaymentPlan =
-    finance?.payment_plan === "free" || finance?.payment_plan === "sponsor";
-  const payableTotal = isZeroPaymentPlan ? 0 : getPayableTotal(finance);
-  const paidTotal = isZeroPaymentPlan
-    ? 0
-    : payments.reduce((sum, payment) => {
-        if (!payment.is_paid) return sum;
-        return sum + toMoneyNumber(payment.amount);
-      }, 0);
-  const remainingTotal = Math.max(payableTotal - paidTotal, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const unpaidPayments = payments.filter((payment) => !payment.is_paid);
-  const nextDueDate =
-    unpaidPayments
-      .map((payment) => payment.due_date)
-      .filter((date): date is Date => Boolean(date))
-      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-  const hasOverduePayment = unpaidPayments.some(
-    (payment) => payment.due_date && payment.due_date < today
+export function hydrateTicketFinanceRows(
+  tickets: DbTicket[],
+  finances: TicketFinance[],
+  payments: PaymentInstallment[],
+  buildFinanceSummary: BuildTicketFinanceSummary
+): TicketWithFinance[] {
+  const financesByTicket = new Map(
+    finances.map((finance) => [finance.ticket_id, finance])
   );
+  const paymentsByTicket = new Map<string, PaymentInstallment[]>();
 
-  const invoiceStatus =
-    payments.length === 0
-      ? null
-      : payments.some((payment) => payment.invoice_status === "requested")
-        ? "requested"
-        : payments.some((payment) => payment.invoice_status === "sent")
-          ? "sent"
-          : "not_needed";
+  for (const payment of payments) {
+    const ticketPayments = paymentsByTicket.get(payment.ticket_id) ?? [];
+    ticketPayments.push(payment);
+    paymentsByTicket.set(payment.ticket_id, ticketPayments);
+  }
 
-  const paymentStatus: TicketFinanceSummary["payment_status"] =
-    !finance && payments.length === 0
-      ? "untracked"
-      : payableTotal <= 0
-        ? "paid"
-      : payableTotal > 0 && paidTotal >= payableTotal
-        ? "paid"
-        : hasOverduePayment
-          ? "overdue"
-          : paidTotal > 0
-            ? "partial"
-            : "unpaid";
+  return tickets.map((ticket) => {
+    const finance = financesByTicket.get(ticket.id) ?? null;
+    const ticketPayments = paymentsByTicket.get(ticket.id) ?? [];
 
-  return {
-    gross_total: formatMoney(payableTotal),
-    paid_total: formatMoney(paidTotal),
-    remaining_total: formatMoney(remainingTotal),
-    payment_count: payments.length,
-    payment_status: paymentStatus,
-    invoice_status: invoiceStatus,
-    next_due_date: nextDueDate,
-  };
-}
-
-function getPayableTotal(finance: TicketFinance | null): number {
-  const grossTotal = toMoneyNumber(finance?.gross_total);
-  const discountTotal = Math.min(
-    toMoneyNumber(finance?.discount_amount),
-    grossTotal
-  );
-  return Math.max(grossTotal - discountTotal, 0);
-}
-
-function toMoneyNumber(value: string | null | undefined): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatMoney(value: number): string {
-  return value.toFixed(2);
+    return {
+      ...ticket,
+      finance,
+      payments: ticketPayments,
+      finance_summary: buildFinanceSummary(finance, ticketPayments),
+    };
+  });
 }

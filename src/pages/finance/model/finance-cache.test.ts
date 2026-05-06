@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
-import type {
-  PaymentInstallment,
-  TicketFinance,
-  TicketWithFinance,
+import {
+  buildTicketFinanceSummary,
+  calculateTicketFinanceTotals,
+  type PaymentInstallment,
+  type TicketFinance,
+  type TicketWithFinance,
 } from "@/entities/ticket";
 import {
   patchPaymentInFinanceCache,
@@ -139,6 +141,55 @@ describe("finance optimistic cache helpers", () => {
     expect(ticket.finance?.discount_amount).toBe("25.00");
     expect(ticket.finance_summary.gross_total).toBe("75.00");
     expect(ticket.finance_summary.remaining_total).toBe("75.00");
+  });
+
+  test("matches Ticket domain totals for discounted tax-bearing cache updates", () => {
+    const result = patchTicketFinanceInCache(
+      [
+        makeTicket({
+          finance: makeFinance({
+            discount_amount: "100.00",
+            gross_total: "500.00",
+            net_total: "380.00",
+            tax_amount: "20.00",
+          }),
+          payments: [
+            makePayment({
+              amount: "150.00",
+              is_paid: true,
+              paid_date: createdAt,
+            }),
+            makePayment({
+              id: "payment-2",
+              amount: "250.00",
+              installment_number: 2,
+            }),
+          ],
+        }),
+      ],
+      "ticket-1",
+      {
+        tax_amount: "30",
+      }
+    );
+
+    const ticket = readTicket(result);
+    expect(ticket.finance_summary).toEqual(
+      buildTicketFinanceSummary(ticket.finance, ticket.payments)
+    );
+    expect(ticket.finance_summary).toMatchObject({
+      gross_total: "400.00",
+      paid_total: "150.00",
+      payment_status: "partial",
+      remaining_total: "250.00",
+    });
+    expect(calculateTicketFinanceTotals(ticket.finance)).toMatchObject({
+      discountTotal: 100,
+      grossTotal: 500,
+      netTotal: 370,
+      payableTotal: 400,
+      taxTotal: 30,
+    });
   });
 
   test("patches payment fields and recalculates paid and remaining totals", () => {
