@@ -150,7 +150,6 @@ export function EditBattleTicketDialog({
                     <FormControl>
                       <Textarea
                         {...field}
-                        className="h-24"
                         value={field.value ?? ""}
                       />
                     </FormControl>

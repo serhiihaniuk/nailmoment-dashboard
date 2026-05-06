@@ -3,6 +3,7 @@ import { Button } from '@/shared/ui/button';
 import { Calendar } from '@/shared/ui/calendar';
 import { Field, FieldError, FieldLabel } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
+import { Textarea } from '@/shared/ui/textarea';
 import {
   Popover,
   PopoverContent,
@@ -24,12 +25,14 @@ export function PaymentField({
   label,
   children,
   className,
+  compact = false,
   error,
   saveStatus,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string | undefined;
+  compact?: boolean | undefined;
   error?: string | undefined;
   saveStatus?: SaveStatus | undefined;
 }) {
@@ -37,16 +40,27 @@ export function PaymentField({
     error ?? (saveStatus?.state === "error" ? saveStatus.message : undefined);
 
   return (
-    <Field className={className} data-invalid={Boolean(fieldError) || undefined}>
-      <FieldLabel className="min-h-4 text-[11px] text-muted-foreground">
+    <Field
+      className={cn(compact && "gap-1.5", className)}
+      data-invalid={Boolean(fieldError) || undefined}
+    >
+      <FieldLabel
+        className={cn(
+          "min-h-4 text-[11px] text-muted-foreground",
+          compact && "min-h-3"
+        )}
+      >
         {label}
       </FieldLabel>
-      <div className="w-full space-y-0.5">
+      <div className={cn("w-full space-y-0.5", compact && "space-y-0")}>
         {children}
-        <SaveStatusLine status={saveStatus} />
+        <SaveStatusLine
+          status={saveStatus}
+          className={compact ? "min-h-3" : undefined}
+        />
       </div>
       <FieldError
-        className="mt-0 text-[11px]"
+        className={cn("mt-0 text-[11px]", compact && "leading-tight")}
         errors={fieldError ? [{ message: fieldError }] : []}
       />
     </Field>
@@ -158,6 +172,29 @@ export function TextCell({
     <Input
       key={value}
       type="text"
+      defaultValue={value}
+      disabled={disabled}
+      onBlur={(event) => {
+        const nextValue = event.target.value.trim();
+        if (nextValue !== value) onSave(nextValue);
+      }}
+      className="border-transparent bg-white/40 px-1.5 shadow-none hover:border-border/60 hover:bg-white"
+    />
+  );
+}
+
+export function TextareaCell({
+  value,
+  disabled = false,
+  onSave,
+}: {
+  value: string;
+  disabled?: boolean;
+  onSave: (value: string) => void;
+}) {
+  return (
+    <Textarea
+      key={value}
       defaultValue={value}
       disabled={disabled}
       onBlur={(event) => {
