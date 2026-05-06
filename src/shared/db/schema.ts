@@ -99,6 +99,10 @@ export const invoiceStatusEnum = pgEnum("invoice_status_enum", [
   "not_needed",
 ]);
 
+// Lifecycle for a Stripe event delivery in the webhook audit/idempotency table.
+// `processing` means a worker claimed the event, `processed` means fulfillment
+// completed, `ignored` means the app intentionally skipped it, and `failed`
+// means Stripe can retry and the handler may reclaim it.
 export const stripeWebhookEventStatusEnum = pgEnum(
   "stripe_webhook_event_status_enum",
   ["processing", "processed", "ignored", "failed"]
@@ -108,6 +112,9 @@ export const battleTicketTable = pgTable(
   "battle_ticket",
   {
     id: text("id").primaryKey(),
+    // Stores the Stripe Checkout Session id for Stripe purchases. Manual admin
+    // creations use a `manual_battle_*` value so dashboard filters can still
+    // distinguish manual records from Stripe-origin records.
     stripe_event_id: text("stripe_event_id").notNull(),
     name: text("name").notNull(),
     email: text("email").notNull(),
@@ -127,6 +134,8 @@ export const battleTicketTable = pgTable(
     payment_type: paymentTypeEnum("payment_type").notNull().default("full"),
   },
   (table) => ({
+    // Webhook retries must not create two local battle tickets for the same
+    // Stripe checkout.
     battleTicketStripeEventIdUnique: unique(
       "battle_ticket_stripe_event_id_unique"
     ).on(table.stripe_event_id),
@@ -137,6 +146,9 @@ export const ticketTable = pgTable(
   "ticket",
   {
     id: text("id").primaryKey(),
+    // Stores the Stripe Checkout Session id for site purchases. Manual admin
+    // creations use a `manual_*` value; finance UI uses this distinction to lock
+    // Stripe-origin payments from manual editing.
     stripe_event_id: text("stripe_event_id").notNull(),
     name: text("name").notNull(),
     email: text("email").notNull(),
@@ -157,6 +169,8 @@ export const ticketTable = pgTable(
     comment: text("comment").notNull().default(""),
   },
   (table) => ({
+    // Last line of defense for idempotency: even if a webhook is retried after a
+    // partial crash, one Stripe checkout can only map to one local ticket.
     ticketStripeEventIdUnique: unique("ticket_stripe_event_id_unique").on(
       table.stripe_event_id
     ),
@@ -172,6 +186,8 @@ export const ticketFinanceTable = pgTable(
       .references(() => ticketTable.id, { onDelete: "cascade" }),
     sale_source: saleSourceEnum("sale_source").notNull().default("site"),
     payment_plan: paymentPlanEnum("payment_plan").notNull().default("full"),
+    // For Stripe site checkouts this is the final amount collected by Stripe
+    // (`Checkout.Session.amount_total`, converted from cents to "0.00").
     gross_total: decimal("gross_total", {
       precision: 10,
       scale: 2,
@@ -184,6 +200,7 @@ export const ticketFinanceTable = pgTable(
     })
       .notNull()
       .default("0"),
+    // For Stripe site checkouts this stores the app's estimated Stripe fee.
     tax_amount: decimal("tax_amount", {
       precision: 10,
       scale: 2,
@@ -225,6 +242,8 @@ export const paymentInstallmentTable = pgTable("payment_installment", {
     .notNull()
     .references(() => ticketTable.id, { onDelete: "cascade" }),
   installment_number: integer("installment_number").notNull().default(1),
+  // For Stripe site checkouts this matches `ticket_finance.gross_total`, so the
+  // finance summary sees the ticket as fully paid immediately.
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   sale_source: saleSourceEnum("sale_source").notNull().default("direct_transfer"),
   due_date: timestamp("due_date", { withTimezone: true, mode: "date" }),
@@ -251,6 +270,10 @@ export const paymentInstallmentTable = pgTable("payment_installment", {
     .$onUpdate(() => new Date()),
 });
 
+// Audit and idempotency table for Stripe webhook deliveries. The primary key is
+// the Stripe event id, not the Checkout Session id, because Stripe retries the
+// same event id when delivery fails. The session id is stored separately for
+// operator search and for tying the webhook row back to ticket/battle records.
 export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),

@@ -7,6 +7,10 @@ webhooks, Blob assets, QR codes, Stripe, Telegram, or email sending, read
 `AGENTS.md` is the source of truth for production safety, TypeScript boundaries,
 Feature-Sliced Design placement, and validation expectations for future agents.
 
+For a route-first map of the whole project, read `ARCHITECTURE.md`. It links to
+focused docs under `docs/` for the route matrix, data model diagram,
+TypeScript/runtime boundaries, finance, Stripe, ticket/email/QR, and Telegram.
+
 Run these before handing off TypeScript changes:
 
 ```bash

@@ -24,8 +24,57 @@ import { logStripe, logStripeStep } from "../log";
 import { mapCheckoutCustomer } from "../map-checkout-customer";
 import type { StripeWebhookHandlerResult } from "../types";
 
+/**
+ * Handles Stripe's `checkout.session.completed` webhook.
+ *
+ * This file is the bridge between a successful Stripe checkout and the
+ * operational records the dashboard needs:
+ *
+ * 1. Store a webhook-processing row so the same Stripe event cannot create
+ *    duplicate tickets when Stripe retries the webhook.
+ * 2. Validate that the checkout belongs to Nail Moment and that Stripe says it
+ *    is paid.
+ * 3. Decide whether this checkout creates a regular festival ticket or a
+ *    battle ticket, based on Stripe metadata.
+ * 4. Create the ticket record.
+ * 5. For regular tickets, create matching finance and payment rows so the
+ *    finance page sees site sales immediately.
+ * 6. Send the customer email after the durable database records exist.
+ *
+ * The Stripe total path is intentionally simple:
+ *
+ *   Stripe `amount_total` (minor units / cents)
+ *     -> `getCheckoutPaidAmount()` (major units / "0.00")
+ *     -> `ticket_finance.gross_total`
+ *     -> `payment_installment.amount`
+ *
+ * Then the app estimates Stripe's processing fee into
+ * `ticket_finance.tax_amount` and stores gross minus fee as
+ * `ticket_finance.net_total`. There is no discount calculation in this webhook:
+ * Stripe already collected the final checkout amount, so site purchases are
+ * stored with `discount_amount = 0.00`.
+ *
+ * Important: email sending is intentionally not part of the critical database
+ * fulfillment path. If email delivery fails, the ticket/payment records remain
+ * created and the webhook is treated as processed. That prevents Stripe retries
+ * from creating duplicate records just because an external email provider had a
+ * temporary problem.
+ */
+
 type StripeEventStatus = "failed" | "ignored" | "processed" | "processing";
 
+/**
+ * Result of interpreting the Stripe Checkout Session.
+ *
+ * Stripe sends the same event type for all completed Checkout Sessions, so the
+ * app must inspect metadata before doing any business action. This type makes
+ * the decision explicit:
+ *
+ * - `ticket`: a normal Nail Moment ticket checkout.
+ * - `battle`: a battle registration checkout.
+ * - `ignored`: a valid Stripe event that this handler should not fulfill.
+ * - `invalid`: a Nail Moment-looking event with metadata we cannot safely use.
+ */
 type CheckoutResolution =
   | { kind: "battle" }
   | { kind: "ticket"; ticketGrade: TicketGrade }
@@ -35,6 +84,13 @@ type CheckoutResolution =
       context?: Record<string, unknown>;
     };
 
+/**
+ * Result of claiming the Stripe event for processing.
+ *
+ * Stripe webhooks are at-least-once delivery: the same event can be sent more
+ * than once. A claim means this worker owns the event now. An ignored claim
+ * means another attempt already handled it, or it is currently handling it.
+ */
 type StripeWebhookClaim =
   | { kind: "claimed" }
   | {
@@ -45,8 +101,18 @@ type StripeWebhookClaim =
 
 type FulfillmentResult = "created" | "already_fulfilled";
 
+/**
+ * A webhook row left in `processing` probably means the server crashed, timed
+ * out, or lost the process after claiming the event. After this window we allow
+ * a later Stripe retry to reclaim the event and try again.
+ */
 const PROCESSING_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
 
+/**
+ * Builds the shared logging context used throughout the handler. Keeping these
+ * ids on every log line makes it possible to reconstruct one webhook's path
+ * through claim, resolve, DB writes, QR generation, and email sending.
+ */
 function getEventContext(
   event: Pick<Stripe.Event, "id" | "type">,
   stripeSessionId?: string,
@@ -64,10 +130,25 @@ function isCheckoutSessionCompletedEvent(
   return event.type === "checkout.session.completed";
 }
 
+/**
+ * Narrows untrusted Stripe metadata into the dashboard's known ticket grades.
+ * Metadata is controlled by our checkout creation code, but webhook handlers
+ * still treat it as runtime input because Stripe delivers it over the network.
+ */
 function isTicketGrade(value: string): value is TicketGrade {
   return TICKET_TYPE_LIST.some((grade) => grade === value);
 }
 
+/**
+ * Returns the real paid amount for the checkout.
+ *
+ * `amount_total` is preferred because it is the amount Stripe actually
+ * collected. The grade price is only a fallback for defensive compatibility
+ * with unusual or incomplete Stripe session payloads.
+ *
+ * Returning a string in major currency units keeps this value compatible with
+ * Drizzle decimal fields used by `ticket_finance` and `payment_installment`.
+ */
 export function getCheckoutPaidAmount(
   session: Pick<Stripe.Checkout.Session, "amount_total">,
   ticketGrade: TicketGrade,
@@ -83,6 +164,14 @@ export function getCheckoutPaidAmount(
   return TICKET_PRICE_BY_GRADE[ticketGrade];
 }
 
+/**
+ * Writes the final lifecycle status for a webhook event.
+ *
+ * The `stripe_webhook_event` row is both an audit trail and the idempotency
+ * guard. Every terminal path should explain itself with `status_reason` or
+ * `last_error`, because this table is what we inspect when a payment happened
+ * in Stripe but something in the app looks suspicious.
+ */
 async function markStripeWebhookEvent(
   eventId: string,
   status: StripeEventStatus,
@@ -104,6 +193,18 @@ async function markStripeWebhookEvent(
     .where(eq(stripeWebhookEventTable.id, eventId));
 }
 
+/**
+ * Decides whether an existing webhook row can be processed again.
+ *
+ * Reclaiming is allowed for:
+ *
+ * - `failed`: the previous attempt threw before completing fulfillment.
+ * - stale `processing`: the previous attempt likely died mid-flight.
+ *
+ * Reclaiming is not allowed for `processed` or `ignored`, because those are
+ * terminal states and processing them again could create duplicate business
+ * records or convert an intentionally ignored event into a ticket.
+ */
 export function shouldReclaimStripeWebhookEvent(
   event: Pick<StripeWebhookEvent, "status" | "updated_at">,
   now: Date = new Date(),
@@ -120,6 +221,23 @@ export function shouldReclaimStripeWebhookEvent(
   return event.updated_at <= staleBefore;
 }
 
+/**
+ * Claims the Stripe event before doing any fulfillment work.
+ *
+ * Why this exists:
+ *
+ * Stripe retries webhooks when the endpoint times out or returns an error, and
+ * serverless functions can also run concurrently. Without a claim row, two
+ * attempts for the same Stripe event could both create tickets.
+ *
+ * How it works:
+ *
+ * 1. Insert a `processing` row keyed by the Stripe event id.
+ * 2. If the insert succeeds, this attempt owns the event.
+ * 3. If the row already exists, inspect it.
+ * 4. Retry only when the existing row is `failed` or stale `processing`.
+ * 5. Otherwise ignore the webhook as a duplicate.
+ */
 async function claimStripeWebhookEvent(
   event: Stripe.Event,
 ): Promise<StripeWebhookClaim> {
@@ -132,6 +250,8 @@ async function claimStripeWebhookEvent(
     ...eventContext,
   });
 
+  // This insert is the main idempotency lock. `onConflictDoNothing` makes the
+  // database, rather than in-memory process state, decide who owns the event.
   const inserted = await db
     .insert(stripeWebhookEventTable)
     .values({
@@ -180,6 +300,8 @@ async function claimStripeWebhookEvent(
     const staleBefore = new Date(
       now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS,
     );
+    // The WHERE clause repeats the expected status/staleness check so two
+    // concurrent retry attempts cannot both reclaim the same event row.
     const recovered = await db
       .update(stripeWebhookEventTable)
       .set({
@@ -225,6 +347,15 @@ async function claimStripeWebhookEvent(
   };
 }
 
+/**
+ * Turns a paid Stripe Checkout Session into a local business action.
+ *
+ * This is deliberately strict. The handler ignores unpaid sessions and sessions
+ * that do not have `metadata.event = "nailmoment"`. For Nail Moment sessions,
+ * it either recognizes a battle checkout or requires a valid `ticket_grade`.
+ * Invalid metadata is treated as an operator-visible problem instead of trying
+ * to guess what the customer bought.
+ */
 export function resolveCheckoutSession(
   session: Stripe.Checkout.Session,
 ): CheckoutResolution {
@@ -276,6 +407,14 @@ export function resolveCheckoutSession(
   };
 }
 
+/**
+ * Fulfills a paid battle checkout.
+ *
+ * Battle checkouts create records in `battle_ticket`. They do not create the
+ * regular finance/payment rows because they are a different product flow from
+ * festival tickets. The Stripe session id is stored on the ticket row so a
+ * duplicate webhook can be recognized by the database as already fulfilled.
+ */
 async function processBattleCheckoutSession(
   session: Stripe.Checkout.Session,
   event: Stripe.Event,
@@ -307,6 +446,8 @@ async function processBattleCheckoutSession(
     .onConflictDoNothing()
     .returning({ id: battleTicketTable.id });
 
+  // A duplicate insert means this Stripe session already produced a battle
+  // ticket. Treat that as successful fulfillment, not as an error.
   if (inserted.length === 0) {
     logStripeStep("warn", "DB", "Battle ticket already exists for Stripe session", {
       ...getEventContext(event, stripeSessionId),
@@ -333,6 +474,9 @@ async function processBattleCheckoutSession(
     logStripe("error", "Email missing, battle email not sent", {
       ...getEventContext(event, stripeSessionId),
     });
+    // The ticket exists even if we cannot send an email. Operations can fix the
+    // customer email or resend manually; the webhook should not create another
+    // battle ticket on retry.
     return "created";
   }
 
@@ -353,6 +497,9 @@ async function processBattleCheckoutSession(
       customerEmail: customer.email,
     });
   } catch (error) {
+    // Email delivery is intentionally best-effort after fulfillment. We log the
+    // failure, but do not throw, because throwing would ask Stripe to retry the
+    // whole webhook even though the ticket already exists.
     logStripe("error", "Battle email send failed", {
       ...getEventContext(event, stripeSessionId),
       error,
@@ -362,6 +509,19 @@ async function processBattleCheckoutSession(
   return "created";
 }
 
+/**
+ * Fulfills a paid regular ticket checkout.
+ *
+ * Regular ticket fulfillment has more side effects than battle fulfillment:
+ *
+ * 1. Generate and store a QR code for the customer ticket URL.
+ * 2. Insert the ticket row with the QR URL and Stripe session id.
+ * 3. Create finance/payment rows representing a fully paid site sale.
+ * 4. Send the ticket email and mark `mail_sent` when delivery succeeds.
+ *
+ * The durable database records are created before the email is sent. This makes
+ * the dashboard the source of truth even if the email provider fails later.
+ */
 async function processTicketCheckoutSession(
   session: Stripe.Checkout.Session,
   event: Stripe.Event,
@@ -382,6 +542,8 @@ async function processTicketCheckoutSession(
     ticketId,
   });
 
+  // The QR URL is stored on the ticket and included in the customer email, so
+  // the asset must exist before we create/send the ticket.
   const qrCodeUrl = await generateAndStoreQRCode(
     `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
     `moment-qr/festival_2026/qr-code-${ticketId}.png`,
@@ -408,6 +570,8 @@ async function processTicketCheckoutSession(
     .onConflictDoNothing()
     .returning({ id: ticketTable.id });
 
+  // If the Stripe session already has a ticket, the webhook is idempotently
+  // complete. We do not create another QR/ticket/payment set.
   if (inserted.length === 0) {
     logStripeStep("warn", "DB", "Ticket already exists for Stripe session", {
       ...getEventContext(event, stripeSessionId),
@@ -438,6 +602,8 @@ async function processTicketCheckoutSession(
     logStripe("error", "Email missing, ticket email not sent", {
       ...getEventContext(event, stripeSessionId),
     });
+    // Missing email is an operational problem, not a reason to reverse the paid
+    // ticket. The record remains visible in the dashboard for manual follow-up.
     return "created";
   }
 
@@ -466,6 +632,9 @@ async function processTicketCheckoutSession(
       ticketId,
     });
   } catch (error) {
+    // Same principle as battle email: after the ticket and finance records
+    // exist, email failure should be observable but should not re-run purchase
+    // fulfillment.
     logStripe("error", "Ticket email send failed", {
       ...getEventContext(event, stripeSessionId),
       error,
@@ -475,6 +644,24 @@ async function processTicketCheckoutSession(
   return "created";
 }
 
+/**
+ * Creates finance records for a Stripe-paid ticket.
+ *
+ * A site checkout is always represented as a fully paid ticket in finance:
+ *
+ * - `ticket_finance.gross_total` is the amount Stripe collected.
+ * - `ticket_finance.tax_amount` stores the estimated Stripe processing fee.
+ * - `ticket_finance.net_total` is gross minus that estimated fee.
+ * - One `payment_installment` row is inserted and marked `is_paid = true`.
+ *
+ * This is the place where the Stripe checkout total becomes finance-page data.
+ * The same `paidAmount` is used for the finance gross total and for the payment
+ * installment amount so the summary reads as fully paid immediately.
+ *
+ * The existing-payment guard matters for retries. If a previous attempt created
+ * the payment but crashed before the webhook row was marked processed, the next
+ * reclaim must not add a second installment for the same ticket.
+ */
 async function ensureStripeTicketFinancePayment(
   ticketId: string,
   session: Stripe.Checkout.Session,
@@ -512,6 +699,9 @@ async function ensureStripeTicketFinancePayment(
       target: ticketFinanceTable.ticket_id,
     });
 
+  // Finance rows can be retried safely: the ticket_finance insert is protected
+  // by ticket_id, and payment insertion is skipped if any installment already
+  // exists for this ticket.
   const existingPayments = await db
     .select({ id: paymentInstallmentTable.id })
     .from(paymentInstallmentTable)
@@ -548,24 +738,51 @@ async function ensureStripeTicketFinancePayment(
   });
 }
 
+/**
+ * Estimates the default Stripe fee for dashboard reporting.
+ *
+ * The fee formula here is not fetched from Stripe's balance transaction API; it
+ * is the app's default calculation used when creating finance rows immediately
+ * from a checkout webhook.
+ */
 function calculateDefaultStripeProcessingFee(amount: string) {
   const amountCents = moneyToCents(amount);
   const feeCents = Math.round(amountCents * 0.015) + 100;
   return centsToMoney(feeCents);
 }
 
+/** Subtracts money strings through integer cents to avoid float drift. */
 function subtractMoney(amount: string, subtract: string) {
   return centsToMoney(Math.max(moneyToCents(amount) - moneyToCents(subtract), 0));
 }
 
+/** Converts a decimal money string such as `"199.00"` to integer cents. */
 function moneyToCents(value: string) {
   return Math.round(Number.parseFloat(value || "0") * 100);
 }
 
+/** Converts integer cents back to the dashboard's `"0.00"` money format. */
 function centsToMoney(value: number) {
   return (value / 100).toFixed(2);
 }
 
+/**
+ * Main entry point used by the Stripe webhook route.
+ *
+ * Flow:
+ *
+ * 1. Confirm this is really `checkout.session.completed`.
+ * 2. Claim the Stripe event id so retries/concurrent functions do not duplicate
+ *    fulfillment.
+ * 3. Resolve the session into battle ticket, regular ticket, ignored, or
+ *    invalid.
+ * 4. Fulfill the recognized checkout type.
+ * 5. Mark ignored/processed/failed status on the webhook audit row.
+ *
+ * Any thrown error marks the webhook row as `failed` and is rethrown so Stripe
+ * can retry. Non-critical email errors are caught inside the fulfillment
+ * functions, so they do not make Stripe retry a successfully created ticket.
+ */
 export async function handleCheckoutSessionCompleted(
   event: Stripe.Event,
 ): Promise<StripeWebhookHandlerResult> {
