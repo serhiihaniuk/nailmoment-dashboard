@@ -160,6 +160,7 @@ function buildPaymentRollbackPatch(
   if (data.installment_number !== undefined) {
     patch.installment_number = payment.installment_number;
   }
+  if (data.is_paid !== undefined) patch.is_paid = payment.is_paid;
   if (data.amount !== undefined) patch.amount = payment.amount;
   if (data.sale_source !== undefined) patch.sale_source = payment.sale_source;
   if (data.due_date !== undefined) patch.due_date = payment.due_date;

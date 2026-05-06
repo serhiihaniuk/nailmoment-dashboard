@@ -1,9 +1,11 @@
 import type { TicketWithFinance } from '@/entities/ticket';
 import type { UpsertTicketFinanceInput } from '@/shared/db/schema.zod';
 import {
+  calculateTicketFinanceTotals,
+  getTicketNetTotalMoney,
+  getTicketPayableTotalMoney,
   TICKET_PRICE_BY_GRADE,
   getExpectedPaymentCount,
-  isZeroPaymentPlan,
 } from '@/entities/ticket';
 import { INVOICE_STATUS_OPTIONS } from './constants';
 import type {
@@ -206,7 +208,7 @@ export function suggestedPaymentAmount(
     ticket.finance?.payment_plan ?? "full"
   );
   const splitCount = expectedPaymentCount || Math.max(paymentNumber, 1);
-  return splitMoney(ticket.finance?.gross_total ?? "0.00", splitCount)[
+  return splitMoney(getTicketPayableTotalMoney(ticket.finance), splitCount)[
     paymentNumber - 1
   ] ?? "0.00";
 }
@@ -231,27 +233,29 @@ export function normalizeMoney(value: string): string {
 }
 
 export function calculatedNetTotal(ticket: TicketWithFinance): string {
-  if (isZeroPaymentPlan(ticket.finance?.payment_plan)) return "0.00";
+  return getTicketNetTotalMoney(ticket.finance);
+}
 
-  const grossTotal = toMoneyNumber(ticket.finance?.gross_total);
-  const taxAmount = toMoneyNumber(ticket.finance?.tax_amount);
-  return Math.max(grossTotal - taxAmount, 0).toFixed(2);
+export function calculatedPayableTotal(ticket: TicketWithFinance): string {
+  return getTicketPayableTotalMoney(ticket.finance);
 }
 
 export function buildFinancePatchWithNet(
   ticket: TicketWithFinance,
   patch: UpsertTicketFinanceInput
 ): UpsertTicketFinanceInput {
-  const grossTotal = patch.gross_total ?? ticket.finance?.gross_total ?? "0.00";
-  const taxAmount = patch.tax_amount ?? ticket.finance?.tax_amount ?? "0.00";
-  const netTotal = Math.max(
-    toMoneyNumber(grossTotal) - toMoneyNumber(taxAmount),
-    0
-  ).toFixed(2);
+  const totals = calculateTicketFinanceTotals({
+    discount_amount:
+      patch.discount_amount ?? ticket.finance?.discount_amount ?? "0.00",
+    gross_total: patch.gross_total ?? ticket.finance?.gross_total ?? "0.00",
+    payment_plan:
+      patch.payment_plan ?? ticket.finance?.payment_plan ?? "full",
+    tax_amount: patch.tax_amount ?? ticket.finance?.tax_amount ?? "0.00",
+  });
 
   return {
     ...patch,
-    net_total: netTotal,
+    net_total: totals.netTotal.toFixed(2),
   };
 }
 

@@ -86,6 +86,7 @@ export const insertPaymentInstallmentApiInputSchema = createInsertSchema(
     amount: moneyInputSchema,
     due_date: optionalDateInputSchema,
     paid_date: optionalDateInputSchema,
+    is_paid: z.boolean().optional().default(false),
     invoice_number: z.string().trim().optional().default(""),
     comment: z.string().trim().optional().default(""),
   }

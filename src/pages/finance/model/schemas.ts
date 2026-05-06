@@ -29,6 +29,7 @@ export const newTicketFinanceSchema = insertTicketClientSchema
     const grossTotal = toMoneyNumber(value.gross_total);
     const taxAmount = toMoneyNumber(value.tax_amount);
     const discountAmount = toMoneyNumber(value.discount_amount);
+    const payableTotal = Math.max(grossTotal - discountAmount, 0);
 
     if (grossTotal <= 0) {
       context.addIssue({
@@ -38,10 +39,10 @@ export const newTicketFinanceSchema = insertTicketClientSchema
       });
     }
 
-    if (taxAmount > grossTotal) {
+    if (taxAmount > payableTotal) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Податок не може бути більшим за суму до оплати",
+        message: "Податок не може бути більшим за суму до оплати після знижки",
         path: ["tax_amount"],
       });
     }

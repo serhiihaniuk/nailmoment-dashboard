@@ -47,7 +47,17 @@ export {
   getExpectedPaymentCount,
   isZeroPaymentPlan,
 } from "./model/ticket";
-export { buildTicketFinanceSummary } from "./model/finance-summary";
+export {
+  resolveFinanceDiscountInput,
+  type FinanceDiscountInputResult,
+} from "./model/finance-discount";
+export {
+  buildTicketFinanceSummary,
+  calculateTicketFinanceTotals,
+  getTicketNetTotalMoney,
+  getTicketPayableTotalMoney,
+  type TicketFinanceTotals,
+} from "./model/finance-summary";
 export {
   extractInstagramName,
   extractInstagramUsername,

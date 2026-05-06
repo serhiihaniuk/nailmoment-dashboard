@@ -229,6 +229,7 @@ export const paymentInstallmentTable = pgTable("payment_installment", {
   sale_source: saleSourceEnum("sale_source").notNull().default("direct_transfer"),
   due_date: timestamp("due_date", { withTimezone: true, mode: "date" }),
   paid_date: timestamp("paid_date", { withTimezone: true, mode: "date" }),
+  is_paid: boolean("is_paid").notNull().default(false),
   payment_method: paymentMethodEnum("payment_method").notNull().default("other"),
   invoice_status: invoiceStatusEnum("invoice_status")
     .notNull()

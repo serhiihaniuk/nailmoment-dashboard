@@ -533,6 +533,7 @@ async function ensureStripeTicketFinancePayment(
     installment_number: 1,
     invoice_number: "",
     invoice_status: "not_sent",
+    is_paid: true,
     paid_date: paidAt,
     payment_method: "other",
     sale_source: "site",

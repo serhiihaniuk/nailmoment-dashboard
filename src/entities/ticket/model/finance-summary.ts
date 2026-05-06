@@ -8,9 +8,24 @@ import {
 } from "./ticket";
 
 type FinanceSummaryTotals = {
-  grossTotal: number;
+  payableTotal: number;
   paidTotal: number;
   remainingTotal: number;
+};
+
+type FinanceTotalsInput = {
+  discount_amount?: unknown;
+  gross_total?: unknown;
+  payment_plan?: string | null | undefined;
+  tax_amount?: unknown;
+} | null | undefined;
+
+export type TicketFinanceTotals = {
+  discountTotal: number;
+  grossTotal: number;
+  netTotal: number;
+  payableTotal: number;
+  taxTotal: number;
 };
 
 export function buildTicketFinanceSummary(
@@ -18,18 +33,18 @@ export function buildTicketFinanceSummary(
   payments: PaymentInstallment[]
 ): TicketFinanceSummary {
   const totals = calculateFinanceSummaryTotals(finance, payments);
-  const unpaidPayments = payments.filter((payment) => !payment.paid_date);
+  const unpaidPayments = payments.filter((payment) => !payment.is_paid);
 
   return {
-    gross_total: normalizeMoneyString(totals.grossTotal),
+    gross_total: normalizeMoneyString(totals.payableTotal),
     paid_total: normalizeMoneyString(totals.paidTotal),
     remaining_total: normalizeMoneyString(totals.remainingTotal),
     payment_count: payments.length,
     payment_status: getFinancePaymentStatus({
       finance,
-      grossTotal: totals.grossTotal,
       hasOverduePayment: hasOverduePayment(unpaidPayments),
       paidTotal: totals.paidTotal,
+      payableTotal: totals.payableTotal,
       paymentCount: payments.length,
     }),
     invoice_status: getFinanceInvoiceStatus(payments),
@@ -41,25 +56,60 @@ function calculateFinanceSummaryTotals(
   finance: TicketFinance | null,
   payments: PaymentInstallment[]
 ): FinanceSummaryTotals {
+  const { payableTotal } = calculateTicketFinanceTotals(finance);
+
+  const paidTotal = isZeroPaymentPlan(finance?.payment_plan)
+    ? 0
+    : payments.reduce((sum, payment) => {
+        if (!payment.is_paid) return sum;
+        return sum + toMoneyNumber(payment.amount);
+      }, 0);
+
+  return {
+    payableTotal,
+    paidTotal,
+    remainingTotal: Math.max(payableTotal - paidTotal, 0),
+  };
+}
+
+export function calculateTicketFinanceTotals(
+  finance: FinanceTotalsInput
+): TicketFinanceTotals {
   if (isZeroPaymentPlan(finance?.payment_plan)) {
     return {
+      discountTotal: 0,
       grossTotal: 0,
-      paidTotal: 0,
-      remainingTotal: 0,
+      netTotal: 0,
+      payableTotal: 0,
+      taxTotal: 0,
     };
   }
 
   const grossTotal = toMoneyNumber(finance?.gross_total);
-  const paidTotal = payments.reduce((sum, payment) => {
-    if (!payment.paid_date) return sum;
-    return sum + toMoneyNumber(payment.amount);
-  }, 0);
+  const discountTotal = Math.min(
+    toMoneyNumber(finance?.discount_amount),
+    grossTotal
+  );
+  const payableTotal = Math.max(grossTotal - discountTotal, 0);
+  const taxTotal = toMoneyNumber(finance?.tax_amount);
 
   return {
+    discountTotal,
     grossTotal,
-    paidTotal,
-    remainingTotal: Math.max(grossTotal - paidTotal, 0),
+    netTotal: Math.max(payableTotal - taxTotal, 0),
+    payableTotal,
+    taxTotal,
   };
+}
+
+export function getTicketPayableTotalMoney(
+  finance: FinanceTotalsInput
+): string {
+  return normalizeMoneyString(calculateTicketFinanceTotals(finance).payableTotal);
+}
+
+export function getTicketNetTotalMoney(finance: FinanceTotalsInput): string {
+  return normalizeMoneyString(calculateTicketFinanceTotals(finance).netTotal);
 }
 
 function getNextDueDate(payments: PaymentInstallment[]): Date | null {
@@ -96,20 +146,20 @@ function getFinanceInvoiceStatus(
 
 function getFinancePaymentStatus({
   finance,
-  grossTotal,
   hasOverduePayment: hasOverdue,
   paidTotal,
+  payableTotal,
   paymentCount,
 }: {
   finance: TicketFinance | null;
-  grossTotal: number;
   hasOverduePayment: boolean;
   paidTotal: number;
+  payableTotal: number;
   paymentCount: number;
 }): TicketFinanceSummary["payment_status"] {
   if (!finance && paymentCount === 0) return "untracked";
-  if (grossTotal <= 0) return "paid";
-  if (paidTotal >= grossTotal) return "paid";
+  if (payableTotal <= 0) return "paid";
+  if (paidTotal >= payableTotal) return "paid";
   if (hasOverdue) return "overdue";
   if (paidTotal > 0) return "partial";
 

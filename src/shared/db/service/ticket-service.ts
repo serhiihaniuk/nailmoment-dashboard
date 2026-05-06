@@ -164,18 +164,18 @@ function buildFinanceSummary(
 ): TicketFinanceSummary {
   const isZeroPaymentPlan =
     finance?.payment_plan === "free" || finance?.payment_plan === "sponsor";
-  const grossTotal = isZeroPaymentPlan ? 0 : toMoneyNumber(finance?.gross_total);
+  const payableTotal = isZeroPaymentPlan ? 0 : getPayableTotal(finance);
   const paidTotal = isZeroPaymentPlan
     ? 0
     : payments.reduce((sum, payment) => {
-        if (!payment.paid_date) return sum;
+        if (!payment.is_paid) return sum;
         return sum + toMoneyNumber(payment.amount);
       }, 0);
-  const remainingTotal = Math.max(grossTotal - paidTotal, 0);
+  const remainingTotal = Math.max(payableTotal - paidTotal, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const unpaidPayments = payments.filter((payment) => !payment.paid_date);
+  const unpaidPayments = payments.filter((payment) => !payment.is_paid);
   const nextDueDate =
     unpaidPayments
       .map((payment) => payment.due_date)
@@ -197,9 +197,9 @@ function buildFinanceSummary(
   const paymentStatus: TicketFinanceSummary["payment_status"] =
     !finance && payments.length === 0
       ? "untracked"
-      : grossTotal <= 0
+      : payableTotal <= 0
         ? "paid"
-      : grossTotal > 0 && paidTotal >= grossTotal
+      : payableTotal > 0 && paidTotal >= payableTotal
         ? "paid"
         : hasOverduePayment
           ? "overdue"
@@ -208,7 +208,7 @@ function buildFinanceSummary(
             : "unpaid";
 
   return {
-    gross_total: formatMoney(grossTotal),
+    gross_total: formatMoney(payableTotal),
     paid_total: formatMoney(paidTotal),
     remaining_total: formatMoney(remainingTotal),
     payment_count: payments.length,
@@ -216,6 +216,15 @@ function buildFinanceSummary(
     invoice_status: invoiceStatus,
     next_due_date: nextDueDate,
   };
+}
+
+function getPayableTotal(finance: TicketFinance | null): number {
+  const grossTotal = toMoneyNumber(finance?.gross_total);
+  const discountTotal = Math.min(
+    toMoneyNumber(finance?.discount_amount),
+    grossTotal
+  );
+  return Math.max(grossTotal - discountTotal, 0);
 }
 
 function toMoneyNumber(value: string | null | undefined): number {

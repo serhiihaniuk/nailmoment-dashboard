@@ -56,6 +56,7 @@ import {
 import type { FinanceTicketPatch } from '../model/finance-cache';
 import {
   buildFinancePatchWithNet,
+  calculatedPayableTotal,
   calculatedNetTotal,
   dateInputValue,
   formatDate,
@@ -78,6 +79,7 @@ import {
   SmallSelect,
   TextCell,
 } from './edit-cells';
+import { DiscountCombobox } from './discount-combobox';
 
 export function PaymentsPanel({
   ticket,
@@ -85,6 +87,7 @@ export function PaymentsPanel({
   onClose,
   closeBlockedByError,
   closePending,
+  discountOptions,
   paymentActionError,
   getFieldStatus,
   onCreate,
@@ -99,6 +102,7 @@ export function PaymentsPanel({
   onClose: () => void;
   closeBlockedByError: boolean;
   closePending: boolean;
+  discountOptions: readonly string[];
   paymentActionError?: string | undefined;
   getFieldStatus: (fieldKey: string) => SaveStatus;
   onCreate: (data: InsertPaymentInstallmentInput) => void;
@@ -115,19 +119,20 @@ export function PaymentsPanel({
   const sortedPayments = [...ticket.payments].sort(
     (a, b) => a.installment_number - b.installment_number
   );
-  const paidCount = sortedPayments.filter((payment) => payment.paid_date).length;
+  const paidCount = sortedPayments.filter((payment) => payment.is_paid).length;
   const paidTotal = sortedPayments.reduce(
     (total, payment) =>
-      payment.paid_date ? total + toMoneyNumber(payment.amount) : total,
+      payment.is_paid ? total + toMoneyNumber(payment.amount) : total,
     0
   );
   const unpaidScheduledTotal = sortedPayments.reduce(
     (total, payment) =>
-      payment.paid_date ? total : total + toMoneyNumber(payment.amount),
+      payment.is_paid ? total : total + toMoneyNumber(payment.amount),
     0
   );
+  const payableTotal = toMoneyNumber(calculatedPayableTotal(ticket));
   const unscheduledRemaining = Math.max(
-    toMoneyNumber(ticket.finance?.gross_total) - paidTotal - unpaidScheduledTotal,
+    payableTotal - paidTotal - unpaidScheduledTotal,
     0
   );
   const hasUnscheduledRemaining = unscheduledRemaining >= 0.01;
@@ -187,6 +192,7 @@ export function PaymentsPanel({
         : suggestedPaymentAmount(ticket, installmentNumber),
       sale_source: "direct_transfer",
       due_date: "",
+      is_paid: false,
       paid_date: "",
       payment_method: "other",
       invoice_status: "not_needed",
@@ -339,7 +345,7 @@ export function PaymentsPanel({
             />
           </PaymentField>
           <PaymentField
-            label="До оплати"
+            label="Ціна до знижки"
             saveStatus={getFieldStatus(grossTotalFieldKey)}
           >
             <MoneyCell
@@ -372,13 +378,21 @@ export function PaymentsPanel({
             label="Знижка"
             saveStatus={getFieldStatus(discountAmountFieldKey)}
           >
-            <MoneyCell
+            <DiscountCombobox
               value={hasZeroPaymentPlan ? "0.00" : ticket.finance?.discount_amount ?? "0.00"}
+              grossTotal={hasZeroPaymentPlan ? "0.00" : ticket.finance?.gross_total ?? "0.00"}
+              options={discountOptions}
               disabled={hasZeroPaymentPlan}
               onSave={(discount_amount) =>
-                onFinanceChange({ discount_amount }, discountAmountFieldKey)
+                onFinanceChange(
+                  buildFinancePatchWithNet(ticket, { discount_amount }),
+                  discountAmountFieldKey
+                )
               }
             />
+          </PaymentField>
+          <PaymentField label="До оплати">
+            <ReadOnlyMoney value={calculatedPayableTotal(ticket)} />
           </PaymentField>
           <PaymentField label="Нетто">
             <ReadOnlyMoney value={calculatedNetTotal(ticket)} />
@@ -481,10 +495,13 @@ function PaymentCard({
   ) => void;
   onDelete: (paymentId: string) => void;
 }) {
-  const isPaid = Boolean(payment.paid_date);
+  const isPaid = payment.is_paid;
+  const paidDateValue = dateInputValue(payment.paid_date);
   const isLocked = isStripePayment || paymentsLocked;
+  const arePaidDetailsLocked = isLocked || isPaid;
   const canDelete = !paymentsLocked && !isPaid && !isStripePayment;
   const amountFieldKey = paymentFieldKey(payment.id, "amount");
+  const isPaidFieldKey = paymentFieldKey(payment.id, "is_paid");
   const paidDateFieldKey = paymentFieldKey(payment.id, "paid_date");
   const dueDateFieldKey = paymentFieldKey(payment.id, "due_date");
   const saleSourceFieldKey = paymentFieldKey(payment.id, "sale_source");
@@ -527,21 +544,23 @@ function PaymentCard({
               <Switch
                 checked={isPaid}
                 disabled={isLocked}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
+                  const patch: PatchPaymentInstallmentInput = {
+                    is_paid: checked,
+                  };
+                  if (checked && !paidDateValue) {
+                    patch.paid_date = todayInputValue();
+                  }
                   onUpdate(
                     payment.id,
-                    {
-                      paid_date: checked
-                        ? payment.paid_date ?? todayInputValue()
-                        : "",
-                    },
-                    paidDateFieldKey
-                  )
-                }
+                    patch,
+                    isPaidFieldKey
+                  );
+                }}
               />
             </label>
             <SaveStatusLine
-              status={getFieldStatus(paidDateFieldKey)}
+              status={getFieldStatus(isPaidFieldKey)}
               className="justify-end"
             />
           </div>
@@ -563,7 +582,7 @@ function PaymentCard({
         >
           <MoneyCell
             value={payment.amount}
-            disabled={isLocked}
+            disabled={arePaidDetailsLocked}
             onSave={(amount) => onUpdate(payment.id, { amount }, amountFieldKey)}
           />
         </PaymentField>
@@ -572,8 +591,8 @@ function PaymentCard({
           saveStatus={getFieldStatus(paidDateFieldKey)}
         >
           <DateCell
-            value={dateInputValue(payment.paid_date)}
-            disabled={isLocked}
+            value={paidDateValue}
+            disabled={arePaidDetailsLocked}
             onSave={(paid_date) =>
               onUpdate(payment.id, { paid_date }, paidDateFieldKey)
             }
@@ -598,7 +617,7 @@ function PaymentCard({
           <SmallSelect
             value={isStripePayment ? "site" : payment.sale_source}
             options={SALE_SOURCE_OPTIONS}
-            disabled={isLocked}
+            disabled={arePaidDetailsLocked}
             onChange={(sale_source) =>
               onUpdate(payment.id, { sale_source }, saleSourceFieldKey)
             }

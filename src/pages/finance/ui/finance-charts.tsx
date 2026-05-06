@@ -595,7 +595,9 @@ export function buildFinanceCharts(tickets: TicketWithFinance[]) {
       const amount = toMoneyNumber(payment.amount);
       if (amount <= 0) continue;
 
-      const dateKey = dateInputValue(payment.paid_date ?? payment.due_date);
+      const dateKey = payment.is_paid
+        ? dateInputValue(payment.paid_date ?? payment.due_date)
+        : dateInputValue(payment.due_date);
       if (!dateKey) continue;
 
       const bucket =
@@ -607,7 +609,7 @@ export function buildFinanceCharts(tickets: TicketWithFinance[]) {
           expected: 0,
         };
 
-      if (payment.paid_date) {
+      if (payment.is_paid) {
         bucket.paid += amount;
       } else {
         bucket.expected += amount;
