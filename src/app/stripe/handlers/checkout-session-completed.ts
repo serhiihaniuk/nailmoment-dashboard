@@ -13,10 +13,9 @@ import {
   TICKET_TYPE_LIST,
   type TicketGrade,
 } from "@/entities/ticket";
-import {
-  generateAndStoreQRCode,
-  sendBattleEmail,
-} from "@/shared/email/send-email";
+import { parseBattleTicket } from "@/entities/battle-ticket";
+import { deliverBattleTicket } from "@/app/battle-ticket-delivery";
+import { generateAndStoreQRCode } from "@/shared/email/send-email";
 import { deliverTicket } from "@/app/ticket-delivery";
 import { runStripeCheckoutFulfillmentClaimLifecycle } from "../checkout-fulfillment-claim";
 import { createStripeCheckoutFulfillmentClaimStore } from "../checkout-fulfillment-claim-store";
@@ -244,11 +243,12 @@ async function processBattleCheckoutSession(
       stripe_event_id: stripeSessionId,
     })
     .onConflictDoNothing()
-    .returning({ id: battleTicketTable.id });
+    .returning();
 
   // A duplicate insert means this Stripe session already produced a battle
   // ticket. Treat that as successful fulfillment, not as an error.
-  if (inserted.length === 0) {
+  const createdBattleTicketRow = inserted[0];
+  if (!createdBattleTicketRow) {
     logStripeStep("warn", "DB", "Battle ticket already exists for Stripe session", {
       ...getEventContext(event, stripeSessionId),
       battleTicketId,
@@ -256,44 +256,35 @@ async function processBattleCheckoutSession(
     return "already_fulfilled";
   }
 
+  const createdBattleTicket = parseBattleTicket(createdBattleTicketRow);
+
   logStripeStep("info", "DB", "Battle ticket created", {
     ...getEventContext(event, stripeSessionId),
-    battleTicketId,
+    battleTicketId: createdBattleTicket.id,
   });
 
-  if (!customer.email) {
-    logStripe("error", "Email missing, battle email not sent", {
-      ...getEventContext(event, stripeSessionId),
-    });
-    // The ticket exists even if we cannot send an email. Operations can fix the
-    // customer email or resend manually; the webhook should not create another
-    // battle ticket on retry.
-    return "created";
-  }
+  logStripeStep("info", "EMAIL", "Performing Battle Ticket Delivery", {
+    ...getEventContext(event, stripeSessionId),
+    battleTicketId: createdBattleTicket.id,
+    customerEmail: createdBattleTicket.email,
+  });
 
-  try {
-    logStripeStep("info", "EMAIL", "Sending battle ticket email", {
+  const delivery = await deliverBattleTicket(createdBattleTicket);
+
+  if (delivery.mailSent) {
+    logStripeStep("info", "EMAIL", "Battle Ticket Delivery handed off", {
       ...getEventContext(event, stripeSessionId),
-      battleTicketId,
-      customerEmail: customer.email,
+      battleTicketId: delivery.battleTicket.id,
+      customerEmail: delivery.battleTicket.email,
     });
-    await sendBattleEmail(customer.email, customer.name, battleTicketId);
-    await db
-      .update(battleTicketTable)
-      .set({ mail_sent: true })
-      .where(eq(battleTicketTable.id, battleTicketId));
-    logStripeStep("info", "EMAIL", "Battle ticket email sent", {
+  } else {
+    // Battle Ticket Delivery is intentionally best-effort after fulfillment.
+    // The Battle Ticket remains durable and its status stays pending so
+    // operations can follow up without making Stripe retry the whole purchase.
+    logStripe("error", "Battle Ticket Delivery failed", {
       ...getEventContext(event, stripeSessionId),
-      battleTicketId,
-      customerEmail: customer.email,
-    });
-  } catch (error) {
-    // Email delivery is intentionally best-effort after fulfillment. We log the
-    // failure, but do not throw, because throwing would ask Stripe to retry the
-    // whole webhook even though the ticket already exists.
-    logStripe("error", "Battle email send failed", {
-      ...getEventContext(event, stripeSessionId),
-      error,
+      battleTicketId: delivery.battleTicket.id,
+      error: delivery.mailError,
     });
   }
 

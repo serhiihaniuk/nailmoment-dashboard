@@ -3,11 +3,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { nanoid } from "nanoid";
-import { eq } from "drizzle-orm";
 
+import { deliverBattleTicket } from "@/app/battle-ticket-delivery";
+import {
+  parseBattleTicket,
+  parseBattleTicketList,
+} from "@/entities/battle-ticket";
+import { extractInstagramUsername } from "@/entities/ticket";
 import { auth } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
-import { battleTicketTable } from "@/shared/db/schema";
 import {
   insertBattleTicketSchema,
   InsertBattleTicketInput,
@@ -15,12 +19,6 @@ import {
   InsertBattleTicketClientInput,
 } from "@/shared/db/schema.zod";
 import { createBattleTicketService } from "@/shared/db/service/battle-ticket-service";
-import { extractInstagramUsername } from "@/entities/ticket";
-import { sendBattleEmail } from "@/shared/email/send-email";
-import {
-  battleTicketListSchema,
-  battleTicketSchema,
-} from "@/entities/battle-ticket";
 
 const battleTicketService = createBattleTicketService(db);
 
@@ -87,7 +85,7 @@ export async function GET() {
     const tickets = await battleTicketService.getBattleTickets({
       archived: false,
     });
-    return NextResponse.json(battleTicketListSchema.parse(tickets), {
+    return NextResponse.json(parseBattleTicketList(tickets), {
       status: 200,
     });
   } catch (error) {
@@ -115,39 +113,15 @@ export async function POST(req: NextRequest) {
 
     const newBattleTicket =
       await battleTicketService.addBattleTicket(dbPayload);
+    const battleTicket = parseBattleTicket(newBattleTicket);
 
-    let mailSent = false;
-    let mailError: string | null = null;
-
-    try {
-      await sendBattleEmail(
-        newBattleTicket.email,
-        newBattleTicket.name,
-        newBattleTicket.id
-      );
-
-      await db
-        .update(battleTicketTable)
-        .set({ mail_sent: true })
-        .where(eq(battleTicketTable.id, newBattleTicket.id));
-      mailSent = true;
-      newBattleTicket.mail_sent = true;
-    } catch (err) {
-      mailError =
-        err instanceof Error
-          ? err.message
-          : "Unknown error while sending battle ticket email";
-      console.error(
-        `Failed to send battle ticket email to ${newBattleTicket.email}:`,
-        mailError
-      );
-    }
+    const delivery = await deliverBattleTicket(battleTicket);
 
     return NextResponse.json(
       {
-        battleTicket: battleTicketSchema.parse(newBattleTicket),
-        mailSent,
-        mailError,
+        battleTicket: delivery.battleTicket,
+        mailSent: delivery.mailSent,
+        mailError: delivery.mailError,
       },
       { status: 201 }
     );

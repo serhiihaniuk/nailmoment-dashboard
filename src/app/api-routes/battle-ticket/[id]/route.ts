@@ -15,7 +15,7 @@ import {
 } from "@/app/api-routes/lib/request";
 import {
   battleTicketIdSchema,
-  battleTicketSchema,
+  parseBattleTicket,
 } from "@/entities/battle-ticket";
 
 const battleTicketService = createBattleTicketService(db);
@@ -45,7 +45,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(battleTicketSchema.parse(battleTicket), {
+    return NextResponse.json(parseBattleTicket(battleTicket), {
       status: 200,
     });
   } catch (e) {
@@ -98,7 +98,7 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(battleTicketSchema.parse(updatedBattleTicket), {
+    return NextResponse.json(parseBattleTicket(updatedBattleTicket), {
       status: 200,
     });
   } catch (e) {
