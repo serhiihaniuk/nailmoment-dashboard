@@ -129,16 +129,6 @@ export async function readApiError(
   return new ApiError(fallbackMessage);
 }
 
-export function isStripeOriginPayment(
-  ticket: TicketWithFinance,
-  payment: TicketWithFinance["payments"][number]
-): boolean {
-  return (
-    !ticket.stripe_event_id.startsWith("manual") &&
-    payment.installment_number === 1
-  );
-}
-
 export function createNewTicketFinanceDefaults(): CreateTicketWithFinanceInput {
   return {
     name: "",

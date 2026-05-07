@@ -12,18 +12,19 @@ import {
   parseRequestJson,
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
-import { paymentInstallmentIdSchema } from "@/entities/ticket";
+import {
+  getPaymentDeleteDenialReason,
+  getPaymentPatchDenialReason,
+  paymentInstallmentIdSchema,
+  type PaymentEditPolicyContext,
+} from "@/entities/ticket";
 
 const financeService = createFinanceService(db);
-const STRIPE_EDITABLE_PAYMENT_FIELDS = new Set([
-  "invoice_status",
-  "invoice_number",
-]);
 
 async function getPaymentGuard(paymentId: string) {
   const rows = await db
     .select({
-      paid_date: paymentInstallmentTable.paid_date,
+      is_paid: paymentInstallmentTable.is_paid,
       installment_number: paymentInstallmentTable.installment_number,
       stripe_event_id: ticketTable.stripe_event_id,
     })
@@ -35,13 +36,18 @@ async function getPaymentGuard(paymentId: string) {
   return rows[0] ?? null;
 }
 
-function isStripeOriginPayment(
+function getPaymentEditPolicyContext(
   payment: NonNullable<Awaited<ReturnType<typeof getPaymentGuard>>>
-) {
-  return (
-    !payment.stripe_event_id.startsWith("manual") &&
-    payment.installment_number === 1
-  );
+): PaymentEditPolicyContext {
+  return {
+    ticket: {
+      stripe_event_id: payment.stripe_event_id,
+    },
+    payment: {
+      installment_number: payment.installment_number,
+      is_paid: payment.is_paid,
+    },
+  };
 }
 
 export async function PATCH(
@@ -70,14 +76,13 @@ export async function PATCH(
   if (!paymentGuard) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
-  if (
-    isStripeOriginPayment(paymentGuard) &&
-    requestedPaymentFields.some(
-      (field) => !STRIPE_EDITABLE_PAYMENT_FIELDS.has(field)
-    )
-  ) {
+  const denialReason = getPaymentPatchDenialReason(
+    getPaymentEditPolicyContext(paymentGuard),
+    requestedPaymentFields
+  );
+  if (denialReason) {
     return NextResponse.json(
-      { message: "Only invoice fields can be modified for Stripe payments." },
+      { message: denialReason.message, reason: denialReason.code },
       { status: 403 }
     );
   }
@@ -108,15 +113,12 @@ export async function DELETE(
   if (!paymentGuard) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
-  if (isStripeOriginPayment(paymentGuard)) {
+  const denialReason = getPaymentDeleteDenialReason(
+    getPaymentEditPolicyContext(paymentGuard)
+  );
+  if (denialReason) {
     return NextResponse.json(
-      { message: "Stripe payments cannot be deleted." },
-      { status: 403 }
-    );
-  }
-  if (paymentGuard.paid_date) {
-    return NextResponse.json(
-      { message: "Paid payments cannot be deleted." },
+      { message: denialReason.message, reason: denialReason.code },
       { status: 403 }
     );
   }

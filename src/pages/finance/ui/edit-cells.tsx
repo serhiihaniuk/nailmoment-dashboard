@@ -134,11 +134,13 @@ export function MoneyCell({
   value,
   placeholder = "0.00",
   disabled = false,
+  disabledReason,
   onSave,
 }: {
   value: string;
   placeholder?: string;
   disabled?: boolean;
+  disabledReason?: string | undefined;
   onSave: (value: string) => void;
 }) {
   return (
@@ -149,6 +151,7 @@ export function MoneyCell({
       min="0"
       defaultValue={value}
       disabled={disabled}
+      title={disabled ? disabledReason : undefined}
       placeholder={placeholder}
       onBlur={(event) => {
         const nextValue = normalizeMoney(event.target.value);
@@ -162,10 +165,12 @@ export function MoneyCell({
 export function TextCell({
   value,
   disabled = false,
+  disabledReason,
   onSave,
 }: {
   value: string;
   disabled?: boolean;
+  disabledReason?: string | undefined;
   onSave: (value: string) => void;
 }) {
   return (
@@ -174,6 +179,7 @@ export function TextCell({
       type="text"
       defaultValue={value}
       disabled={disabled}
+      title={disabled ? disabledReason : undefined}
       onBlur={(event) => {
         const nextValue = event.target.value.trim();
         if (nextValue !== value) onSave(nextValue);
@@ -186,10 +192,12 @@ export function TextCell({
 export function TextareaCell({
   value,
   disabled = false,
+  disabledReason,
   onSave,
 }: {
   value: string;
   disabled?: boolean;
+  disabledReason?: string | undefined;
   onSave: (value: string) => void;
 }) {
   return (
@@ -197,6 +205,7 @@ export function TextareaCell({
       key={value}
       defaultValue={value}
       disabled={disabled}
+      title={disabled ? disabledReason : undefined}
       onBlur={(event) => {
         const nextValue = event.target.value.trim();
         if (nextValue !== value) onSave(nextValue);
@@ -209,10 +218,12 @@ export function TextareaCell({
 export function DateCell({
   value,
   disabled = false,
+  disabledReason,
   onSave,
 }: {
   value: string;
   disabled?: boolean;
+  disabledReason?: string | undefined;
   onSave: (value: string) => void;
 }) {
   const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
@@ -224,6 +235,7 @@ export function DateCell({
           type="button"
           variant="outline"
           disabled={disabled}
+          title={disabled ? disabledReason : undefined}
           className={cn(
             "h-9 w-full justify-between bg-white/40 px-2 text-base font-normal shadow-none",
             !value && "text-muted-foreground"
@@ -263,12 +275,14 @@ export function SmallSelect<TOption extends readonly { value: string; label: str
   value,
   options,
   disabled = false,
+  disabledReason,
   disabledValues,
   onChange,
 }: {
   value: TOption[number]["value"];
   options: TOption;
   disabled?: boolean;
+  disabledReason?: string | undefined;
   disabledValues?: ReadonlySet<string>;
   onChange: (value: TOption[number]["value"]) => void;
 }) {
@@ -281,6 +295,7 @@ export function SmallSelect<TOption extends readonly { value: string; label: str
       }
     >
       <SelectTrigger
+        title={disabled ? disabledReason : undefined}
         className="h-9 w-full rounded-md bg-background text-base"
       >
         <SelectValue />
