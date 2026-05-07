@@ -1,9 +1,9 @@
 import type Stripe from "stripe";
 import { expect, test } from "vitest";
+import { shouldReclaimStripeCheckoutFulfillmentClaim } from "../checkout-fulfillment-claim";
 import {
   getCheckoutPaidAmount,
   resolveCheckoutSession,
-  shouldReclaimStripeWebhookEvent,
 } from "./checkout-session-completed";
 
 function createSession(overrides: Partial<Stripe.Checkout.Session> = {}) {
@@ -98,37 +98,37 @@ test("getCheckoutPaidAmount falls back to grade price when Stripe amount is abse
   );
 });
 
-test("shouldReclaimStripeWebhookEvent reclaims failed events", () => {
+test("shouldReclaimStripeCheckoutFulfillmentClaim reclaims failed events", () => {
   expect(
-    shouldReclaimStripeWebhookEvent({
+    shouldReclaimStripeCheckoutFulfillmentClaim({
       status: "failed",
-      updated_at: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     })
   ).toBe(true);
 });
 
-test("shouldReclaimStripeWebhookEvent reclaims stale processing events", () => {
+test("shouldReclaimStripeCheckoutFulfillmentClaim reclaims stale processing events", () => {
   const now = new Date("2026-01-01T00:10:00.000Z");
 
   expect(
-    shouldReclaimStripeWebhookEvent(
+    shouldReclaimStripeCheckoutFulfillmentClaim(
       {
         status: "processing",
-        updated_at: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       },
       now
     )
   ).toBe(true);
 });
 
-test("shouldReclaimStripeWebhookEvent keeps fresh processing events locked", () => {
+test("shouldReclaimStripeCheckoutFulfillmentClaim keeps fresh processing events locked", () => {
   const now = new Date("2026-01-01T00:04:00.000Z");
 
   expect(
-    shouldReclaimStripeWebhookEvent(
+    shouldReclaimStripeCheckoutFulfillmentClaim(
       {
         status: "processing",
-        updated_at: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       },
       now
     )

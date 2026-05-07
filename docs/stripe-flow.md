@@ -15,6 +15,8 @@ session cookies.
 | Generic route handler | `src/app/stripe/route-handler.ts` |
 | Signature/config/session verification | `src/app/stripe/verify-webhook.ts` |
 | Checkout fulfillment | `src/app/stripe/handlers/checkout-session-completed.ts` |
+| Checkout claim lifecycle | `src/app/stripe/checkout-fulfillment-claim.ts` |
+| Checkout claim DB adapter | `src/app/stripe/checkout-fulfillment-claim-store.ts` |
 | Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
 | Customer mapper | `src/app/stripe/map-checkout-customer.ts` |
 | Logging | `src/app/stripe/log.ts` |
@@ -108,7 +110,9 @@ handleCheckoutSessionCompleted(event)
   |
   +- confirm event.type is checkout.session.completed
   |
-  +- claim stripe_webhook_event row by event.id
+  +- runStripeCheckoutFulfillmentClaimLifecycle
+  |    |
+  |    +- claim stripe_webhook_event row by event.id
   |    |
   |    +- inserted -> current worker owns event
   |    +- existing failed -> reclaim
@@ -265,6 +269,7 @@ one webhook can be traced across files.
 
 Focused tests:
 
+- `src/app/stripe/checkout-fulfillment-claim.test.ts`
 - `src/app/stripe/verify-webhook.test.ts`
 - `src/app/stripe/route-handler.test.ts`
 - `src/app/stripe/log.test.ts`
