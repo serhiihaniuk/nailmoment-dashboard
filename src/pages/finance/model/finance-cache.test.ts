@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   buildTicketFinanceSummary,
+  calculateTicketPaymentCoverage,
   calculateTicketFinanceTotals,
   type PaymentInstallment,
   type TicketFinance,
@@ -205,6 +206,21 @@ describe("finance optimistic cache helpers", () => {
     expect(ticket.finance_summary.paid_total).toBe("40.00");
     expect(ticket.finance_summary.remaining_total).toBe("60.00");
     expect(ticket.finance_summary.payment_status).toBe("partial");
+  });
+
+  test("keeps payment coverage current after optimistic payment amount changes", () => {
+    const result = patchPaymentInFinanceCache([makeTicket()], "payment-1", {
+      amount: "75.00",
+    });
+
+    const ticket = readTicket(result);
+    expect(calculateTicketPaymentCoverage(ticket.finance, ticket.payments)).toEqual({
+      paidTotal: 0,
+      payableTotal: 100,
+      scheduledDifference: -25,
+      scheduledTotal: 75,
+      status: "under_scheduled",
+    });
   });
 
   test("keeps the previous cache snapshot usable for rollback", () => {

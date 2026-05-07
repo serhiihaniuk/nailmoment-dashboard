@@ -13,6 +13,19 @@ type FinanceSummaryTotals = {
   remainingTotal: number;
 };
 
+export type TicketPaymentCoverageStatus =
+  | "balanced"
+  | "over_scheduled"
+  | "under_scheduled";
+
+export type TicketPaymentCoverage = {
+  paidTotal: number;
+  payableTotal: number;
+  scheduledDifference: number;
+  scheduledTotal: number;
+  status: TicketPaymentCoverageStatus;
+};
+
 type FinanceTotalsInput = {
   discount_amount?: unknown;
   gross_total?: unknown;
@@ -110,6 +123,51 @@ export function getTicketPayableTotalMoney(
 
 export function getTicketNetTotalMoney(finance: FinanceTotalsInput): string {
   return normalizeMoneyString(calculateTicketFinanceTotals(finance).netTotal);
+}
+
+export function calculateTicketPaymentCoverage(
+  finance: TicketFinance | null,
+  payments: PaymentInstallment[]
+): TicketPaymentCoverage {
+  const payableCents = Math.round(
+    calculateTicketFinanceTotals(finance).payableTotal * 100
+  );
+  const countedPayments = isZeroPaymentPlan(finance?.payment_plan)
+    ? []
+    : payments;
+  const paidCents = countedPayments.reduce((sum, payment) => {
+    if (!payment.is_paid) return sum;
+    return sum + toMoneyCents(payment.amount);
+  }, 0);
+  const scheduledCents = countedPayments.reduce(
+    (sum, payment) => sum + toMoneyCents(payment.amount),
+    0
+  );
+  const scheduledDifferenceCents = scheduledCents - payableCents;
+
+  return {
+    paidTotal: centsToMoney(paidCents),
+    payableTotal: centsToMoney(payableCents),
+    scheduledDifference: centsToMoney(scheduledDifferenceCents),
+    scheduledTotal: centsToMoney(scheduledCents),
+    status: getPaymentCoverageStatus(scheduledDifferenceCents),
+  };
+}
+
+function toMoneyCents(value: unknown): number {
+  return Math.max(Math.round(toMoneyNumber(value) * 100), 0);
+}
+
+function centsToMoney(cents: number): number {
+  return cents / 100;
+}
+
+function getPaymentCoverageStatus(
+  scheduledDifferenceCents: number
+): TicketPaymentCoverageStatus {
+  if (scheduledDifferenceCents < 0) return "under_scheduled";
+  if (scheduledDifferenceCents > 0) return "over_scheduled";
+  return "balanced";
 }
 
 function getNextDueDate(payments: PaymentInstallment[]): Date | null {

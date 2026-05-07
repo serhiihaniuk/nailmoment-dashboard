@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search } from 'lucide-react';
+import { AlertCircle, Loader2, Search } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Input } from '@/shared/ui/input';
 import { Skeleton } from '@/shared/ui/skeleton';
@@ -14,7 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
-import type { TicketWithFinance } from '@/entities/ticket';
+import {
+  calculateTicketPaymentCoverage,
+  type TicketWithFinance,
+} from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import {
   createTicketWithFinance,
@@ -290,7 +293,7 @@ export function FinanceTable() {
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
                   Платежі
                 </TableHead>
                 <TableHead className="h-10 px-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
@@ -329,6 +332,26 @@ export function FinanceTable() {
                 const status = ticket.finance_summary.payment_status;
                 const isOverdue = status === "overdue";
                 const displayedPaymentCount = getDisplayedPaymentCount(ticket);
+                const paymentCoverage = calculateTicketPaymentCoverage(
+                  ticket.finance,
+                  ticket.payments
+                );
+                const hasPaymentCoverageMismatch =
+                  paymentCoverage.status !== "balanced";
+                const paymentCoverageDifference = Math.abs(
+                  paymentCoverage.scheduledDifference
+                );
+                const paymentCoverageTitle = [
+                  `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
+                  `${formatZloty(paymentCoverage.scheduledTotal)} заплановано`,
+                  `${formatZloty(paymentCoverage.payableTotal)} до оплати`,
+                ].join(" / ");
+                const paymentCoverageMismatchLabel =
+                  paymentCoverage.status === "under_scheduled"
+                    ? `Бракує ${formatZloty(paymentCoverageDifference)}`
+                    : paymentCoverage.status === "over_scheduled"
+                      ? `+${formatZloty(paymentCoverageDifference)}`
+                      : null;
 
                 return (
                   <TableRow
@@ -381,15 +404,30 @@ export function FinanceTable() {
                       {formatZloty(paidTotal)}
                     </TableCell>
                     <TableCell className="py-3.5 px-4">
-                      <Badge
-                        variant="outline"
-                        className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                      <div
+                        className="flex flex-col items-start gap-1"
+                        title={paymentCoverageTitle}
                       >
-                        {
-                          ticket.payments.filter((payment) => payment.is_paid)
-                            .length
-                        }/{displayedPaymentCount}
-                      </Badge>
+                        <Badge
+                          variant={
+                            hasPaymentCoverageMismatch ? "warning" : "outline"
+                          }
+                          className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                        >
+                          {hasPaymentCoverageMismatch && (
+                            <AlertCircle className="h-3 w-3" />
+                          )}
+                          {
+                            ticket.payments.filter((payment) => payment.is_paid)
+                              .length
+                          }/{displayedPaymentCount}
+                        </Badge>
+                        {paymentCoverageMismatchLabel && (
+                          <span className="whitespace-nowrap text-[11px] font-medium text-warning tabular-nums">
+                            {paymentCoverageMismatchLabel}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-center">
                       <InvoiceStatusCell ticket={ticket} />

@@ -65,9 +65,12 @@ export {
 } from "./model/finance-discount";
 export {
   buildTicketFinanceSummary,
+  calculateTicketPaymentCoverage,
   calculateTicketFinanceTotals,
   getTicketNetTotalMoney,
   getTicketPayableTotalMoney,
+  type TicketPaymentCoverage,
+  type TicketPaymentCoverageStatus,
   type TicketFinanceTotals,
 } from "./model/finance-summary";
 export {

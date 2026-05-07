@@ -37,6 +37,7 @@ import type {
 } from '@/shared/db/schema.zod';
 import {
   TICKET_PRICE_BY_GRADE,
+  calculateTicketPaymentCoverage,
   getPaymentDeleteDenialReason,
   getPaymentFieldEditDenialReason,
   isStripeTicketPayment,
@@ -130,6 +131,20 @@ export function PaymentsPanel({
     (a, b) => a.installment_number - b.installment_number
   );
   const paidCount = sortedPayments.filter((payment) => payment.is_paid).length;
+  const paymentCoverage = calculateTicketPaymentCoverage(
+    ticket.finance,
+    sortedPayments
+  );
+  const hasPaymentCoverageMismatch = paymentCoverage.status !== "balanced";
+  const paymentCoverageDifference = Math.abs(
+    paymentCoverage.scheduledDifference
+  );
+  const paymentCoverageMismatchText =
+    paymentCoverage.status === "under_scheduled"
+      ? `Бракує ${formatZloty(paymentCoverageDifference)} у запланованих платежах`
+      : paymentCoverage.status === "over_scheduled"
+        ? `Заплановано на ${formatZloty(paymentCoverageDifference)} більше`
+        : null;
   const unscheduledGrossPaymentAmount =
     getUnscheduledGrossPaymentAmount(ticket);
   const hasUnscheduledGrossPaymentAmount =
@@ -253,7 +268,7 @@ export function PaymentsPanel({
       </div>
 
       {/* Summary stats */}
-      <div className="flex items-center gap-4 text-[12px] mb-6">
+      <div className="flex items-center gap-4 text-[12px] mb-3">
         <div>
           <span className="text-muted-foreground">Повна: </span>
           <span className="font-medium tabular-nums">
@@ -272,6 +287,38 @@ export function PaymentsPanel({
             {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
           </span>
         </div>
+      </div>
+
+      <div
+        className={cn(
+          "mb-6 rounded-md border px-3 py-2 text-[12px]",
+          hasPaymentCoverageMismatch
+            ? "border-warning/50 bg-warning/10"
+            : "border-border/50 bg-muted/20"
+        )}
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {hasPaymentCoverageMismatch && (
+            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-warning" />
+          )}
+          <span className="font-medium text-foreground">Платежі:</span>
+          <span className="tabular-nums text-success">
+            {formatZloty(paymentCoverage.paidTotal)} оплачено
+          </span>
+          <span className="text-muted-foreground">/</span>
+          <span className="tabular-nums">
+            {formatZloty(paymentCoverage.scheduledTotal)} заплановано
+          </span>
+          <span className="text-muted-foreground">/</span>
+          <span className="tabular-nums">
+            {formatZloty(paymentCoverage.payableTotal)} до оплати
+          </span>
+        </div>
+        {paymentCoverageMismatchText && (
+          <p className="mt-1 text-[11px] font-medium text-warning">
+            {paymentCoverageMismatchText}
+          </p>
+        )}
       </div>
 
       {/* Contact info section */}

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
-import type { PaymentInstallment, TicketFinance } from "./ticket";
+import type { PaymentInstallment, PaymentPlan, TicketFinance } from "./ticket";
 import {
   buildTicketFinanceSummary,
+  calculateTicketPaymentCoverage,
   calculateTicketFinanceTotals,
 } from "./finance-summary";
 
@@ -92,4 +93,88 @@ describe("ticket finance totals", () => {
     expect(summary.remaining_total).toBe("0.00");
     expect(summary.payment_status).toBe("paid");
   });
+
+  test("calculates paid, scheduled, and payable payment coverage", () => {
+    const coverage = calculateTicketPaymentCoverage(makeFinance(), [
+      makePayment({ amount: "200.00", is_paid: true }),
+      makePayment({
+        id: "payment-2",
+        amount: "199.00",
+        installment_number: 2,
+        is_paid: false,
+        paid_date: null,
+      }),
+    ]);
+
+    expect(coverage).toEqual({
+      paidTotal: 200,
+      payableTotal: 400,
+      scheduledDifference: -1,
+      scheduledTotal: 399,
+      status: "under_scheduled",
+    });
+  });
+
+  test("flags over-scheduled payment coverage", () => {
+    const coverage = calculateTicketPaymentCoverage(makeFinance(), [
+      makePayment({ amount: "250.00", is_paid: true }),
+      makePayment({
+        id: "payment-2",
+        amount: "200.00",
+        installment_number: 2,
+        is_paid: false,
+        paid_date: null,
+      }),
+    ]);
+
+    expect(coverage).toMatchObject({
+      scheduledDifference: 50,
+      scheduledTotal: 450,
+      status: "over_scheduled",
+    });
+  });
+
+  test.each<PaymentPlan>(["full", "two_parts", "three_parts", "custom"])(
+    "balances scheduled coverage for %s payment plans",
+    (paymentPlan) => {
+      const coverage = calculateTicketPaymentCoverage(
+        makeFinance({ payment_plan: paymentPlan }),
+        [
+          makePayment({ amount: "200.00", is_paid: true }),
+          makePayment({
+            id: "payment-2",
+            amount: "200.00",
+            installment_number: 2,
+            is_paid: false,
+            paid_date: null,
+          }),
+        ]
+      );
+
+      expect(coverage).toMatchObject({
+        payableTotal: 400,
+        scheduledDifference: 0,
+        scheduledTotal: 400,
+        status: "balanced",
+      });
+    }
+  );
+
+  test.each<PaymentPlan>(["free", "sponsor"])(
+    "keeps %s payment coverage at zero even if legacy payments exist",
+    (paymentPlan) => {
+      const coverage = calculateTicketPaymentCoverage(
+        makeFinance({ payment_plan: paymentPlan }),
+        [makePayment({ amount: "200.00", is_paid: true })]
+      );
+
+      expect(coverage).toEqual({
+        paidTotal: 0,
+        payableTotal: 0,
+        scheduledDifference: 0,
+        scheduledTotal: 0,
+        status: "balanced",
+      });
+    }
+  );
 });
