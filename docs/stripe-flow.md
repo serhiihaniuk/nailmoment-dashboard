@@ -15,6 +15,7 @@ session cookies.
 | Generic route handler | `src/app/stripe/route-handler.ts` |
 | Signature/config/session verification | `src/app/stripe/verify-webhook.ts` |
 | Checkout fulfillment | `src/app/stripe/handlers/checkout-session-completed.ts` |
+| Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
 | Customer mapper | `src/app/stripe/map-checkout-customer.ts` |
 | Logging | `src/app/stripe/log.ts` |
 | Shared result types | `src/app/stripe/types.ts` |
@@ -161,11 +162,11 @@ processTicketCheckoutSession(session, event, ticketGrade)
   +- insert ticket with stripe_event_id = session.id
   +- ensureStripeTicketFinancePayment()
   +- mark webhook processed
-  +- send ticket email best-effort
+  +- ask Ticket Delivery to perform customer email handoff best-effort
 ```
 
-Email failure is logged but does not throw after ticket/payment records exist.
-That prevents Stripe retries from duplicating fulfillment.
+Ticket Delivery failure is logged but does not throw after ticket/payment
+records exist. That prevents Stripe retries from duplicating fulfillment.
 
 ## Battle Branch
 

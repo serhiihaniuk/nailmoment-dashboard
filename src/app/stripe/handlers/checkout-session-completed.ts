@@ -18,8 +18,8 @@ import {
 import {
   generateAndStoreQRCode,
   sendBattleEmail,
-  sendTicketEmail,
 } from "@/shared/email/send-email";
+import { deliverTicket } from "@/app/ticket-delivery";
 import { logStripe, logStripeStep } from "../log";
 import { mapCheckoutCustomer } from "../map-checkout-customer";
 import type { StripeWebhookHandlerResult } from "../types";
@@ -598,46 +598,35 @@ async function processTicketCheckoutSession(
     statusReason: "ticket_created_with_payment",
   });
 
-  if (!customer.email) {
-    logStripe("error", "Email missing, ticket email not sent", {
-      ...getEventContext(event, stripeSessionId),
-    });
-    // Missing email is an operational problem, not a reason to reverse the paid
-    // ticket. The record remains visible in the dashboard for manual follow-up.
-    return "created";
-  }
+  logStripeStep("info", "EMAIL", "Performing Ticket Delivery", {
+    ...getEventContext(event, stripeSessionId),
+    customerEmail: customer.email,
+    ticketGrade,
+    ticketId,
+  });
 
-  try {
-    logStripeStep("info", "EMAIL", "Sending ticket email", {
-      ...getEventContext(event, stripeSessionId),
-      customerEmail: customer.email,
-      ticketGrade,
-      ticketId,
-    });
-    await sendTicketEmail(
-      customer.email,
-      customer.name,
-      qrCodeUrl,
-      ticketGrade,
-      ticketId,
-    );
-    await db
-      .update(ticketTable)
-      .set({ mail_sent: true })
-      .where(eq(ticketTable.id, ticketId));
+  const delivery = await deliverTicket({
+    email: customer.email,
+    grade: ticketGrade,
+    id: ticketId,
+    name: customer.name,
+    qr_code: qrCodeUrl,
+    updated_grade: null,
+  });
+
+  if (delivery.mailSent) {
     logStripeStep("info", "EMAIL", "Ticket email sent", {
       ...getEventContext(event, stripeSessionId),
       customerEmail: customer.email,
       ticketGrade,
       ticketId,
     });
-  } catch (error) {
-    // Same principle as battle email: after the ticket and finance records
-    // exist, email failure should be observable but should not re-run purchase
-    // fulfillment.
+  } else {
+    // After the ticket and finance records exist, Ticket Delivery failure should
+    // be observable but should not re-run purchase fulfillment.
     logStripe("error", "Ticket email send failed", {
       ...getEventContext(event, stripeSessionId),
-      error,
+      error: delivery.mailError,
     });
   }
 

@@ -5,14 +5,12 @@ import { auth } from "@/shared/better-auth/auth";
 import { headers } from "next/headers";
 import { updateTicketSchema } from "@/shared/db/schema.zod";
 import { z } from "zod";
-import { sendTicketEmail } from "@/shared/email/send-email";
-import { ticketTable } from "@/shared/db/schema";
-import { eq } from "drizzle-orm";
 import {
   parseRequestJson,
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
 import { buildTicketFinanceSummary, ticketIdSchema } from "@/entities/ticket";
+import { deliverTicket } from "@/app/ticket-delivery";
 
 const ticketService = createTicketService(db, {
   buildFinanceSummary: buildTicketFinanceSummary,
@@ -103,17 +101,14 @@ export async function POST(
   }
 
   try {
-    await sendTicketEmail(
-      ticket.email,
-      ticket.name,
-      ticket.qr_code,
-      ticket.updated_grade || ticket.grade,
-      ticket.id
-    );
-    await db
-      .update(ticketTable)
-      .set({ mail_sent: true })
-      .where(eq(ticketTable.id, ticket.id));
+    const delivery = await deliverTicket(ticket);
+    if (!delivery.mailSent) {
+      console.error("POST /ticket/:id delivery failed:", delivery.mailError);
+      return NextResponse.json(
+        { message: "Failed to send email" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ message: "Email sent" });
   } catch (e) {

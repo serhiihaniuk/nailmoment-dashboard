@@ -13,6 +13,7 @@ point is the Stripe webhook. See [stripe-flow.md](stripe-flow.md).
 | Manual ticket API | `src/app/api-routes/ticket/route.ts` |
 | Ticket detail API | `src/app/api-routes/ticket/[id]/route.ts` |
 | Ticket DB service | `src/shared/db/service/ticket-service.ts` |
+| Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
 | QR + email helpers | `src/shared/email/send-email.ts` |
 | Ticket email template | `src/shared/email/email-template.tsx` |
 | Battle email template | `src/shared/email/battle-email-template.tsx` |
@@ -34,8 +35,8 @@ POST /api/ticket
   +- normalize Instagram
   +- generate QR
   +- insert ticket
-  +- send ticket email best-effort
-  +- mark mail_sent true if email succeeds
+  +- ask Ticket Delivery to perform Email Provider Handoff best-effort
+  +- Ticket Delivery marks mail_sent true if handoff succeeds
   |
   v
 { ticket, mailSent, mailError }
@@ -79,6 +80,19 @@ This is intentional: QR URLs are customer-facing and may already exist in sent
 emails. Do not overwrite or delete production QR blobs casually.
 
 ## Ticket Email
+
+```txt
+deliverTicket(ticket)
+  |
+  +- skip customer-facing handoff if the ticket has no email
+  +- sendTicketEmail(...)
+  +- mark mail_sent true after successful Email Provider Handoff
+  |
+  v
+{ mailSent, mailError }
+```
+
+Email provider helper:
 
 ```txt
 sendTicketEmail(to, name, qrCodeUrl, ticketType, ticketId?)
@@ -137,8 +151,8 @@ POST /api/ticket/:id
   +- auth check
   +- parse ticket id
   +- load ticket
-  +- send ticket email using updated_grade || grade
-  +- mark mail_sent true
+  +- ask Ticket Delivery to resend using updated_grade || grade
+  +- Ticket Delivery marks mail_sent true after successful handoff
 ```
 
 This is used for manual resend flows.
