@@ -64,6 +64,7 @@ import {
   getDisplayedPaymentCount,
   getExpectedPaymentCount,
   getInvoiceStatus,
+  getUnscheduledGrossPaymentAmount,
   isStripeOriginPayment,
   isZeroPaymentPlan,
   suggestedPaymentAmount,
@@ -121,27 +122,20 @@ export function PaymentsPanel({
     (a, b) => a.installment_number - b.installment_number
   );
   const paidCount = sortedPayments.filter((payment) => payment.is_paid).length;
-  const paidTotal = sortedPayments.reduce(
-    (total, payment) =>
-      payment.is_paid ? total + toMoneyNumber(payment.amount) : total,
-    0
-  );
-  const unpaidScheduledTotal = sortedPayments.reduce(
-    (total, payment) =>
-      payment.is_paid ? total : total + toMoneyNumber(payment.amount),
-    0
-  );
-  const payableTotal = toMoneyNumber(calculatedPayableTotal(ticket));
-  const unscheduledRemaining = Math.max(
-    payableTotal - paidTotal - unpaidScheduledTotal,
-    0
-  );
-  const hasUnscheduledRemaining = unscheduledRemaining >= 0.01;
+  const unscheduledGrossPaymentAmount =
+    getUnscheduledGrossPaymentAmount(ticket);
+  const hasUnscheduledGrossPaymentAmount =
+    toMoneyNumber(unscheduledGrossPaymentAmount) >= 0.01;
   const selectedPaymentPlan = ticket.finance?.payment_plan ?? "full";
   const selectedGrade =
     GRADE_SELECT_OPTIONS.find(
       (option) => option.value === (ticket.updated_grade ?? ticket.grade)
     )?.value ?? "standard";
+  const gradeTransitionLabel =
+    ticket.updated_grade &&
+    ticket.updated_grade.toLowerCase() !== ticket.grade.toLowerCase()
+      ? `${ticket.grade} -> ${ticket.updated_grade}`
+      : null;
   const nameFieldKey = ticketFieldKey(ticket.id, "name");
   const phoneFieldKey = ticketFieldKey(ticket.id, "phone");
   const emailFieldKey = ticketFieldKey(ticket.id, "email");
@@ -188,8 +182,8 @@ export function PaymentsPanel({
     const installmentNumber = nextPaymentNumber + 1;
     onCreate({
       installment_number: installmentNumber,
-      amount: hasUnscheduledRemaining
-        ? unscheduledRemaining.toFixed(2)
+      amount: hasUnscheduledGrossPaymentAmount
+        ? unscheduledGrossPaymentAmount
         : suggestedPaymentAmount(ticket, installmentNumber),
       sale_source: "direct_transfer",
       due_date: "",
@@ -330,6 +324,11 @@ export function PaymentsPanel({
               options={GRADE_SELECT_OPTIONS}
               onChange={handleGradeChange}
             />
+            {gradeTransitionLabel && (
+              <p className="pt-1 text-[11px] font-medium text-muted-foreground">
+                {gradeTransitionLabel}
+              </p>
+            )}
           </PaymentField>
           <PaymentField
             label="Оплата / розстрочка"

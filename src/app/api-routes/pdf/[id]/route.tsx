@@ -5,8 +5,11 @@ import { auth } from "@/shared/better-auth/auth";
 import { headers } from "next/headers";
 import { render, pretty } from "@react-email/render";
 import { EmailTemplate } from "@/shared/email/email-template";
+import { buildTicketFinanceSummary } from "@/entities/ticket";
 
-const ticketService = createTicketService(db);
+const ticketService = createTicketService(db, {
+  buildFinanceSummary: buildTicketFinanceSummary,
+});
 
 export async function GET(
   _req: NextRequest,

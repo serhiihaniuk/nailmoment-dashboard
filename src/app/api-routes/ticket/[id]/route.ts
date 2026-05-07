@@ -12,9 +12,11 @@ import {
   parseRequestJson,
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
-import { ticketIdSchema } from "@/entities/ticket";
+import { buildTicketFinanceSummary, ticketIdSchema } from "@/entities/ticket";
 
-const ticketService = createTicketService(db);
+const ticketService = createTicketService(db, {
+  buildFinanceSummary: buildTicketFinanceSummary,
+});
 
 export async function GET(
   _req: NextRequest,

@@ -11,8 +11,11 @@ import { CustomEmailTemplate } from "@/shared/email/custom-email-template";
 import { headers } from "next/headers";
 import { Resend } from "resend";
 import { readResendApiKey } from "@/shared/config/env";
+import { buildTicketFinanceSummary } from "@/entities/ticket";
 
-const ticketService = createTicketService(db);
+const ticketService = createTicketService(db, {
+  buildFinanceSummary: buildTicketFinanceSummary,
+});
 
 export async function getTicketHtml(id: string): Promise<string | null> {
   const session = await auth.api.getSession({ headers: await headers() });

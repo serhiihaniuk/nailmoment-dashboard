@@ -6,6 +6,7 @@ import {
   getTicketPayableTotalMoney,
   TICKET_PRICE_BY_GRADE,
   getExpectedPaymentCount,
+  isZeroPaymentPlan as isTicketZeroPaymentPlan,
 } from '@/entities/ticket';
 import { INVOICE_STATUS_OPTIONS } from './constants';
 import type {
@@ -208,9 +209,30 @@ export function suggestedPaymentAmount(
     ticket.finance?.payment_plan ?? "full"
   );
   const splitCount = expectedPaymentCount || Math.max(paymentNumber, 1);
-  return splitMoney(getTicketPayableTotalMoney(ticket.finance), splitCount)[
+  return splitMoney(calculatedGrossPaymentTotal(ticket), splitCount)[
     paymentNumber - 1
   ] ?? "0.00";
+}
+
+export function calculatedGrossPaymentTotal(ticket: TicketWithFinance): string {
+  if (isTicketZeroPaymentPlan(ticket.finance?.payment_plan)) return "0.00";
+  return normalizeMoney(
+    ticket.finance?.gross_total ?? ticket.finance_summary.gross_total
+  );
+}
+
+export function getUnscheduledGrossPaymentAmount(
+  ticket: TicketWithFinance
+): string {
+  const grossPaymentTotal = toMoneyNumber(calculatedGrossPaymentTotal(ticket));
+  const scheduledPaymentTotal = ticket.payments.reduce(
+    (total, payment) => total + toMoneyNumber(payment.amount),
+    0
+  );
+
+  return normalizeMoney(
+    Math.max(grossPaymentTotal - scheduledPaymentTotal, 0).toFixed(2)
+  );
 }
 
 export function splitMoney(value: string, count: number): string[] {
