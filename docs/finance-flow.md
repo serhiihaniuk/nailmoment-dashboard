@@ -26,6 +26,7 @@ Reusable ticket/payment/domain calculations live in `src/entities/ticket`.
 | Server payment plan route | `src/app/api-routes/ticket/[id]/finance/payment-plan/route.ts` |
 | Server ticket payments route | `src/app/api-routes/ticket/[id]/payments/route.ts` |
 | Server payment item route | `src/app/api-routes/payments/[paymentId]/route.ts` |
+| Payment Plan sync rules | `src/entities/ticket/model/payment-plan-sync.ts` |
 
 ## Load Flow
 
@@ -176,8 +177,7 @@ PATCH /api/ticket/:id/finance/payment-plan
   +- parse ticket id
   +- parse payment_plan
   +- load hydrated ticket
-  +- calculate expected payment count
-  +- protect already-paid payments
+  +- build Payment Plan sync through src/entities/ticket
   |
   +- custom:
   |    update only payment_plan
@@ -199,8 +199,9 @@ PATCH /api/ticket/:id/finance/payment-plan
 return full hydrated TicketWithFinance
 ```
 
-This logic is server-side so the client does not coordinate a fragile sequence
-of create/update/delete requests.
+The sync rule is shared in the Ticket entity layer. The server route applies
+the database writes, and Finance Autosave uses the same rule for optimistic
+cache projection instead of coordinating separate create/update/delete calls.
 
 ## Payment Edit Guards
 

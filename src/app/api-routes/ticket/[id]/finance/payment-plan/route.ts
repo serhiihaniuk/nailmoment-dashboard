@@ -14,18 +14,13 @@ import {
   insertPaymentInstallmentApiInputSchema,
   patchPaymentInstallmentSchema,
   upsertTicketFinanceSchema,
-  type InsertPaymentInstallmentInput,
-  type PatchPaymentInstallmentInput,
   type UpsertTicketFinanceInput,
 } from "@/shared/db/schema.zod";
 import {
   buildTicketFinanceSummary,
-  calculateTicketFinanceTotals,
-  getExpectedPaymentCount,
-  splitMoney,
+  buildPaymentPlanSync,
   ticketIdSchema,
   paymentPlanSchema,
-  toMoneyNumber,
 } from "@/entities/ticket";
 import {
   parseRequestJson,
@@ -65,16 +60,13 @@ export async function PATCH(
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const expectedPaymentCount = getExpectedPaymentCount(paymentPlan);
-  const sortedPayments = [...ticket.payments].sort(
-    (a, b) => a.installment_number - b.installment_number
-  );
-  const paidPayments = sortedPayments.filter((payment) => payment.is_paid);
+  const syncResult = buildPaymentPlanSync({
+    finance: ticket.finance,
+    paymentPlan,
+    payments: ticket.payments,
+  });
 
-  if (
-    expectedPaymentCount !== null &&
-    expectedPaymentCount < paidPayments.length
-  ) {
+  if (!syncResult.ok) {
     return NextResponse.json(
       {
         message:
@@ -84,115 +76,36 @@ export async function PATCH(
     );
   }
 
-  if (expectedPaymentCount === null) {
-    await upsertFinance(id, ticket.finance?.id ?? null, {
-      payment_plan: paymentPlan,
-    });
-  } else if (expectedPaymentCount === 0) {
-    await upsertFinance(id, ticket.finance?.id ?? null, {
-      payment_plan: paymentPlan,
-      gross_total: "0.00",
-      discount_amount: "0.00",
-      tax_amount: "0.00",
-      net_total: "0.00",
-    });
+  const { sync } = syncResult;
+  await upsertFinance(id, ticket.finance?.id ?? null, sync.financePatch);
 
-    for (const payment of sortedPayments.filter((payment) => !payment.is_paid)) {
+  for (const paymentId of sync.deletePaymentIds) {
+    await db
+      .delete(paymentInstallmentTable)
+      .where(eq(paymentInstallmentTable.id, paymentId));
+  }
+
+  for (const paymentPatch of sync.paymentPatches) {
+    const validatedPatch = patchPaymentInstallmentSchema.parse(
+      paymentPatch.patch
+    );
+    if (Object.keys(validatedPatch).length > 0) {
       await db
-        .delete(paymentInstallmentTable)
-        .where(eq(paymentInstallmentTable.id, payment.id));
+        .update(paymentInstallmentTable)
+        .set(validatedPatch)
+        .where(eq(paymentInstallmentTable.id, paymentPatch.paymentId));
     }
-  } else {
-    await upsertFinance(id, ticket.finance?.id ?? null, {
-      payment_plan: paymentPlan,
+  }
+
+  for (const paymentData of sync.createPayments) {
+    const validatedPayment =
+      insertPaymentInstallmentApiInputSchema.parse(paymentData);
+
+    await db.insert(paymentInstallmentTable).values({
+      id: nanoid(10),
+      ticket_id: id,
+      ...validatedPayment,
     });
-
-    const { payableTotal } = calculateTicketFinanceTotals(ticket.finance);
-    const remainingAfterPaid = Math.max(
-      payableTotal -
-        paidPayments.reduce(
-          (total, payment) => total + toMoneyNumber(payment.amount),
-          0
-        ),
-      0
-    );
-    const targetPaymentCount = Math.max(
-      expectedPaymentCount,
-      paidPayments.length + (remainingAfterPaid >= 0.01 ? 1 : 0)
-    );
-    const paidPaymentIds = new Set(paidPayments.map((payment) => payment.id));
-    const removeCount = Math.max(sortedPayments.length - targetPaymentCount, 0);
-    const removablePayments = sortedPayments
-      .filter((payment) => !paidPaymentIds.has(payment.id))
-      .sort((a, b) => b.installment_number - a.installment_number)
-      .slice(0, removeCount);
-    const removablePaymentIds = new Set(
-      removablePayments.map((payment) => payment.id)
-    );
-
-    for (const payment of removablePayments) {
-      await db
-        .delete(paymentInstallmentTable)
-        .where(eq(paymentInstallmentTable.id, payment.id));
-    }
-
-    const splitAmounts = splitMoney(
-      remainingAfterPaid.toFixed(2),
-      Math.max(targetPaymentCount - paidPayments.length, 0)
-    );
-    const remainingPayments = sortedPayments
-      .filter((payment) => !removablePaymentIds.has(payment.id))
-      .sort((a, b) => a.installment_number - b.installment_number);
-    let unpaidPaymentIndex = 0;
-
-    for (const [index, payment] of remainingPayments.entries()) {
-      const patch: PatchPaymentInstallmentInput = {};
-
-      if (payment.installment_number !== index + 1) {
-        patch.installment_number = index + 1;
-      }
-
-      if (!payment.is_paid) {
-        patch.amount = splitAmounts[unpaidPaymentIndex] ?? "0.00";
-        unpaidPaymentIndex += 1;
-      }
-
-      const validatedPatch = patchPaymentInstallmentSchema.parse(patch);
-      if (Object.keys(validatedPatch).length > 0) {
-        await db
-          .update(paymentInstallmentTable)
-          .set(validatedPatch)
-          .where(eq(paymentInstallmentTable.id, payment.id));
-      }
-    }
-
-    for (
-      let index = remainingPayments.length + 1;
-      index <= targetPaymentCount;
-      index += 1
-    ) {
-      const paymentData: InsertPaymentInstallmentInput = {
-        installment_number: index,
-        amount: splitAmounts[unpaidPaymentIndex] ?? "0.00",
-        sale_source: "direct_transfer",
-        is_paid: false,
-        paid_date: "",
-        due_date: "",
-        payment_method: "other",
-        invoice_status: "not_needed",
-        invoice_number: "",
-        comment: "",
-      };
-      const validatedPayment =
-        insertPaymentInstallmentApiInputSchema.parse(paymentData);
-
-      await db.insert(paymentInstallmentTable).values({
-        id: nanoid(10),
-        ticket_id: id,
-        ...validatedPayment,
-      });
-      unpaidPaymentIndex += 1;
-    }
   }
 
   const updatedTicket = await ticketService.getTicket(id);

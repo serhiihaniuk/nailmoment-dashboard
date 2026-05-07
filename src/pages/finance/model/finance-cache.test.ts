@@ -219,6 +219,34 @@ describe("finance optimistic cache helpers", () => {
   });
 
   test("applies zero-payment plans to cached finance and unpaid payments", () => {
+    const firstPayment = makePayment({
+      id: "payment-1",
+      installment_number: 1,
+      is_paid: false,
+      paid_date: null,
+    });
+    const secondPayment = makePayment({
+      id: "payment-2",
+      installment_number: 2,
+      is_paid: false,
+      paid_date: null,
+    });
+
+    const result = patchPaymentPlanInFinanceCache(
+      [makeTicket({ payments: [firstPayment, secondPayment] })],
+      "ticket-1",
+      "free"
+    );
+
+    const ticket = readTicket(result);
+    expect(ticket.finance?.payment_plan).toBe("free");
+    expect(ticket.finance_summary.gross_total).toBe("0.00");
+    expect(ticket.finance_summary.remaining_total).toBe("0.00");
+    expect(ticket.finance_summary.payment_status).toBe("paid");
+    expect(ticket.payments).toEqual([]);
+  });
+
+  test("leaves cache unchanged when a payment plan would remove paid payments", () => {
     const paidPayment = makePayment({
       id: "payment-paid",
       is_paid: true,
@@ -238,12 +266,70 @@ describe("finance optimistic cache helpers", () => {
     );
 
     const ticket = readTicket(result);
-    expect(ticket.finance?.payment_plan).toBe("free");
-    expect(ticket.finance_summary.gross_total).toBe("0.00");
-    expect(ticket.finance_summary.remaining_total).toBe("0.00");
-    expect(ticket.finance_summary.payment_status).toBe("paid");
+    expect(ticket.finance?.payment_plan).toBe("two_parts");
     expect(ticket.payments.map((payment) => payment.id)).toEqual([
       "payment-paid",
+      "payment-unpaid",
     ]);
+  });
+
+  test("projects scheduled payment plan changes with paid payment preservation", () => {
+    const paidDate = new Date("2026-02-01T10:00:00.000Z");
+    const paidPayment = makePayment({
+      id: "payment-paid",
+      amount: "40.00",
+      installment_number: 1,
+      is_paid: true,
+      paid_date: paidDate,
+    });
+    const unpaidPayment = makePayment({
+      id: "payment-unpaid",
+      amount: "60.00",
+      installment_number: 2,
+      is_paid: false,
+      paid_date: null,
+    });
+
+    const result = patchPaymentPlanInFinanceCache(
+      [
+        makeTicket({
+          finance: makeFinance({
+            payment_plan: "two_parts",
+            gross_total: "100.00",
+            tax_amount: "0.00",
+          }),
+          payments: [paidPayment, unpaidPayment],
+        }),
+      ],
+      "ticket-1",
+      "three_parts"
+    );
+
+    const ticket = readTicket(result);
+    expect(ticket.finance?.payment_plan).toBe("three_parts");
+    expect(ticket.payments).toHaveLength(3);
+    expect(ticket.payments[0]).toMatchObject({
+      id: "payment-paid",
+      amount: "40.00",
+      is_paid: true,
+      paid_date: paidDate,
+    });
+    expect(ticket.payments[1]).toMatchObject({
+      id: "payment-unpaid",
+      amount: "30.00",
+      installment_number: 2,
+      is_paid: false,
+    });
+    expect(ticket.payments[2]).toMatchObject({
+      id: "optimistic-ticket-1-payment-plan-1",
+      amount: "30.00",
+      installment_number: 3,
+      is_paid: false,
+    });
+    expect(ticket.finance_summary).toMatchObject({
+      paid_total: "40.00",
+      payment_count: 3,
+      remaining_total: "60.00",
+    });
   });
 });

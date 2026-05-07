@@ -1,12 +1,11 @@
 import {
+  buildPaymentPlanSync,
   calculateTicketFinanceTotals,
   paymentInstallmentSchema,
   parseTicketWithFinanceList,
   parseTicketWithFinance,
-  splitMoney,
   ticketFinanceSchema,
   ticketSchema,
-  getExpectedPaymentCount,
   type PaymentInstallment,
   type PaymentPlan,
   type Ticket,
@@ -131,12 +130,27 @@ export async function patchTicket(
 export async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
 ): Promise<CreatedFinanceTicket> {
-  // "free" and "sponsor" plans intentionally create finance with zero totals
-  // and no installments; keep that normalization before dependent requests.
-  const isZeroPaymentPlan = getExpectedPaymentCount(data.payment_plan) === 0;
-  const grossTotal = isZeroPaymentPlan ? "0.00" : data.gross_total;
-  const discountAmount = isZeroPaymentPlan ? "0.00" : data.discount_amount;
-  const taxAmount = isZeroPaymentPlan ? "0.00" : data.tax_amount;
+  const paymentPlanSync = buildPaymentPlanSync({
+    createdPaymentSaleSource: data.payment_sale_source,
+    finance: {
+      payment_plan: data.payment_plan,
+      gross_total: data.gross_total,
+      discount_amount: data.discount_amount,
+      tax_amount: data.tax_amount,
+    },
+    paymentPlan: data.payment_plan,
+    payments: [],
+  });
+  if (!paymentPlanSync.ok) {
+    throw new ApiError("Unable to prepare the Payment Plan.");
+  }
+
+  const grossTotal =
+    paymentPlanSync.sync.financePatch.gross_total ?? data.gross_total;
+  const discountAmount =
+    paymentPlanSync.sync.financePatch.discount_amount ?? data.discount_amount;
+  const taxAmount =
+    paymentPlanSync.sync.financePatch.tax_amount ?? data.tax_amount;
   const ticketInput: CreateTicketInput = {
     name: data.name,
     email: data.email,
@@ -154,7 +168,6 @@ export async function createTicketWithFinance(
     payment_plan: data.payment_plan,
     tax_amount: taxAmount,
   });
-  const payableTotal = financeTotals.payableTotal.toFixed(2);
   const netTotal = financeTotals.netTotal.toFixed(2);
 
   await saveFinance(ticket.id, {
@@ -167,23 +180,8 @@ export async function createTicketWithFinance(
     finance_note: data.finance_note,
   });
 
-  const paymentCount = getExpectedPaymentCount(data.payment_plan);
-  if (paymentCount && paymentCount > 0) {
-    const amounts = splitMoney(payableTotal, paymentCount);
-    for (let index = 0; index < paymentCount; index += 1) {
-      await createPayment(ticket.id, {
-        installment_number: index + 1,
-        amount: amounts[index] ?? "0.00",
-        sale_source: data.payment_sale_source,
-        is_paid: false,
-        paid_date: "",
-        due_date: "",
-        payment_method: "other",
-        invoice_status: "not_needed",
-        invoice_number: "",
-        comment: "",
-      });
-    }
+  for (const payment of paymentPlanSync.sync.createPayments) {
+    await createPayment(ticket.id, payment);
   }
 
   return ticket;
