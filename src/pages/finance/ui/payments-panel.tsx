@@ -166,11 +166,7 @@ export function PaymentsPanel({
   const disabledPaymentPlans = new Set(
     PAYMENT_PLAN_OPTIONS.filter((option) => {
       const optionPaymentCount = getExpectedPaymentCount(option.value);
-      return (
-        optionPaymentCount !== null &&
-        optionPaymentCount > 0 &&
-        optionPaymentCount < paidCount
-      );
+      return optionPaymentCount !== null && optionPaymentCount < paidCount;
     }).map((option) => option.value)
   );
   const nextPaymentNumber =
