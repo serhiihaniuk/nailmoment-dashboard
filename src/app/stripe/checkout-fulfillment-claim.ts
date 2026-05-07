@@ -1,27 +1,70 @@
 import type { StripeWebhookHandlerResult, StripeLogLevel } from "./types";
 
+/**
+ * Owns the Stripe Checkout Fulfillment claim lifecycle.
+ *
+ * This module is deliberately narrower than
+ * `handlers/checkout-session-completed.ts`: it does not know how to create a
+ * Ticket, Battle Ticket, QR code, finance row, payment row, or customer email.
+ * Its job is to decide whether the current serverless worker is allowed to run
+ * those side effects for one Stripe Checkout Session, and to record the final
+ * claim state once the fulfillment callback returns.
+ *
+ * Keeping the store behind `StripeCheckoutFulfillmentClaimStore` makes the
+ * lifecycle testable with fake adapters. Production uses
+ * `checkout-fulfillment-claim-store.ts` to persist the same transitions in the
+ * `stripe_webhook_event` table.
+ */
+
+/**
+ * Durable lifecycle states stored for one Stripe webhook event delivery.
+ *
+ * `processing` is the only non-terminal state. `processed` and `ignored` are
+ * terminal because rerunning them could duplicate records or turn an event that
+ * was intentionally skipped into a customer-facing Ticket. `failed` is
+ * retryable because Stripe may send the same event again after a 500 response.
+ */
 export type StripeCheckoutFulfillmentClaimStatus =
   | "failed"
   | "ignored"
   | "processed"
   | "processing";
 
+/**
+ * Terminal states that can be written after this worker owns the claim.
+ */
 export type StripeCheckoutFulfillmentClaimTerminalStatus = Exclude<
   StripeCheckoutFulfillmentClaimStatus,
   "processing"
 >;
 
+/**
+ * Small event contract needed by the claim lifecycle.
+ *
+ * The lifecycle intentionally accepts this narrow shape instead of a full
+ * `Stripe.Event` so tests can build realistic fake events without importing
+ * Stripe payload types or ticket creation details.
+ */
 export interface StripeCheckoutFulfillmentEvent {
   id: string;
   type: string;
 }
 
+/**
+ * Existing persisted claim state returned by the store adapter.
+ */
 export interface StripeCheckoutFulfillmentClaimRecord {
   status: StripeCheckoutFulfillmentClaimStatus;
   stripeSessionId: string | null;
   updatedAt: Date;
 }
 
+/**
+ * Input for the first attempt to claim an event.
+ *
+ * Stores receive `claimedAt` from the lifecycle rather than creating their own
+ * timestamp so race and retry behavior can be tested deterministically.
+ */
 export interface InsertStripeCheckoutFulfillmentClaimInput {
   claimedAt: Date;
   eventId: string;
@@ -29,6 +72,13 @@ export interface InsertStripeCheckoutFulfillmentClaimInput {
   stripeSessionId: string;
 }
 
+/**
+ * Input for reclaiming a retryable existing claim.
+ *
+ * The adapter must repeat the expected status/staleness condition in its write
+ * operation. That is what prevents two concurrent retries from both reclaiming
+ * the same webhook event.
+ */
 export interface ReclaimStripeCheckoutFulfillmentClaimInput {
   claimedAt: Date;
   eventId: string;
@@ -36,6 +86,9 @@ export interface ReclaimStripeCheckoutFulfillmentClaimInput {
   staleBefore: Date;
 }
 
+/**
+ * Input for recording the final state after claimed fulfillment finishes.
+ */
 export interface MarkStripeCheckoutFulfillmentClaimInput {
   eventId: string;
   lastError: string | null;
@@ -45,14 +98,36 @@ export interface MarkStripeCheckoutFulfillmentClaimInput {
   updatedAt: Date;
 }
 
+/**
+ * Persistence boundary for the claim lifecycle.
+ *
+ * Production implements this with Drizzle and `stripe_webhook_event`. Tests use
+ * in-memory fakes, which keeps idempotency and retry scenarios independent from
+ * Ticket and Battle Ticket creation.
+ */
 export interface StripeCheckoutFulfillmentClaimStore {
+  /**
+   * Reads the existing claim after an insert conflict.
+   */
   findClaim(
     eventId: string
   ): Promise<StripeCheckoutFulfillmentClaimRecord | null>;
+  /**
+   * Attempts to insert a new `processing` claim.
+   *
+   * Returns `false` when another worker or previous delivery already created
+   * the row.
+   */
   insertProcessingClaim(
     input: InsertStripeCheckoutFulfillmentClaimInput
   ): Promise<boolean>;
+  /**
+   * Writes a terminal status for the claim this worker owns.
+   */
   markClaim(input: MarkStripeCheckoutFulfillmentClaimInput): Promise<void>;
+  /**
+   * Attempts to move a retryable existing claim back to `processing`.
+   */
   reclaimProcessingClaim(
     input: ReclaimStripeCheckoutFulfillmentClaimInput
   ): Promise<boolean>;
@@ -67,11 +142,21 @@ type StripeCheckoutFulfillmentClaimLogger = (
 
 export interface StripeCheckoutFulfillmentClaimedResult
   extends StripeWebhookHandlerResult {
+  /**
+   * Optional audit-table reason when the public route result should use a
+   * shorter operator-facing reason than the persisted claim row.
+   */
   claimStatusReason?: string;
 }
 
+/**
+ * Dependencies for running one claim lifecycle around a fulfillment callback.
+ */
 interface RunStripeCheckoutFulfillmentClaimLifecycleInput {
   event: StripeCheckoutFulfillmentEvent;
+  /**
+   * Business fulfillment to run only after this worker owns the claim.
+   */
   fulfillClaim: () => Promise<StripeCheckoutFulfillmentClaimedResult>;
   logger?: StripeCheckoutFulfillmentClaimLogger;
   now?: () => Date;
@@ -98,6 +183,9 @@ function noopLogger() {
   return undefined;
 }
 
+/**
+ * Builds the shared correlation fields used by claim lifecycle logs.
+ */
 export function getStripeCheckoutFulfillmentEventContext({
   event,
   stripeSessionId,
@@ -112,6 +200,13 @@ export function getStripeCheckoutFulfillmentEventContext({
   };
 }
 
+/**
+ * Decides whether an existing webhook claim can be processed again.
+ *
+ * Reclaiming is allowed for failed attempts and stale processing claims. Fresh
+ * processing claims stay locked because another worker may still be creating
+ * the Ticket or Battle Ticket.
+ */
 export function shouldReclaimStripeCheckoutFulfillmentClaim(
   claim: Pick<StripeCheckoutFulfillmentClaimRecord, "status" | "updatedAt">,
   now: Date = new Date()
@@ -128,6 +223,18 @@ export function shouldReclaimStripeCheckoutFulfillmentClaim(
   return claim.updatedAt <= staleBefore;
 }
 
+/**
+ * Claims the Stripe event before any customer-facing work happens.
+ *
+ * Stripe retries webhooks, and Vercel can run concurrent instances. The store
+ * adapter is therefore the idempotency lock:
+ *
+ * 1. Try to insert a `processing` claim for this Stripe event id.
+ * 2. If the insert wins, this worker owns fulfillment.
+ * 3. If the row exists, ignore terminal or fresh `processing` states.
+ * 4. Reclaim only failed or stale `processing` rows.
+ * 5. If a reclaim race is lost, ignore the delivery as already claimed.
+ */
 async function claimStripeCheckoutFulfillmentEvent({
   event,
   logger,
@@ -218,10 +325,16 @@ async function claimStripeCheckoutFulfillmentEvent({
   };
 }
 
+/**
+ * Normalizes thrown values before storing them in the audit row.
+ */
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Ensures every returned handler result carries the claim correlation ids.
+ */
 function normalizeHandlerResult(
   result: StripeWebhookHandlerResult,
   event: StripeCheckoutFulfillmentEvent,
@@ -234,6 +347,20 @@ function normalizeHandlerResult(
   };
 }
 
+/**
+ * Runs a retry-safe claim lifecycle around Stripe Checkout Fulfillment.
+ *
+ * This is the high-level contract used by
+ * `handleCheckoutSessionCompleted()`:
+ *
+ * - ignored claims return immediately and never call `fulfillClaim`;
+ * - claimed callbacks that return `processed` mark the audit row `processed`;
+ * - claimed callbacks that return `ignored` or `invalid` mark the row `ignored`;
+ * - thrown errors mark the row `failed` and are rethrown so Stripe retries.
+ *
+ * The callback owns the product-specific branch work. This module owns only the
+ * idempotency and claim-state transition language around that work.
+ */
 export async function runStripeCheckoutFulfillmentClaimLifecycle({
   event,
   fulfillClaim,

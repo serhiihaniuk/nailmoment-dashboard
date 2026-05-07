@@ -6,6 +6,23 @@ import type {
   StripeCheckoutFulfillmentClaimStore,
 } from "./checkout-fulfillment-claim";
 
+/**
+ * Production persistence adapter for Stripe Checkout Fulfillment claims.
+ *
+ * The lifecycle module owns the state machine. This adapter owns the Drizzle
+ * details for storing that state in `stripe_webhook_event`, whose primary key
+ * is the Stripe event id. Keeping those responsibilities separate lets tests
+ * fake the store while production still uses database constraints for the
+ * actual idempotency lock.
+ */
+
+/**
+ * Builds the race-safe `WHERE` clause for reclaiming an existing claim.
+ *
+ * The lifecycle already checked that a row looked retryable, but this condition
+ * repeats the important facts inside the update. If two Stripe retries arrive
+ * together, only one update can still match the expected status/staleness.
+ */
 function getReclaimWhereClause(
   input: ReclaimStripeCheckoutFulfillmentClaimInput
 ) {
@@ -23,8 +40,17 @@ function getReclaimWhereClause(
   );
 }
 
+/**
+ * Creates the Drizzle-backed claim store used by the live webhook handler.
+ *
+ * Each method returns only the narrow data the lifecycle needs, rather than
+ * leaking the full database row shape back into Stripe business logic.
+ */
 export function createStripeCheckoutFulfillmentClaimStore(): StripeCheckoutFulfillmentClaimStore {
   return {
+    /**
+     * Reads the existing audit row after an insert conflict.
+     */
     async findClaim(eventId) {
       const [existing] = await db
         .select({
@@ -38,6 +64,14 @@ export function createStripeCheckoutFulfillmentClaimStore(): StripeCheckoutFulfi
 
       return existing ?? null;
     },
+    /**
+     * Inserts the first `processing` row.
+     *
+     * `onConflictDoNothing()` makes Postgres decide which concurrent worker owns
+     * the Stripe event. A successful insert means this worker may run
+     * fulfillment; an empty result means the lifecycle must inspect the existing
+     * row.
+     */
     async insertProcessingClaim(input) {
       const inserted = await db
         .insert(stripeWebhookEventTable)
@@ -54,6 +88,9 @@ export function createStripeCheckoutFulfillmentClaimStore(): StripeCheckoutFulfi
 
       return inserted.length > 0;
     },
+    /**
+     * Writes the terminal audit state after claimed fulfillment returns.
+     */
     async markClaim(input) {
       await db
         .update(stripeWebhookEventTable)
@@ -66,6 +103,12 @@ export function createStripeCheckoutFulfillmentClaimStore(): StripeCheckoutFulfi
         })
         .where(eq(stripeWebhookEventTable.id, input.eventId));
     },
+    /**
+     * Reclaims a failed or stale `processing` row for a retry.
+     *
+     * The conditional update is the retry lock. Returning `false` means another
+     * worker changed the row before this attempt could reclaim it.
+     */
     async reclaimProcessingClaim(input) {
       const reclaimed = await db
         .update(stripeWebhookEventTable)

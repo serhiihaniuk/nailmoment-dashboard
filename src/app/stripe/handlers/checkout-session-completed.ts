@@ -83,11 +83,11 @@ type CheckoutResolution =
     };
 
 /**
- * Result of claiming the Stripe event for processing.
+ * Result of product-specific fulfillment after this worker owns the claim.
  *
- * Stripe webhooks are at-least-once delivery: the same event can be sent more
- * than once. A claim means this worker owns the event now. An ignored claim
- * means another attempt already handled it, or it is currently handling it.
+ * `already_fulfilled` means the database uniqueness guards found an existing
+ * Ticket or Battle Ticket for the same Stripe Checkout Session. The claim is
+ * still marked processed because the customer-facing record already exists.
  */
 type FulfillmentResult = "created" | "already_fulfilled";
 
@@ -546,8 +546,8 @@ const stripeCheckoutFulfillmentClaimStore =
  * Flow:
  *
  * 1. Confirm this is really `checkout.session.completed`.
- * 2. Claim the Stripe event id so retries/concurrent functions do not duplicate
- *    fulfillment.
+ * 2. Run the extracted claim lifecycle so retries/concurrent functions do not
+ *    duplicate fulfillment.
  * 3. Resolve the session into battle ticket, regular ticket, ignored, or
  *    invalid.
  * 4. Fulfill the recognized checkout type.
@@ -577,6 +577,10 @@ export async function handleCheckoutSessionCompleted(
   const eventContext = getEventContext(event, stripeSessionId);
 
   try {
+    // The extracted lifecycle owns idempotency, retry, and terminal claim
+    // transitions. The callback below owns only the Stripe Checkout product
+    // branch: resolve the session, create the right local record, and report a
+    // normalized handler result back to the lifecycle.
     return await runStripeCheckoutFulfillmentClaimLifecycle({
       event,
       fulfillClaim: async () => {
