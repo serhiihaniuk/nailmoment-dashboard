@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/battle", label: "Батл" },
   { href: "/speaker_vote", label: "Спікери" },
   { href: "/info", label: "Допомога" },
+  { href: "/cookie-analytics", label: "Згоди" },
 ];
 
 function isActiveRoute(pathname: string | null, href: string) {
