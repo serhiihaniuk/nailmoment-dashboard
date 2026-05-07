@@ -180,8 +180,8 @@ processBattleCheckoutSession(session, event)
   +- map customer fields
   +- create local battle ticket id
   +- insert battle_ticket with stripe_event_id = session.id
-  +- mark webhook processed
-  +- send battle email best-effort
+  +- ask Battle Ticket Delivery to perform customer email handoff best-effort
+  +- complete webhook as processed after durable Battle Ticket exists
 ```
 
 Battle checkouts do not create regular `ticket_finance` or

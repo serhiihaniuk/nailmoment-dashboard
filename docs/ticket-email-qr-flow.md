@@ -14,6 +14,7 @@ point is the Stripe webhook. See [stripe-flow.md](stripe-flow.md).
 | Ticket detail API | `src/app/api-routes/ticket/[id]/route.ts` |
 | Ticket DB service | `src/shared/db/service/ticket-service.ts` |
 | Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
+| Battle Ticket Delivery orchestration | `src/app/battle-ticket-delivery/*` |
 | QR + email helpers | `src/shared/email/send-email.ts` |
 | Ticket email template | `src/shared/email/email-template.tsx` |
 | Battle email template | `src/shared/email/battle-email-template.tsx` |
@@ -120,12 +121,20 @@ Manual battle ticket creation uses:
 
 ```txt
 POST /api/battle-ticket
+  |
+  +- create Battle Ticket
+  +- ask Battle Ticket Delivery to perform Email Provider Handoff best-effort
+  +- Battle Ticket Delivery marks mail_sent true if handoff succeeds
 ```
 
 Stripe battle ticket creation uses:
 
 ```txt
 src/app/stripe/handlers/checkout-session-completed.ts
+  |
+  +- create Stripe Battle Ticket
+  +- ask Battle Ticket Delivery to perform Email Provider Handoff best-effort
+  +- Battle Ticket Delivery leaves delivery status pending if handoff fails
 ```
 
 ## Resend / Mail Sent Semantics
