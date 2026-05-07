@@ -30,13 +30,20 @@ import {
 import { Input } from '@/shared/ui/input';
 import { Separator } from '@/shared/ui/separator';
 import { Switch } from '@/shared/ui/switch';
-import type { TicketWithFinance } from '@/entities/ticket';
 import type {
   InsertPaymentInstallmentInput,
   PatchPaymentInstallmentInput,
   UpsertTicketFinanceInput,
 } from '@/shared/db/schema.zod';
-import { TICKET_PRICE_BY_GRADE } from '@/entities/ticket';
+import {
+  TICKET_PRICE_BY_GRADE,
+  getPaymentDeleteDenialReason,
+  getPaymentFieldEditDenialReason,
+  isStripeTicketPayment,
+  type PaymentEditField,
+  type PaymentEditPolicyContext,
+  type TicketWithFinance,
+} from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import type { SaveStatus } from '../model/autosave-status';
 import {
@@ -65,7 +72,6 @@ import {
   getExpectedPaymentCount,
   getInvoiceStatus,
   getUnscheduledGrossPaymentAmount,
-  isStripeOriginPayment,
   isZeroPaymentPlan,
   suggestedPaymentAmount,
   todayInputValue,
@@ -82,6 +88,8 @@ import {
   TextareaCell,
 } from './edit-cells';
 import { DiscountCombobox } from './discount-combobox';
+
+const PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE = "Payment plan is updating.";
 
 export function PaymentsPanel({
   ticket,
@@ -452,7 +460,12 @@ export function PaymentsPanel({
             <PaymentCard
               key={payment.id}
               payment={payment}
-              isStripePayment={isStripeOriginPayment(ticket, payment)}
+              paymentEditContext={{
+                ticket: {
+                  stripe_event_id: ticket.stripe_event_id,
+                },
+                payment,
+              }}
               paymentsLocked={isPaymentPlanSaving}
               getFieldStatus={getFieldStatus}
               onUpdate={onUpdate}
@@ -478,14 +491,14 @@ export function PaymentsPanel({
 
 function PaymentCard({
   payment,
-  isStripePayment,
+  paymentEditContext,
   paymentsLocked,
   getFieldStatus,
   onUpdate,
   onDelete,
 }: {
   payment: TicketWithFinance["payments"][number];
-  isStripePayment: boolean;
+  paymentEditContext: PaymentEditPolicyContext;
   paymentsLocked: boolean;
   getFieldStatus: (fieldKey: string) => SaveStatus;
   onUpdate: (
@@ -497,9 +510,25 @@ function PaymentCard({
 }) {
   const isPaid = payment.is_paid;
   const paidDateValue = dateInputValue(payment.paid_date);
-  const isLocked = isStripePayment || paymentsLocked;
-  const arePaidDetailsLocked = isLocked || isPaid;
-  const canDelete = !paymentsLocked && !isPaid && !isStripePayment;
+  const isStripePayment = isStripeTicketPayment(paymentEditContext);
+  const getUiFieldDenialReason = (
+    field: PaymentEditField
+  ): string | undefined =>
+    paymentsLocked
+      ? PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE
+      : getPaymentFieldEditDenialReason(paymentEditContext, field)?.message;
+  const isPaidDenialReason = getUiFieldDenialReason("is_paid");
+  const amountDenialReason = getUiFieldDenialReason("amount");
+  const paidDateDenialReason = getUiFieldDenialReason("paid_date");
+  const dueDateDenialReason = getUiFieldDenialReason("due_date");
+  const saleSourceDenialReason = getUiFieldDenialReason("sale_source");
+  const paymentMethodDenialReason = getUiFieldDenialReason("payment_method");
+  const invoiceStatusDenialReason = getUiFieldDenialReason("invoice_status");
+  const invoiceNumberDenialReason = getUiFieldDenialReason("invoice_number");
+  const commentDenialReason = getUiFieldDenialReason("comment");
+  const deleteDenialReason = paymentsLocked
+    ? PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE
+    : getPaymentDeleteDenialReason(paymentEditContext)?.message;
   const amountFieldKey = paymentFieldKey(payment.id, "amount");
   const isPaidFieldKey = paymentFieldKey(payment.id, "is_paid");
   const paidDateFieldKey = paymentFieldKey(payment.id, "paid_date");
@@ -519,7 +548,7 @@ function PaymentCard({
     <Card
       className={cn(
         "rounded-lg shadow-xs",
-        isLocked && "bg-muted/20"
+        (paymentsLocked || isStripePayment) && "bg-muted/20"
       )}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-3 py-2">
@@ -543,7 +572,8 @@ function PaymentCard({
               <span>Оплачено</span>
               <Switch
                 checked={isPaid}
-                disabled={isLocked}
+                disabled={Boolean(isPaidDenialReason)}
+                title={isPaidDenialReason}
                 onCheckedChange={(checked) => {
                   const patch: PatchPaymentInstallmentInput = {
                     is_paid: checked,
@@ -565,10 +595,7 @@ function PaymentCard({
             />
           </div>
           <DeletePaymentButton
-            canDelete={canDelete}
-            isPaid={isPaid}
-            isStripePayment={isStripePayment}
-            paymentsLocked={paymentsLocked}
+            denialReason={deleteDenialReason}
             onConfirm={() => onDelete(payment.id)}
           />
         </div>
@@ -583,7 +610,8 @@ function PaymentCard({
         >
           <MoneyCell
             value={payment.amount}
-            disabled={arePaidDetailsLocked}
+            disabled={Boolean(amountDenialReason)}
+            disabledReason={amountDenialReason}
             onSave={(amount) => onUpdate(payment.id, { amount }, amountFieldKey)}
           />
         </PaymentField>
@@ -594,7 +622,8 @@ function PaymentCard({
         >
           <DateCell
             value={paidDateValue}
-            disabled={arePaidDetailsLocked}
+            disabled={Boolean(paidDateDenialReason)}
+            disabledReason={paidDateDenialReason}
             onSave={(paid_date) =>
               onUpdate(payment.id, { paid_date }, paidDateFieldKey)
             }
@@ -607,7 +636,8 @@ function PaymentCard({
         >
           <DateCell
             value={dateInputValue(payment.due_date)}
-            disabled={isLocked}
+            disabled={Boolean(dueDateDenialReason)}
+            disabledReason={dueDateDenialReason}
             onSave={(due_date) =>
               onUpdate(payment.id, { due_date }, dueDateFieldKey)
             }
@@ -621,7 +651,8 @@ function PaymentCard({
           <SmallSelect
             value={isStripePayment ? "site" : payment.sale_source}
             options={SALE_SOURCE_OPTIONS}
-            disabled={arePaidDetailsLocked}
+            disabled={Boolean(saleSourceDenialReason)}
+            disabledReason={saleSourceDenialReason}
             onChange={(sale_source) =>
               onUpdate(payment.id, { sale_source }, saleSourceFieldKey)
             }
@@ -635,7 +666,8 @@ function PaymentCard({
           <SmallSelect
             value={payment.payment_method}
             options={PAYMENT_METHOD_OPTIONS}
-            disabled={isLocked}
+            disabled={Boolean(paymentMethodDenialReason)}
+            disabledReason={paymentMethodDenialReason}
             onChange={(payment_method) =>
               onUpdate(payment.id, { payment_method }, paymentMethodFieldKey)
             }
@@ -649,7 +681,8 @@ function PaymentCard({
           <SmallSelect
             value={getInvoiceStatus(payment.invoice_status)}
             options={INVOICE_STATUS_OPTIONS}
-            disabled={paymentsLocked}
+            disabled={Boolean(invoiceStatusDenialReason)}
+            disabledReason={invoiceStatusDenialReason}
             onChange={(invoice_status) =>
               onUpdate(payment.id, { invoice_status }, invoiceStatusFieldKey)
             }
@@ -662,7 +695,8 @@ function PaymentCard({
         >
           <TextCell
             value={payment.invoice_number}
-            disabled={paymentsLocked}
+            disabled={Boolean(invoiceNumberDenialReason)}
+            disabledReason={invoiceNumberDenialReason}
             onSave={(invoice_number) =>
               onUpdate(payment.id, { invoice_number }, invoiceNumberFieldKey)
             }
@@ -675,7 +709,8 @@ function PaymentCard({
         >
           <TextareaCell
             value={payment.comment}
-            disabled={isLocked}
+            disabled={Boolean(commentDenialReason)}
+            disabledReason={commentDenialReason}
             onSave={(comment) => onUpdate(payment.id, { comment }, commentFieldKey)}
           />
         </PaymentField>
@@ -685,35 +720,21 @@ function PaymentCard({
 }
 
 function DeletePaymentButton({
-  canDelete,
-  isPaid,
-  isStripePayment,
-  paymentsLocked,
+  denialReason,
   onConfirm,
 }: {
-  canDelete: boolean;
-  isPaid: boolean;
-  isStripePayment: boolean;
-  paymentsLocked: boolean;
+  denialReason?: string | undefined;
   onConfirm: () => void;
 }) {
-  if (!canDelete) {
-    const title = paymentsLocked
-      ? "План оплати оновлюється"
-      : isStripePayment
-        ? "Платіж Stripe не можна змінювати або видаляти"
-        : isPaid
-          ? "Оплачений платіж не можна видалити"
-          : "Платіж не можна видалити";
-
+  if (denialReason) {
     return (
       <Button
         type="button"
         variant="ghost"
         size="icon"
         disabled
-        title={title}
-        aria-label={title}
+        title={denialReason}
+        aria-label={denialReason}
       >
         <Trash2 />
       </Button>
