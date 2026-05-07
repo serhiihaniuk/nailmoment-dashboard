@@ -131,6 +131,11 @@ export function PaymentsPanel({
     GRADE_SELECT_OPTIONS.find(
       (option) => option.value === (ticket.updated_grade ?? ticket.grade)
     )?.value ?? "standard";
+  const gradeTransitionLabel =
+    ticket.updated_grade &&
+    ticket.updated_grade.toLowerCase() !== ticket.grade.toLowerCase()
+      ? `${ticket.grade} -> ${ticket.updated_grade}`
+      : null;
   const nameFieldKey = ticketFieldKey(ticket.id, "name");
   const phoneFieldKey = ticketFieldKey(ticket.id, "phone");
   const emailFieldKey = ticketFieldKey(ticket.id, "email");
@@ -319,6 +324,11 @@ export function PaymentsPanel({
               options={GRADE_SELECT_OPTIONS}
               onChange={handleGradeChange}
             />
+            {gradeTransitionLabel && (
+              <p className="pt-1 text-[11px] font-medium text-muted-foreground">
+                {gradeTransitionLabel}
+              </p>
+            )}
           </PaymentField>
           <PaymentField
             label="Оплата / розстрочка"
