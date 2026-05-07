@@ -130,6 +130,9 @@ export async function patchTicket(
 export async function createTicketWithFinance(
   data: CreateTicketWithFinanceInput
 ): Promise<CreatedFinanceTicket> {
+  // New Ticket creation has no existing Payments, but it still uses the shared
+  // Payment Plan rule so initial `full`, `two_parts`, and `three_parts`
+  // schedules match later plan changes.
   const paymentPlanSync = buildPaymentPlanSync({
     createdPaymentSaleSource: data.payment_sale_source,
     finance: {

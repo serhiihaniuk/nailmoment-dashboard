@@ -257,6 +257,9 @@ export function patchPaymentPlanInFinanceCache(
   paymentPlan: PaymentPlan
 ): TicketWithFinance[] {
   return mapTickets(tickets, ticketId, (ticket) => {
+    // Browser optimism uses the same domain rule as the server route. If the
+    // rule denies the change, keep the cache stable and let the mutation error
+    // surface through Autosave.
     const syncResult = buildPaymentPlanSync({
       finance: ticket.finance,
       paymentPlan,
@@ -277,6 +280,9 @@ export function patchPaymentPlanInFinanceCache(
     const patchedPaymentIds = new Set(
       sync.paymentPatches.map((paymentPatch) => paymentPatch.paymentId)
     );
+    // The domain rule returns create operations without ids or timestamps.
+    // Optimism supplies temporary browser-only ids until the parsed server
+    // response replaces the whole Ticket.
     const payments = projectPaymentPlanSyncPayments(
       ticket.payments,
       sync,

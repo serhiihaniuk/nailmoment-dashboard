@@ -60,6 +60,8 @@ export async function PATCH(
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
+  // The entity layer decides what a Payment Plan change means. This route is
+  // only the authenticated database adapter around that pure operation plan.
   const syncResult = buildPaymentPlanSync({
     finance: ticket.finance,
     paymentPlan,
@@ -79,12 +81,16 @@ export async function PATCH(
   const { sync } = syncResult;
   await upsertFinance(id, ticket.finance?.id ?? null, sync.financePatch);
 
+  // Apply destructive operations only after the shared rule accepts the plan.
+  // Paid Payments never appear in this delete list.
   for (const paymentId of sync.deletePaymentIds) {
     await db
       .delete(paymentInstallmentTable)
       .where(eq(paymentInstallmentTable.id, paymentId));
   }
 
+  // Patch generated domain operations through the same Zod schema used by
+  // direct Payment edits before sending them to Drizzle.
   for (const paymentPatch of sync.paymentPatches) {
     const validatedPatch = patchPaymentInstallmentSchema.parse(
       paymentPatch.patch
@@ -97,6 +103,8 @@ export async function PATCH(
     }
   }
 
+  // New scheduled Payments are unpaid by construction. The domain rule owns the
+  // defaults; the route adds only persistence ids and the owning ticket id.
   for (const paymentData of sync.createPayments) {
     const validatedPayment =
       insertPaymentInstallmentApiInputSchema.parse(paymentData);
