@@ -5,6 +5,9 @@ import {
 } from "drizzle-zod";
 import {
   battleTicketTable,
+  cookieConsentActionEnum,
+  cookieConsentEventTable,
+  cookieConsentSurfaceEnum,
   paymentInstallmentTable,
   ticketFinanceTable,
   ticketTable,
@@ -112,6 +115,24 @@ export type InsertPaymentInstallmentInput = z.input<
 >;
 export type PatchPaymentInstallmentInput = z.input<
   typeof patchPaymentInstallmentSchema
+>;
+
+export const insertCookieConsentEventSchema = createInsertSchema(
+  cookieConsentEventTable,
+  {
+    consent_version: z.coerce.number().int().min(1).max(100),
+  }
+);
+
+export const cookieConsentEventClientSchema = z.object({
+  action: z.enum(cookieConsentActionEnum.enumValues),
+  surface: z.enum(cookieConsentSurfaceEnum.enumValues),
+  marketing: z.boolean(),
+  consentVersion: z.coerce.number().int().min(1).max(100),
+});
+
+export type CookieConsentEventClientInput = z.infer<
+  typeof cookieConsentEventClientSchema
 >;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);

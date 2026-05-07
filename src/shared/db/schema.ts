@@ -6,6 +6,7 @@ import {
   integer,
   pgEnum,
   bigint,
+  index,
   unique,
   decimal,
 } from "drizzle-orm/pg-core";
@@ -107,6 +108,17 @@ export const stripeWebhookEventStatusEnum = pgEnum(
   "stripe_webhook_event_status_enum",
   ["processing", "processed", "ignored", "failed"]
 );
+
+export const cookieConsentActionEnum = pgEnum("cookie_consent_action_enum", [
+  "accept_all",
+  "reject_all",
+  "save_settings",
+]);
+
+export const cookieConsentSurfaceEnum = pgEnum("cookie_consent_surface_enum", [
+  "banner",
+  "settings",
+]);
 
 export const battleTicketTable = pgTable(
   "battle_ticket",
@@ -302,6 +314,35 @@ export const stripeWebhookEventTable = pgTable("stripe_webhook_event", {
 });
 
 export type StripeWebhookEvent = typeof stripeWebhookEventTable.$inferSelect;
+
+export const cookieConsentEventTable = pgTable(
+  "cookie_consent_event",
+  {
+    id: text("id").primaryKey(),
+    source: text("source").notNull().default("nailmoment.pl"),
+    action: cookieConsentActionEnum("action").notNull(),
+    surface: cookieConsentSurfaceEnum("surface").notNull(),
+    marketing: boolean("marketing").notNull(),
+    necessary: boolean("necessary").notNull().default(true),
+    consent_version: integer("consent_version").notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    cookieConsentEventCreatedAtIdx: index(
+      "cookie_consent_event_created_at_idx"
+    ).on(table.created_at),
+  })
+);
+
+export type CookieConsentEvent =
+  typeof cookieConsentEventTable.$inferSelect;
+export type InsertCookieConsentEvent =
+  typeof cookieConsentEventTable.$inferInsert;
 
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
