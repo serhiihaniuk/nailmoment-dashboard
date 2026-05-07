@@ -1,11 +1,12 @@
 import {
+  buildPaymentPlanSync,
   buildTicketFinanceSummary,
   invoiceStatusSchema,
-  isZeroPaymentPlan,
   normalizeMoneyString,
   parseTicketGradeOrUnknown,
   paymentMethodSchema,
   paymentPlanSchema,
+  projectPaymentPlanSyncPayments,
   saleSourceSchema,
   type PaymentInstallment,
   type PaymentPlan,
@@ -256,23 +257,54 @@ export function patchPaymentPlanInFinanceCache(
   paymentPlan: PaymentPlan
 ): TicketWithFinance[] {
   return mapTickets(tickets, ticketId, (ticket) => {
-    const patch: UpsertTicketFinanceInput = { payment_plan: paymentPlan };
+    // Browser optimism uses the same domain rule as the server route. If the
+    // rule denies the change, keep the cache stable and let the mutation error
+    // surface through Autosave.
+    const syncResult = buildPaymentPlanSync({
+      finance: ticket.finance,
+      paymentPlan,
+      payments: ticket.payments,
+    });
 
-    if (isZeroPaymentPlan(paymentPlan)) {
-      patch.gross_total = "0.00";
-      patch.discount_amount = "0.00";
-      patch.tax_amount = "0.00";
-      patch.net_total = "0.00";
-    }
+    if (!syncResult.ok) return recalculateTicket(ticket);
 
-    const [patchedTicket] = patchTicketFinanceInCache([ticket], ticket.id, patch);
+    const { sync } = syncResult;
+    const [patchedTicket] = patchTicketFinanceInCache(
+      [ticket],
+      ticket.id,
+      sync.financePatch
+    );
     if (!patchedTicket) return ticket;
 
-    if (!isZeroPaymentPlan(paymentPlan)) return patchedTicket;
+    const now = new Date();
+    const patchedPaymentIds = new Set(
+      sync.paymentPatches.map((paymentPatch) => paymentPatch.paymentId)
+    );
+    // The domain rule returns create operations without ids or timestamps.
+    // Optimism supplies temporary browser-only ids until the parsed server
+    // response replaces the whole Ticket.
+    const payments = projectPaymentPlanSyncPayments(
+      ticket.payments,
+      sync,
+      (payment, index) => ({
+        ...payment,
+        id: `optimistic-${ticket.id}-payment-plan-${index + 1}`,
+        ticket_id: ticket.id,
+        created_at: now,
+        updated_at: now,
+      })
+    ).map((payment) =>
+      patchedPaymentIds.has(payment.id)
+        ? {
+            ...payment,
+            updated_at: now,
+          }
+        : payment
+    );
 
     return recalculateTicket({
       ...patchedTicket,
-      payments: patchedTicket.payments.filter((payment) => payment.is_paid),
+      payments,
     });
   });
 }

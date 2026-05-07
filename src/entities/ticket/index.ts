@@ -71,6 +71,19 @@ export {
   type TicketFinanceTotals,
 } from "./model/finance-summary";
 export {
+  PAYMENT_PLAN_SYNC_DENIAL_REASONS,
+  buildPaymentPlanSync,
+  projectPaymentPlanSyncPayments,
+  type PaymentPlanFinancePatch,
+  type PaymentPlanPaymentCreate,
+  type PaymentPlanPaymentPatch,
+  type PaymentPlanSync,
+  type PaymentPlanSyncDenialReason,
+  type PaymentPlanSyncFinance,
+  type PaymentPlanSyncInput,
+  type PaymentPlanSyncResult,
+} from "./model/payment-plan-sync";
+export {
   extractInstagramName,
   extractInstagramUsername,
   formatInstagramLink,
