@@ -14,15 +14,9 @@ import {
   MailX,
 } from "lucide-react";
 import Link from "next/link";
-import { BattleTicket } from "@/shared/db/schema";
+import type { BattleTicket } from "@/entities/battle-ticket";
+import { fetchBattleTicket } from "../api/fetch-battle-ticket";
 import { EditBattleTicketDialog } from "./edit-battle-ticket-dialog";
-
-async function fetchBattleTicket(id: string): Promise<BattleTicket | null> {
-  const r = await fetch(`/api/battle-ticket/${id}`);
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
 
 export function BattleTicketPanel({ battleTicketId }: { battleTicketId: string }) {
   const { data, isLoading, isError, error } = useQuery<BattleTicket | null, Error>({

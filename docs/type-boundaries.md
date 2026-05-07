@@ -13,6 +13,7 @@ state without parsing.
 | HTTP JSON body | `request.json()` | `parseRequestJson(request, schema)` | `z.output<TSchema>` | `src/app/api-routes/lib/request.ts` |
 | HTTP route params | promised `params` object from Next | `parseRouteParams(params, schema)` | branded or schema-validated params | `src/app/api-routes/lib/request.ts` |
 | Ticket id route param | raw string | `ticketIdSchema`, `parseTicketId()` | `TicketId` branded string | `src/entities/ticket/model/ticket.ts` |
+| Battle Ticket id route param | raw string | `battleTicketIdSchema`, `parseBattleTicketId()` | `BattleTicketId` branded string | `src/entities/battle-ticket/model/battle-ticket.ts` |
 | Payment id route param | raw string | `paymentInstallmentIdSchema`, `parsePaymentInstallmentId()` | `PaymentInstallmentId` branded string | `src/entities/ticket/model/ticket.ts` |
 | Ticket create body | JSON from admin UI | `insertTicketClientSchema` then `insertTicketSchema` | DB insert-compatible ticket input | `src/shared/db/schema.zod.ts` |
 | Ticket update body | JSON PATCH body | `updateTicketSchema` | DB update-compatible ticket patch | `src/shared/db/schema.zod.ts` |
@@ -21,6 +22,8 @@ state without parsing.
 | Payment update body | JSON PATCH body | `patchPaymentInstallmentSchema` | normalized payment patch | `src/shared/db/schema.zod.ts` |
 | Browser API response for tickets | `response.json()` | `parseTicketWithFinanceList()` | `TicketWithFinance[]` | `src/entities/ticket/model/ticket.ts` |
 | Browser API response for one ticket | `response.json()` | `parseTicketWithFinance()` | `TicketWithFinance` | `src/entities/ticket/model/ticket.ts` |
+| Browser API response for Battle Tickets | `response.json()` | `parseBattleTicketList()` | `BattleTicket[]` | `src/entities/battle-ticket/model/battle-ticket.ts` |
+| Browser API response for one Battle Ticket | `response.json()` | `parseBattleTicket()` | `BattleTicket` | `src/entities/battle-ticket/model/battle-ticket.ts` |
 | Browser API response for finance row | `response.json()` | `ticketFinanceSchema.parse()` | `TicketFinance` | `src/entities/ticket/model/ticket.ts` |
 | Browser API response for payment row | `response.json()` | `paymentInstallmentSchema.parse()` | `PaymentInstallment` | `src/entities/ticket/model/ticket.ts` |
 | Stripe webhook body | raw HTTP body string | `stripe.webhooks.constructEvent()` | `Stripe.Event` | `src/app/stripe/verify-webhook.ts` |
@@ -80,6 +83,14 @@ React Query / UI
 - Ticket grade parsing and safe fallback for legacy rows.
 - Public parse functions used by pages/widgets.
 
+`src/entities/battle-ticket/model/battle-ticket.ts`
+
+- Browser-facing Battle Ticket domain schemas.
+- Battle Ticket branded IDs.
+- Manual Battle Ticket and Stripe Battle Ticket origin derivation.
+- Battle Ticket Delivery Status derivation from email provider handoff state.
+- Public parse functions used by battle pages/widgets.
+
 This split avoids treating a DB row as automatically safe UI/domain data.
 
 ## Canonical Ticket Domain Types
@@ -96,6 +107,15 @@ Use `@/entities/ticket` for data rendered or edited by pages/widgets:
 - `SaleSource`
 - `PaymentMethod`
 - `InvoiceStatus`
+
+Use `@/entities/battle-ticket` for Battle Ticket data rendered or edited by
+pages/widgets:
+
+- `BattleTicket`
+- `BattleTicketId`
+- `BattleTicketOrigin`
+- `BattleTicketDeliveryStatus`
+- `BattleTicketPaymentType`
 
 Use `@/shared/db/schema.zod` types for route request bodies and DB write input:
 

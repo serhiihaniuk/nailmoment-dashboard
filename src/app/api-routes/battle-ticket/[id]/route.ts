@@ -7,13 +7,16 @@ import { db } from "@/shared/db";
 import { createBattleTicketService } from "@/shared/db/service/battle-ticket-service";
 import {
   updateBattleTicketSchema,
-  UpdateBattleTicketInput,
+  type UpdateBattleTicketInput,
 } from "@/shared/db/schema.zod";
 import {
   parseRequestJson,
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
-import { ticketIdSchema } from "@/entities/ticket";
+import {
+  battleTicketIdSchema,
+  battleTicketSchema,
+} from "@/entities/battle-ticket";
 
 const battleTicketService = createBattleTicketService(db);
 
@@ -29,7 +32,7 @@ export async function GET(
 
     const parsedParams = await parseRouteParams(
       params,
-      z.object({ id: ticketIdSchema })
+      z.object({ id: battleTicketIdSchema })
     );
     if (!parsedParams.ok) return parsedParams.response;
 
@@ -42,7 +45,9 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(battleTicket, { status: 200 });
+    return NextResponse.json(battleTicketSchema.parse(battleTicket), {
+      status: 200,
+    });
   } catch (e) {
     console.error("GET /api/battle-ticket/:id failed:", e);
     const message = e instanceof Error ? e.message : "Server error";
@@ -62,7 +67,7 @@ export async function PATCH(
 
     const parsedParams = await parseRouteParams(
       params,
-      z.object({ id: ticketIdSchema })
+      z.object({ id: battleTicketIdSchema })
     );
     if (!parsedParams.ok) return parsedParams.response;
 
@@ -93,7 +98,9 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(updatedBattleTicket, { status: 200 });
+    return NextResponse.json(battleTicketSchema.parse(updatedBattleTicket), {
+      status: 200,
+    });
   } catch (e) {
     console.error("PATCH /api/battle-ticket/:id failed:", e);
     const message =

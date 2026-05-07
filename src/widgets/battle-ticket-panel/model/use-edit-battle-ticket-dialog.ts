@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { BattleTicket } from "@/shared/db/schema";
+import type { BattleTicket } from "@/entities/battle-ticket";
 import { patchBattleTicket } from "../api/patch-battle-ticket";
 import {
   createEditBattleTicketDefaultValues,

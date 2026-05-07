@@ -12,19 +12,14 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { Input } from "@/shared/ui/input";
-import { BattleTicket } from "@/shared/db/schema";
+import type { BattleTicket } from "@/entities/battle-ticket";
 import { cn } from "@/shared/lib/cn";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Camera, CameraOff, Search } from "lucide-react";
 import { SlidePanel } from "@/shared/ui/slide-panel";
 import { BattleTicketPanel } from "@/widgets/battle-ticket-panel";
+import { fetchBattleTickets } from "../api/fetch-battle-tickets";
 import { AddBattleTicketDialog } from "./add-battle-ticket-dialog";
-
-async function fetchBattleTickets(): Promise<BattleTicket[]> {
-  const res = await fetch("/api/battle-ticket");
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 function matchesSubsequence(query: string, value?: string | null) {
   if (!value) return false;

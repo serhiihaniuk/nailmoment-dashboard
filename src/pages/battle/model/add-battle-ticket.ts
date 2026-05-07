@@ -13,10 +13,43 @@ export type AddBattleTicketFieldErrors = Partial<
   Record<keyof AddBattleTicketFormValues, string>
 >;
 
+type AddBattleTicketIssue = {
+  message: string;
+  path: Array<string | number>;
+};
+
 export type AddBattleTicketApiError = {
   message: string;
-  errors?: Record<string, string[] | undefined> | z.ZodIssue[];
+  errors?:
+    | Record<string, string[] | undefined>
+    | AddBattleTicketIssue[]
+    | undefined;
 };
+
+const addBattleTicketIssueSchema = z.object({
+  message: z.string(),
+  path: z.array(z.union([z.string(), z.number()])),
+});
+
+const addBattleTicketApiErrorSchema = z.object({
+  message: z.string(),
+  errors: z
+    .union([
+      z.record(z.array(z.string()).optional()),
+      z.array(addBattleTicketIssueSchema),
+    ])
+    .optional(),
+});
+
+export function parseAddBattleTicketApiError(
+  value: unknown,
+): AddBattleTicketApiError {
+  const parsed = addBattleTicketApiErrorSchema.safeParse(value);
+
+  return parsed.success
+    ? parsed.data
+    : { message: "Could not add battle ticket." };
+}
 
 export function createAddBattleTicketDefaultValues(): AddBattleTicketFormValues {
   return {

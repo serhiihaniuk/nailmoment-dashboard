@@ -17,6 +17,10 @@ import {
 import { createBattleTicketService } from "@/shared/db/service/battle-ticket-service";
 import { extractInstagramUsername } from "@/entities/ticket";
 import { sendBattleEmail } from "@/shared/email/send-email";
+import {
+  battleTicketListSchema,
+  battleTicketSchema,
+} from "@/entities/battle-ticket";
 
 const battleTicketService = createBattleTicketService(db);
 
@@ -83,7 +87,9 @@ export async function GET() {
     const tickets = await battleTicketService.getBattleTickets({
       archived: false,
     });
-    return NextResponse.json(tickets, { status: 200 });
+    return NextResponse.json(battleTicketListSchema.parse(tickets), {
+      status: 200,
+    });
   } catch (error) {
     console.error("API Error fetching battle tickets:", error);
     const message =
@@ -138,7 +144,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { battleTicket: newBattleTicket, mailSent, mailError },
+      {
+        battleTicket: battleTicketSchema.parse(newBattleTicket),
+        mailSent,
+        mailError,
+      },
       { status: 201 }
     );
   } catch (err) {

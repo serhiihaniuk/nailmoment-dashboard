@@ -1,7 +1,16 @@
 "use client";
 
-import { BattleTicket } from "@/shared/db/schema";
+import { z } from "zod";
+import {
+  parseBattleTicket,
+  type BattleTicket,
+} from "@/entities/battle-ticket";
 import { EditBattleTicketFormValues } from "../model/edit-battle-ticket";
+
+const patchBattleTicketErrorSchema = z.object({
+  errors: z.record(z.array(z.string()).optional()).optional(),
+  message: z.string().optional(),
+});
 
 export async function patchBattleTicket(
   id: string,
@@ -17,16 +26,18 @@ export async function patchBattleTicket(
     let errorMessage = `Failed to update battle ticket: ${response.statusText}`;
 
     try {
-      const errorResponse = await response.json();
+      const errorResponse: unknown = await response.json();
+      const parsedError = patchBattleTicketErrorSchema.safeParse(errorResponse);
 
-      if (errorResponse?.message) {
-        errorMessage = errorResponse.message;
+      if (parsedError.success && parsedError.data.message) {
+        const { errors, message } = parsedError.data;
+        errorMessage = message;
 
-        if (errorResponse.errors) {
-          const fieldErrors = Object.entries(errorResponse.errors)
+        if (errors) {
+          const fieldErrors = Object.entries(errors)
             .map(
               ([field, errors]) =>
-                `${field}: ${(errors as string[]).join(", ")}`,
+                `${field}: ${(errors ?? []).join(", ")}`,
             )
             .join("; ");
 
@@ -44,5 +55,5 @@ export async function patchBattleTicket(
     throw new Error(errorMessage);
   }
 
-  return response.json();
+  return parseBattleTicket(await response.json());
 }
