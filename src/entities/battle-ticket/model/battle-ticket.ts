@@ -46,7 +46,7 @@ const battleTicketBaseSchema = z.object({
   comment: z.string(),
   date: dateSchema,
   email: z.string(),
-  id: nonEmptyStringSchema,
+  id: battleTicketIdSchema,
   instagram: z.string(),
   mail_sent: z.boolean(),
   name: z.string(),
