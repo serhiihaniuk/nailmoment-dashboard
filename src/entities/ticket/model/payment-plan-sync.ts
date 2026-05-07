@@ -139,10 +139,12 @@ export function buildPaymentPlanSync({
   const sortedPayments = sortPaymentsByInstallment(payments);
   const paidPayments = sortedPayments.filter((payment) => payment.is_paid);
 
-  // A paid Payment is preserved as finance history. If the chosen plan cannot
-  // contain every paid row, the only safe result is to reject the plan change.
+  // A paid Payment is preserved as finance history. Scheduled plans must have
+  // enough slots to contain every paid row; zero-payment plans keep paid rows
+  // as history while removing only unpaid expectations.
   if (
     expectedPaymentCount !== null &&
+    expectedPaymentCount > 0 &&
     expectedPaymentCount < paidPayments.length
   ) {
     return {
@@ -169,22 +171,15 @@ export function buildPaymentPlanSync({
 
   if (expectedPaymentCount === 0) {
     // Free and sponsor Tickets have no scheduled Payments and no payable
-    // finance totals. Paid Payments were rejected by the guard above.
+    // finance totals. Paid Payments stay visible as historical evidence, while
+    // unpaid expected Payments are removed.
     return {
       ok: true,
-      sync: {
-        createPayments: [],
-        deletePaymentIds: sortedPayments
-          .filter((payment) => !payment.is_paid)
-          .map((payment) => payment.id),
+      sync: buildZeroPaymentPlanSync({
         expectedPaymentCount,
-        financePatch: {
-          payment_plan: paymentPlan,
-          ...zeroFinancePatch,
-        },
-        paymentPatches: [],
-        targetPaymentCount: 0,
-      },
+        paymentPlan,
+        sortedPayments,
+      }),
     };
   }
 
@@ -198,6 +193,44 @@ export function buildPaymentPlanSync({
       paidPayments,
       createdPaymentSaleSource,
     }),
+  };
+}
+
+function buildZeroPaymentPlanSync({
+  expectedPaymentCount,
+  paymentPlan,
+  sortedPayments,
+}: {
+  expectedPaymentCount: 0;
+  paymentPlan: PaymentPlan;
+  sortedPayments: PaymentInstallment[];
+}): PaymentPlanSync {
+  const paidPayments = sortedPayments.filter((payment) => payment.is_paid);
+  const paymentPatches: PaymentPlanPaymentPatch[] = [];
+
+  for (const [index, payment] of paidPayments.entries()) {
+    if (payment.installment_number === index + 1) continue;
+
+    paymentPatches.push({
+      paymentId: payment.id,
+      patch: {
+        installment_number: index + 1,
+      },
+    });
+  }
+
+  return {
+    createPayments: [],
+    deletePaymentIds: sortedPayments
+      .filter((payment) => !payment.is_paid)
+      .map((payment) => payment.id),
+    expectedPaymentCount,
+    financePatch: {
+      payment_plan: paymentPlan,
+      ...zeroFinancePatch,
+    },
+    paymentPatches,
+    targetPaymentCount: paidPayments.length,
   };
 }
 

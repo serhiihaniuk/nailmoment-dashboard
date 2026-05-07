@@ -180,11 +180,12 @@ PATCH /api/ticket/:id/finance/payment-plan
   +- build Payment Plan sync through src/entities/ticket
   |
   +- custom:
-  |    update only payment_plan
+  |    update only payment_plan and preserve Operator-managed Payments
   |
   +- free/sponsor:
   |    zero finance totals
   |    delete unpaid payments
+  |    preserve paid Payment history and renumber remaining paid Payments
   |
   +- full/two_parts/three_parts:
        update payment_plan
