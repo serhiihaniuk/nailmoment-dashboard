@@ -1,14 +1,12 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type Stripe from "stripe";
 import { db } from "@/shared/db";
 import {
   battleTicketTable,
   paymentInstallmentTable,
-  stripeWebhookEventTable,
   ticketFinanceTable,
   ticketTable,
-  type StripeWebhookEvent,
 } from "@/shared/db/schema";
 import {
   TICKET_PRICE_BY_GRADE,
@@ -20,6 +18,8 @@ import {
   sendBattleEmail,
 } from "@/shared/email/send-email";
 import { deliverTicket } from "@/app/ticket-delivery";
+import { runStripeCheckoutFulfillmentClaimLifecycle } from "../checkout-fulfillment-claim";
+import { createStripeCheckoutFulfillmentClaimStore } from "../checkout-fulfillment-claim-store";
 import { logStripe, logStripeStep } from "../log";
 import { mapCheckoutCustomer } from "../map-checkout-customer";
 import type { StripeWebhookHandlerResult } from "../types";
@@ -61,8 +61,6 @@ import type { StripeWebhookHandlerResult } from "../types";
  * temporary problem.
  */
 
-type StripeEventStatus = "failed" | "ignored" | "processed" | "processing";
-
 /**
  * Result of interpreting the Stripe Checkout Session.
  *
@@ -91,22 +89,7 @@ type CheckoutResolution =
  * than once. A claim means this worker owns the event now. An ignored claim
  * means another attempt already handled it, or it is currently handling it.
  */
-type StripeWebhookClaim =
-  | { kind: "claimed" }
-  | {
-      kind: "ignored";
-      reason: string;
-      stripeSessionId?: string | undefined;
-    };
-
 type FulfillmentResult = "created" | "already_fulfilled";
-
-/**
- * A webhook row left in `processing` probably means the server crashed, timed
- * out, or lost the process after claiming the event. After this window we allow
- * a later Stripe retry to reclaim the event and try again.
- */
-const PROCESSING_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
 
 /**
  * Builds the shared logging context used throughout the handler. Keeping these
@@ -162,189 +145,6 @@ export function getCheckoutPaidAmount(
   }
 
   return TICKET_PRICE_BY_GRADE[ticketGrade];
-}
-
-/**
- * Writes the final lifecycle status for a webhook event.
- *
- * The `stripe_webhook_event` row is both an audit trail and the idempotency
- * guard. Every terminal path should explain itself with `status_reason` or
- * `last_error`, because this table is what we inspect when a payment happened
- * in Stripe but something in the app looks suspicious.
- */
-async function markStripeWebhookEvent(
-  eventId: string,
-  status: StripeEventStatus,
-  values: {
-    lastError?: string | null;
-    processedAt?: Date | null;
-    statusReason?: string | null;
-  } = {},
-) {
-  await db
-    .update(stripeWebhookEventTable)
-    .set({
-      last_error: values.lastError ?? null,
-      processed_at: values.processedAt ?? null,
-      status,
-      status_reason: values.statusReason ?? null,
-      updated_at: new Date(),
-    })
-    .where(eq(stripeWebhookEventTable.id, eventId));
-}
-
-/**
- * Decides whether an existing webhook row can be processed again.
- *
- * Reclaiming is allowed for:
- *
- * - `failed`: the previous attempt threw before completing fulfillment.
- * - stale `processing`: the previous attempt likely died mid-flight.
- *
- * Reclaiming is not allowed for `processed` or `ignored`, because those are
- * terminal states and processing them again could create duplicate business
- * records or convert an intentionally ignored event into a ticket.
- */
-export function shouldReclaimStripeWebhookEvent(
-  event: Pick<StripeWebhookEvent, "status" | "updated_at">,
-  now: Date = new Date(),
-): boolean {
-  if (event.status === "failed") {
-    return true;
-  }
-
-  if (event.status !== "processing") {
-    return false;
-  }
-
-  const staleBefore = new Date(now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS);
-  return event.updated_at <= staleBefore;
-}
-
-/**
- * Claims the Stripe event before doing any fulfillment work.
- *
- * Why this exists:
- *
- * Stripe retries webhooks when the endpoint times out or returns an error, and
- * serverless functions can also run concurrently. Without a claim row, two
- * attempts for the same Stripe event could both create tickets.
- *
- * How it works:
- *
- * 1. Insert a `processing` row keyed by the Stripe event id.
- * 2. If the insert succeeds, this attempt owns the event.
- * 3. If the row already exists, inspect it.
- * 4. Retry only when the existing row is `failed` or stale `processing`.
- * 5. Otherwise ignore the webhook as a duplicate.
- */
-async function claimStripeWebhookEvent(
-  event: Stripe.Event,
-): Promise<StripeWebhookClaim> {
-  const stripeSessionId = isCheckoutSessionCompletedEvent(event)
-    ? event.data.object.id
-    : undefined;
-  const eventContext = getEventContext(event, stripeSessionId);
-
-  logStripeStep("info", "CLAIM", "Attempting to claim Stripe webhook event", {
-    ...eventContext,
-  });
-
-  // This insert is the main idempotency lock. `onConflictDoNothing` makes the
-  // database, rather than in-memory process state, decide who owns the event.
-  const inserted = await db
-    .insert(stripeWebhookEventTable)
-    .values({
-      attempt_count: 1,
-      id: event.id,
-      status: "processing",
-      stripe_session_id: stripeSessionId,
-      type: event.type,
-    })
-    .onConflictDoNothing()
-    .returning({ id: stripeWebhookEventTable.id });
-
-  if (inserted.length > 0) {
-    logStripeStep("info", "CLAIM", "Claimed new Stripe webhook event row", {
-      ...eventContext,
-    });
-    return { kind: "claimed" };
-  }
-
-  const [existing] = await db
-    .select()
-    .from(stripeWebhookEventTable)
-    .where(eq(stripeWebhookEventTable.id, event.id))
-    .limit(1);
-
-  if (!existing) {
-    logStripeStep("warn", "CLAIM", "Stripe webhook claim race lost", {
-      ...eventContext,
-      reason: "event_claim_race_lost",
-    });
-    return {
-      kind: "ignored",
-      reason: "event_claim_race_lost",
-      stripeSessionId,
-    };
-  }
-
-  const now = new Date();
-  if (shouldReclaimStripeWebhookEvent(existing, now)) {
-    logStripeStep("warn", "CLAIM", "Found stale Stripe webhook row, attempting reclaim", {
-      ...eventContext,
-      existingStatus: existing.status,
-      existingUpdatedAt: existing.updated_at,
-    });
-
-    const staleBefore = new Date(
-      now.getTime() - PROCESSING_CLAIM_STALE_AFTER_MS,
-    );
-    // The WHERE clause repeats the expected status/staleness check so two
-    // concurrent retry attempts cannot both reclaim the same event row.
-    const recovered = await db
-      .update(stripeWebhookEventTable)
-      .set({
-        attempt_count: sql`${stripeWebhookEventTable.attempt_count} + 1`,
-        last_error: null,
-        status: "processing",
-        status_reason: null,
-        updated_at: new Date(),
-      })
-      .where(
-        existing.status === "failed"
-          ? and(
-              eq(stripeWebhookEventTable.id, event.id),
-              eq(stripeWebhookEventTable.status, "failed"),
-            )
-          : and(
-              eq(stripeWebhookEventTable.id, event.id),
-              eq(stripeWebhookEventTable.status, "processing"),
-              lte(stripeWebhookEventTable.updated_at, staleBefore),
-            ),
-      )
-      .returning({ id: stripeWebhookEventTable.id });
-
-    if (recovered.length > 0) {
-      logStripeStep("info", "CLAIM", "Reclaimed stale Stripe webhook row", {
-        ...eventContext,
-        previousStatus: existing.status,
-      });
-      return { kind: "claimed" };
-    }
-  }
-
-  logStripeStep("warn", "CLAIM", "Stripe webhook event already handled", {
-    ...eventContext,
-    existingStatus: existing.status,
-    reason: `duplicate_${existing.status}`,
-  });
-
-  return {
-    kind: "ignored",
-    reason: `duplicate_${existing.status}`,
-    stripeSessionId: existing.stripe_session_id ?? stripeSessionId,
-  };
 }
 
 /**
@@ -453,21 +253,12 @@ async function processBattleCheckoutSession(
       ...getEventContext(event, stripeSessionId),
       battleTicketId,
     });
-    await markStripeWebhookEvent(event.id, "processed", {
-      processedAt: new Date(),
-      statusReason: "battle_ticket_already_exists",
-    });
     return "already_fulfilled";
   }
 
   logStripeStep("info", "DB", "Battle ticket created", {
     ...getEventContext(event, stripeSessionId),
     battleTicketId,
-  });
-
-  await markStripeWebhookEvent(event.id, "processed", {
-    processedAt: new Date(),
-    statusReason: "battle_ticket_created",
   });
 
   if (!customer.email) {
@@ -577,10 +368,6 @@ async function processTicketCheckoutSession(
       ...getEventContext(event, stripeSessionId),
       ticketId,
     });
-    await markStripeWebhookEvent(event.id, "processed", {
-      processedAt: new Date(),
-      statusReason: "ticket_already_exists",
-    });
     return "already_fulfilled";
   }
 
@@ -592,11 +379,6 @@ async function processTicketCheckoutSession(
   });
 
   await ensureStripeTicketFinancePayment(ticketId, session, event, ticketGrade);
-
-  await markStripeWebhookEvent(event.id, "processed", {
-    processedAt: new Date(),
-    statusReason: "ticket_created_with_payment",
-  });
 
   logStripeStep("info", "EMAIL", "Performing Ticket Delivery", {
     ...getEventContext(event, stripeSessionId),
@@ -755,6 +537,9 @@ function centsToMoney(value: number) {
   return (value / 100).toFixed(2);
 }
 
+const stripeCheckoutFulfillmentClaimStore =
+  createStripeCheckoutFulfillmentClaimStore();
+
 /**
  * Main entry point used by the Stripe webhook route.
  *
@@ -790,85 +575,105 @@ export async function handleCheckoutSessionCompleted(
   const session = event.data.object;
   const stripeSessionId = session.id;
   const eventContext = getEventContext(event, stripeSessionId);
-  const claim = await claimStripeWebhookEvent(event);
-
-  logStripeStep("info", "HANDLE", "Processing checkout.session.completed event", {
-    ...eventContext,
-    metadata: session.metadata ?? {},
-    paymentStatus: session.payment_status,
-  });
-
-  if (claim.kind === "ignored") {
-    return {
-      kind: "ignored",
-      reason: claim.reason,
-      stripeEventId: event.id,
-      stripeSessionId: claim.stripeSessionId,
-    };
-  }
-
-  const resolution = resolveCheckoutSession(session);
-
-  if (resolution.kind === "ignored" || resolution.kind === "invalid") {
-    logStripeStep("warn", "RESOLVE", "Checkout session was ignored during resolution", {
-      ...eventContext,
-      ...resolution.context,
-      reason: resolution.reason,
-    });
-
-    await markStripeWebhookEvent(event.id, "ignored", {
-      statusReason: resolution.reason,
-    });
-
-    return {
-      kind: resolution.kind,
-      context: resolution.context,
-      reason: resolution.reason,
-      stripeEventId: event.id,
-      stripeSessionId,
-    };
-  }
 
   try {
-    switch (resolution.kind) {
-      case "battle":
-        logStripeStep("info", "RESOLVE", "Resolved checkout session as battle ticket", {
-          ...eventContext,
-        });
-        return {
-          kind: "processed",
-          reason:
-            (await processBattleCheckoutSession(session, event)) === "created"
-              ? "battle_ticket_created"
-              : "battle_ticket_already_exists",
-          stripeEventId: event.id,
-          stripeSessionId,
-        };
-      case "ticket":
-        logStripeStep("info", "RESOLVE", "Resolved checkout session as regular ticket", {
-          ...eventContext,
-          ticketGrade: resolution.ticketGrade,
-        });
-        return {
-          kind: "processed",
-          reason:
-            (
-              await processTicketCheckoutSession(
-                session,
-                event,
-                resolution.ticketGrade
-              )
-            ) === "created"
-              ? "ticket_created"
-              : "ticket_already_exists",
-          stripeEventId: event.id,
-          stripeSessionId,
-        };
-    }
-  } catch (error) {
-    await markStripeWebhookEvent(event.id, "failed", {
-      lastError: error instanceof Error ? error.message : String(error),
+    return await runStripeCheckoutFulfillmentClaimLifecycle({
+      event,
+      fulfillClaim: async () => {
+        logStripeStep(
+          "info",
+          "HANDLE",
+          "Processing checkout.session.completed event",
+          {
+            ...eventContext,
+            metadata: session.metadata ?? {},
+            paymentStatus: session.payment_status,
+          }
+        );
+
+        const resolution = resolveCheckoutSession(session);
+
+        if (resolution.kind === "ignored" || resolution.kind === "invalid") {
+          logStripeStep(
+            "warn",
+            "RESOLVE",
+            "Checkout session was ignored during resolution",
+            {
+              ...eventContext,
+              ...resolution.context,
+              reason: resolution.reason,
+            }
+          );
+
+          return {
+            kind: resolution.kind,
+            context: resolution.context,
+            reason: resolution.reason,
+            stripeEventId: event.id,
+            stripeSessionId,
+          };
+        }
+
+        switch (resolution.kind) {
+          case "battle": {
+            logStripeStep(
+              "info",
+              "RESOLVE",
+              "Resolved checkout session as battle ticket",
+              {
+                ...eventContext,
+              }
+            );
+            const fulfillmentResult = await processBattleCheckoutSession(
+              session,
+              event
+            );
+            return {
+              kind: "processed",
+              reason:
+                fulfillmentResult === "created"
+                  ? "battle_ticket_created"
+                  : "battle_ticket_already_exists",
+              stripeEventId: event.id,
+              stripeSessionId,
+            };
+          }
+          case "ticket": {
+            logStripeStep(
+              "info",
+              "RESOLVE",
+              "Resolved checkout session as regular ticket",
+              {
+                ...eventContext,
+                ticketGrade: resolution.ticketGrade,
+              }
+            );
+            const fulfillmentResult = await processTicketCheckoutSession(
+              session,
+              event,
+              resolution.ticketGrade
+            );
+            return {
+              claimStatusReason:
+                fulfillmentResult === "created"
+                  ? "ticket_created_with_payment"
+                  : "ticket_already_exists",
+              kind: "processed",
+              reason:
+                fulfillmentResult === "created"
+                  ? "ticket_created"
+                  : "ticket_already_exists",
+              stripeEventId: event.id,
+              stripeSessionId,
+            };
+          }
+        }
+      },
+      logger: logStripeStep,
+      store: stripeCheckoutFulfillmentClaimStore,
+      stripeSessionId,
     });
+  } catch (error) {
     logStripe("error", "Checkout session processing failed", {
       ...eventContext,
       error,
