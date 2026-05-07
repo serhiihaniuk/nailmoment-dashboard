@@ -19,7 +19,8 @@ Important constraints:
 - Production host is Vercel.
 - Production database is Neon Postgres.
 - Production QR files live in Vercel Blob.
-- Preview/dev environments must be verified before write testing.
+- Dev and production env values are stored separately under `.vercel/`.
+- Verify the active env file before write testing or external-service testing.
 - Current write flows do not rely on database transactions.
 - Prefer additive, reversible DB changes and test on a Neon branch first.
 
@@ -36,6 +37,8 @@ Use these as the daily navigation set:
 | Debug Stripe checkout webhook fulfillment and totals | [docs/stripe-flow.md](docs/stripe-flow.md) |
 | Debug ticket creation, QR codes, Resend emails, PDF/email previews | [docs/ticket-email-qr-flow.md](docs/ticket-email-qr-flow.md) |
 | Debug Telegram bots and voting | [docs/telegram-flow.md](docs/telegram-flow.md) |
+
+> Legacy note: Existing Telegram voting routes are leftovers from a previous event season. Do not deepen or refactor this flow; future Telegram voting should be designed as a fresh implementation. See [ADR-0001](docs/adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
 
 ## Mental Model
 

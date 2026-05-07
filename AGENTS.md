@@ -17,7 +17,21 @@ This repository runs a real production dashboard for Nail Moment. Treat it as a 
 - Production Neon branch ID: `br-noisy-queen-a225qbgr`
 - Database name: `neondb`
 
-As of this writing, there is no fully established development environment. Production is the only real environment unless a Neon development branch and Vercel Preview environment have been explicitly created and wired up.
+The repository has separate local Vercel env files for dev and production: `.vercel/.env.preview.local` for the Dev Environment and `.vercel/.env.production.local` for production. Before testing workflows that can write data, send emails, create QR assets, process payments, or call external services, verify which env file and credentials are active.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `serhiihaniuk/nailmoment-dashboard`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock triage label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo: domain language lives in root `CONTEXT.md`, and ADRs live in `docs/adr/`. See `docs/agents/domain.md`.
 
 ## Critical Rule
 
