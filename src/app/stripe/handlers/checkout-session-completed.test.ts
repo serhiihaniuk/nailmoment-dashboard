@@ -1,10 +1,8 @@
 import type Stripe from "stripe";
 import { expect, test } from "vitest";
 import { shouldReclaimStripeCheckoutFulfillmentClaim } from "../checkout-fulfillment-claim";
-import {
-  getCheckoutPaidAmount,
-  resolveCheckoutSession,
-} from "./checkout-session-completed";
+import { getCheckoutPaidAmount } from "../stripe-ticket-fulfillment";
+import { resolveCheckoutSession } from "./checkout-session-completed";
 
 function createSession(overrides: Partial<Stripe.Checkout.Session> = {}) {
   return {

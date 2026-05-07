@@ -15,6 +15,7 @@ session cookies.
 | Generic route handler | `src/app/stripe/route-handler.ts` |
 | Signature/config/session verification | `src/app/stripe/verify-webhook.ts` |
 | Checkout fulfillment | `src/app/stripe/handlers/checkout-session-completed.ts` |
+| Stripe Ticket fulfillment adapter | `src/app/stripe/stripe-ticket-fulfillment.ts` |
 | Checkout claim lifecycle | `src/app/stripe/checkout-fulfillment-claim.ts` |
 | Checkout claim DB adapter | `src/app/stripe/checkout-fulfillment-claim-store.ts` |
 | Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
@@ -160,14 +161,21 @@ stale processing -> processing on retry/reclaim
 processTicketCheckoutSession(session, event, ticketGrade)
   |
   +- map customer fields
+  +- check for an existing Ticket by Stripe Checkout Session id
+  |    +- existing -> ensure finance/payment, skip QR creation, deliver only if needed
   +- create local ticket id
   +- generate QR code for https://dashboard.nailmoment.pl/ticket/<id>
   +- upload QR to Vercel Blob
   +- insert ticket with stripe_event_id = session.id
-  +- ensureStripeTicketFinancePayment()
+  +- ensure paid site Ticket Finance and Payment through the finance adapter
   +- mark webhook processed
   +- ask Ticket Delivery to perform customer email handoff best-effort
 ```
+
+The handler keeps the webhook route seam and claim lifecycle intact. Regular
+Stripe Ticket work runs through `stripe-ticket-fulfillment.ts`, whose adapters
+make the ticket store, Ticket Finance, QR storage, and Ticket Delivery behavior
+testable with fakes.
 
 Ticket Delivery failure is logged but does not throw after ticket/payment
 records exist. That prevents Stripe retries from duplicating fulfillment.
