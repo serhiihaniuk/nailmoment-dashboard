@@ -60,7 +60,7 @@ src/pages                        FSD pages layer: route-level UI and page-owned 
 src/widgets                      Reused composite panels/header
   |
   v
-src/entities                     Reusable ticket/voting domain models
+src/entities                     Reusable ticket, Battle Ticket, and voting domain models
   |
   v
 src/shared                       Infrastructure: DB, auth, UI kit, env, email, logging
@@ -88,13 +88,14 @@ extracted only when reuse is real.
 | `src/app/` | App layout, providers, API route implementations, Stripe integration |
 | `src/pages/` | Route-level UI, page-local API clients, page-local model logic |
 | `src/widgets/` | Reused composite panels and header |
-| `src/entities/` | Reusable ticket/voting domain types, parsers, and calculations |
+| `src/entities/` | Reusable ticket, Battle Ticket, and voting domain types, parsers, and calculations |
 | `src/shared/` | Infrastructure: DB, auth, env, email, UI kit, generic helpers |
 
 Ownership rules:
 
 - Page-specific UI/model/API logic starts in `src/pages/<slice>/`.
 - Reusable ticket/finance/payment rules belong in `src/entities/ticket/`.
+- Reusable Battle Ticket browser-facing data belongs in `src/entities/battle-ticket/`.
 - DB table shape and route input schemas live in `src/shared/db/`.
 - Generic request parsing lives in `src/app/api-routes/lib/request.ts`.
 - External service plumbing lives close to the owning app/shared boundary.
@@ -136,6 +137,7 @@ src/
     battle-ticket-panel/                Battle ticket slide panel and edit dialog
 
   entities/
+    battle-ticket/                      Battle Ticket browser-facing domain and parsers
     ticket/                             Ticket, finance, payment, money, grade domain
     voting/                             Static voting categories/broadcast domain
 
@@ -214,11 +216,11 @@ HTTP body
 
 Route params
   -> parseRouteParams()
-  -> branded entity id schema from entities/ticket
+  -> branded entity id schema from entities/ticket or entities/battle-ticket
 
 Browser response JSON
   -> page API client
-  -> entity parser from entities/ticket
+  -> entity parser from entities/ticket or entities/battle-ticket
   -> React Query/UI
 
 Drizzle row

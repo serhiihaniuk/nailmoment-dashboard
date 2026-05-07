@@ -1,16 +1,13 @@
 "use client";
 
-import { BattleTicket } from "@/shared/db/schema";
 import {
-  AddBattleTicketApiError,
+  parseAddBattleTicketSuccess,
+  type AddBattleTicketSuccess,
+} from "@/entities/battle-ticket";
+import {
   AddBattleTicketFormValues,
+  parseAddBattleTicketApiError,
 } from "../model/add-battle-ticket";
-
-export type AddBattleTicketSuccess = {
-  battleTicket: BattleTicket;
-  mailSent: boolean;
-  mailError: string | null;
-};
 
 export async function addBattleTicket(
   body: AddBattleTicketFormValues,
@@ -21,11 +18,11 @@ export async function addBattleTicket(
     body: JSON.stringify(body),
   });
 
-  const json = await response.json();
+  const json: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw json as AddBattleTicketApiError;
+    throw parseAddBattleTicketApiError(json);
   }
 
-  return json as AddBattleTicketSuccess;
+  return parseAddBattleTicketSuccess(json);
 }

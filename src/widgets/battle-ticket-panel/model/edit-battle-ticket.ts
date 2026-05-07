@@ -1,4 +1,4 @@
-import { BattleTicket } from "@/shared/db/schema";
+import type { BattleTicket } from "@/entities/battle-ticket";
 import { UpdateBattleTicketInput } from "@/shared/db/schema.zod";
 
 export type EditBattleTicketFormValues = Pick<

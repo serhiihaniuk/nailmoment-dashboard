@@ -15,7 +15,7 @@ import { Label } from "@/shared/ui/label";
 import { Toggle } from "@/shared/ui/toggle";
 import { Button } from "@/shared/ui/button";
 import { Loader2, Pencil, Camera, CameraOff } from "lucide-react";
-import { BattleTicket } from "@/shared/db/schema";
+import type { BattleTicket } from "@/entities/battle-ticket";
 import { Textarea } from "@/shared/ui/textarea";
 import { normalizeEditableNominationQuantity } from "../model/edit-battle-ticket";
 import { useEditBattleTicketDialog } from "../model/use-edit-battle-ticket-dialog";
