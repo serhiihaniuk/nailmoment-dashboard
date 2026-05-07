@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 
 import { auth } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
-import { ticketTable } from "@/shared/db/schema";
 import { createTicketService } from "@/shared/db/service/ticket-service";
 import {
   insertTicketSchema, // DB shape (id, stripe_event_id …)
@@ -17,11 +15,9 @@ import {
   extractInstagramUsername,
   parseTicketGrade,
 } from "@/entities/ticket";
-import {
-  generateAndStoreQRCode,
-  sendTicketEmail,
-} from "@/shared/email/send-email";
+import { generateAndStoreQRCode } from "@/shared/email/send-email";
 import { parseRequestJson } from "@/app/api-routes/lib/request";
+import { deliverTicket } from "@/app/ticket-delivery";
 
 const ticketService = createTicketService(db, {
   buildFinanceSummary: buildTicketFinanceSummary,
@@ -92,27 +88,7 @@ export async function POST(req: NextRequest) {
     const dbPayload = await toDbPayload(body);
 
     const ticket = await ticketService.addTicket(dbPayload);
-
-    let mailSent = false;
-    let mailError: string | null = null;
-
-    try {
-      await sendTicketEmail(
-        ticket.email,
-        ticket.name,
-        ticket.qr_code,
-        ticket.grade,
-        ticket.id
-      );
-      await db
-        .update(ticketTable)
-        .set({ mail_sent: true })
-        .where(eq(ticketTable.id, ticket.id));
-      mailSent = true;
-    } catch (err) {
-      mailError =
-        err instanceof Error ? err.message : "Unknown error while sending mail";
-    }
+    const { mailError, mailSent } = await deliverTicket(ticket);
 
     return NextResponse.json({ ticket, mailSent, mailError }, { status: 201 });
   } catch (err) {
