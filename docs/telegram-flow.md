@@ -1,5 +1,7 @@
 # Telegram Flow
 
+> Legacy note: Existing Telegram voting routes are leftovers from a previous event season. Do not deepen or refactor this flow; future Telegram voting should be designed as a fresh implementation. See [ADR-0001](adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
+
 Telegram routes are external webhook routes handled by Grammy. They are not
 Better Auth protected dashboard routes.
 
