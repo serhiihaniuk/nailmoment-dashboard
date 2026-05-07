@@ -1,26 +1,15 @@
-import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type Stripe from "stripe";
 import { db } from "@/shared/db";
-import {
-  battleTicketTable,
-  paymentInstallmentTable,
-  ticketFinanceTable,
-  ticketTable,
-} from "@/shared/db/schema";
-import {
-  TICKET_PRICE_BY_GRADE,
-  TICKET_TYPE_LIST,
-  type TicketGrade,
-} from "@/entities/ticket";
+import { battleTicketTable } from "@/shared/db/schema";
+import { TICKET_TYPE_LIST, type TicketGrade } from "@/entities/ticket";
 import { parseBattleTicket } from "@/entities/battle-ticket";
 import { deliverBattleTicket } from "@/app/battle-ticket-delivery";
-import { generateAndStoreQRCode } from "@/shared/email/send-email";
-import { deliverTicket } from "@/app/ticket-delivery";
 import { runStripeCheckoutFulfillmentClaimLifecycle } from "../checkout-fulfillment-claim";
 import { createStripeCheckoutFulfillmentClaimStore } from "../checkout-fulfillment-claim-store";
 import { logStripe, logStripeStep } from "../log";
 import { mapCheckoutCustomer } from "../map-checkout-customer";
+import { fulfillStripeTicketCheckoutSession } from "../stripe-ticket-fulfillment";
 import type { StripeWebhookHandlerResult } from "../types";
 
 /**
@@ -35,29 +24,13 @@ import type { StripeWebhookHandlerResult } from "../types";
  *    is paid.
  * 3. Decide whether this checkout creates a regular festival ticket or a
  *    battle ticket, based on Stripe metadata.
- * 4. Create the ticket record.
- * 5. For regular tickets, create matching finance and payment rows so the
- *    finance page sees site sales immediately.
- * 6. Send the customer email after the durable database records exist.
+ * 4. Delegate product-specific work to focused fulfillment adapters.
+ * 5. Mark the webhook claim with the normalized outcome.
  *
- * The Stripe total path is intentionally simple:
- *
- *   Stripe `amount_total` (minor units / cents)
- *     -> `getCheckoutPaidAmount()` (major units / "0.00")
- *     -> `ticket_finance.gross_total`
- *     -> `payment_installment.amount`
- *
- * Then the app estimates Stripe's processing fee into
- * `ticket_finance.tax_amount` and stores gross minus fee as
- * `ticket_finance.net_total`. There is no discount calculation in this webhook:
- * Stripe already collected the final checkout amount, so site purchases are
- * stored with `discount_amount = 0.00`.
- *
- * Important: email sending is intentionally not part of the critical database
- * fulfillment path. If email delivery fails, the ticket/payment records remain
- * created and the webhook is treated as processed. That prevents Stripe retries
- * from creating duplicate records just because an external email provider had a
- * temporary problem.
+ * Important: Ticket Delivery is intentionally best-effort after durable
+ * dashboard records exist. If email handoff fails, the created Ticket, Ticket
+ * Finance, Payment, and QR records remain intact and Stripe should not retry
+ * the purchase fulfillment just because the email provider failed.
  */
 
 /**
@@ -119,31 +92,6 @@ function isCheckoutSessionCompletedEvent(
  */
 function isTicketGrade(value: string): value is TicketGrade {
   return TICKET_TYPE_LIST.some((grade) => grade === value);
-}
-
-/**
- * Returns the real paid amount for the checkout.
- *
- * `amount_total` is preferred because it is the amount Stripe actually
- * collected. The grade price is only a fallback for defensive compatibility
- * with unusual or incomplete Stripe session payloads.
- *
- * Returning a string in major currency units keeps this value compatible with
- * Drizzle decimal fields used by `ticket_finance` and `payment_installment`.
- */
-export function getCheckoutPaidAmount(
-  session: Pick<Stripe.Checkout.Session, "amount_total">,
-  ticketGrade: TicketGrade,
-): string {
-  if (
-    typeof session.amount_total === "number" &&
-    Number.isFinite(session.amount_total) &&
-    session.amount_total >= 0
-  ) {
-    return (session.amount_total / 100).toFixed(2);
-  }
-
-  return TICKET_PRICE_BY_GRADE[ticketGrade];
 }
 
 /**
@@ -291,243 +239,6 @@ async function processBattleCheckoutSession(
   return "created";
 }
 
-/**
- * Fulfills a paid regular ticket checkout.
- *
- * Regular ticket fulfillment has more side effects than battle fulfillment:
- *
- * 1. Generate and store a QR code for the customer ticket URL.
- * 2. Insert the ticket row with the QR URL and Stripe session id.
- * 3. Create finance/payment rows representing a fully paid site sale.
- * 4. Send the ticket email and mark `mail_sent` when delivery succeeds.
- *
- * The durable database records are created before the email is sent. This makes
- * the dashboard the source of truth even if the email provider fails later.
- */
-async function processTicketCheckoutSession(
-  session: Stripe.Checkout.Session,
-  event: Stripe.Event,
-  ticketGrade: TicketGrade,
-): Promise<FulfillmentResult> {
-  const stripeSessionId = session.id;
-  const customer = mapCheckoutCustomer(session);
-  const ticketId = nanoid(10);
-
-  logStripeStep("info", "PROCESS", "Starting ticket fulfillment", {
-    ...getEventContext(event, stripeSessionId),
-    customerEmail: customer.email,
-    ticketGrade,
-  });
-
-  logStripeStep("info", "QR", "Generating ticket QR code", {
-    ...getEventContext(event, stripeSessionId),
-    ticketId,
-  });
-
-  // The QR URL is stored on the ticket and included in the customer email, so
-  // the asset must exist before we create/send the ticket.
-  const qrCodeUrl = await generateAndStoreQRCode(
-    `https://dashboard.nailmoment.pl/ticket/${ticketId}`,
-    `moment-qr/festival_2026/qr-code-${ticketId}.png`,
-  );
-
-  logStripeStep("info", "QR", "Ticket QR code stored", {
-    ...getEventContext(event, stripeSessionId),
-    qrCodeUrl,
-    ticketId,
-  });
-
-  const inserted = await db
-    .insert(ticketTable)
-    .values({
-      email: customer.email,
-      grade: ticketGrade,
-      id: ticketId,
-      instagram: customer.instagram,
-      name: customer.name,
-      phone: customer.phone,
-      qr_code: qrCodeUrl,
-      stripe_event_id: stripeSessionId,
-    })
-    .onConflictDoNothing()
-    .returning({ id: ticketTable.id });
-
-  // If the Stripe session already has a ticket, the webhook is idempotently
-  // complete. We do not create another QR/ticket/payment set.
-  if (inserted.length === 0) {
-    logStripeStep("warn", "DB", "Ticket already exists for Stripe session", {
-      ...getEventContext(event, stripeSessionId),
-      ticketId,
-    });
-    return "already_fulfilled";
-  }
-
-  logStripeStep("info", "DB", "Ticket created", {
-    ...getEventContext(event, stripeSessionId),
-    qrCodeUrl,
-    ticketGrade,
-    ticketId,
-  });
-
-  await ensureStripeTicketFinancePayment(ticketId, session, event, ticketGrade);
-
-  logStripeStep("info", "EMAIL", "Performing Ticket Delivery", {
-    ...getEventContext(event, stripeSessionId),
-    customerEmail: customer.email,
-    ticketGrade,
-    ticketId,
-  });
-
-  const delivery = await deliverTicket({
-    email: customer.email,
-    grade: ticketGrade,
-    id: ticketId,
-    name: customer.name,
-    qr_code: qrCodeUrl,
-    updated_grade: null,
-  });
-
-  if (delivery.mailSent) {
-    logStripeStep("info", "EMAIL", "Ticket email sent", {
-      ...getEventContext(event, stripeSessionId),
-      customerEmail: customer.email,
-      ticketGrade,
-      ticketId,
-    });
-  } else {
-    // After the ticket and finance records exist, Ticket Delivery failure should
-    // be observable but should not re-run purchase fulfillment.
-    logStripe("error", "Ticket email send failed", {
-      ...getEventContext(event, stripeSessionId),
-      error: delivery.mailError,
-    });
-  }
-
-  return "created";
-}
-
-/**
- * Creates finance records for a Stripe-paid ticket.
- *
- * A site checkout is always represented as a fully paid ticket in finance:
- *
- * - `ticket_finance.gross_total` is the amount Stripe collected.
- * - `ticket_finance.tax_amount` stores the estimated Stripe processing fee.
- * - `ticket_finance.net_total` is gross minus that estimated fee.
- * - One `payment_installment` row is inserted and marked `is_paid = true`.
- *
- * This is the place where the Stripe checkout total becomes finance-page data.
- * The same `paidAmount` is used for the finance gross total and for the payment
- * installment amount so the summary reads as fully paid immediately.
- *
- * The existing-payment guard matters for retries. If a previous attempt created
- * the payment but crashed before the webhook row was marked processed, the next
- * reclaim must not add a second installment for the same ticket.
- */
-async function ensureStripeTicketFinancePayment(
-  ticketId: string,
-  session: Stripe.Checkout.Session,
-  event: Stripe.Event,
-  ticketGrade: TicketGrade,
-) {
-  const stripeSessionId = session.id;
-  const paidAmount = getCheckoutPaidAmount(session, ticketGrade);
-  const processingFee = calculateDefaultStripeProcessingFee(paidAmount);
-  const netAmount = subtractMoney(paidAmount, processingFee);
-  const paidAt = new Date();
-
-  logStripeStep("info", "FINANCE", "Ensuring Stripe ticket finance payment", {
-    ...getEventContext(event, stripeSessionId),
-    amount: paidAmount,
-    processingFee,
-    ticketId,
-  });
-
-  await db
-    .insert(ticketFinanceTable)
-    .values({
-      discount_amount: "0.00",
-      finance_note: "",
-      gross_total: paidAmount,
-      id: nanoid(10),
-      net_total: netAmount,
-      nip: "",
-      payment_plan: "full",
-      sale_source: "site",
-      tax_amount: processingFee,
-      ticket_id: ticketId,
-    })
-    .onConflictDoNothing({
-      target: ticketFinanceTable.ticket_id,
-    });
-
-  // Finance rows can be retried safely: the ticket_finance insert is protected
-  // by ticket_id, and payment insertion is skipped if any installment already
-  // exists for this ticket.
-  const existingPayments = await db
-    .select({ id: paymentInstallmentTable.id })
-    .from(paymentInstallmentTable)
-    .where(eq(paymentInstallmentTable.ticket_id, ticketId))
-    .limit(1);
-
-  if (existingPayments.length > 0) {
-    logStripeStep("info", "FINANCE", "Payment already exists for ticket", {
-      ...getEventContext(event, stripeSessionId),
-      ticketId,
-    });
-    return;
-  }
-
-  await db.insert(paymentInstallmentTable).values({
-    amount: paidAmount,
-    comment: `Stripe session ${stripeSessionId}`,
-    id: nanoid(10),
-    installment_number: 1,
-    invoice_number: "",
-    invoice_status: "not_sent",
-    is_paid: true,
-    paid_date: paidAt,
-    payment_method: "other",
-    sale_source: "site",
-    ticket_id: ticketId,
-  });
-
-  logStripeStep("info", "FINANCE", "Stripe finance payment created", {
-    ...getEventContext(event, stripeSessionId),
-    amount: paidAmount,
-    processingFee,
-    ticketId,
-  });
-}
-
-/**
- * Estimates the default Stripe fee for dashboard reporting.
- *
- * The fee formula here is not fetched from Stripe's balance transaction API; it
- * is the app's default calculation used when creating finance rows immediately
- * from a checkout webhook.
- */
-function calculateDefaultStripeProcessingFee(amount: string) {
-  const amountCents = moneyToCents(amount);
-  const feeCents = Math.round(amountCents * 0.015) + 100;
-  return centsToMoney(feeCents);
-}
-
-/** Subtracts money strings through integer cents to avoid float drift. */
-function subtractMoney(amount: string, subtract: string) {
-  return centsToMoney(Math.max(moneyToCents(amount) - moneyToCents(subtract), 0));
-}
-
-/** Converts a decimal money string such as `"199.00"` to integer cents. */
-function moneyToCents(value: string) {
-  return Math.round(Number.parseFloat(value || "0") * 100);
-}
-
-/** Converts integer cents back to the dashboard's `"0.00"` money format. */
-function centsToMoney(value: number) {
-  return (value / 100).toFixed(2);
-}
-
 const stripeCheckoutFulfillmentClaimStore =
   createStripeCheckoutFulfillmentClaimStore();
 
@@ -643,19 +354,20 @@ export async function handleCheckoutSessionCompleted(
                 ticketGrade: resolution.ticketGrade,
               }
             );
-            const fulfillmentResult = await processTicketCheckoutSession(
-              session,
-              event,
-              resolution.ticketGrade
-            );
+            const fulfillmentResult =
+              await fulfillStripeTicketCheckoutSession({
+                event,
+                session,
+                ticketGrade: resolution.ticketGrade,
+              });
             return {
               claimStatusReason:
-                fulfillmentResult === "created"
+                fulfillmentResult.kind === "created"
                   ? "ticket_created_with_payment"
                   : "ticket_already_exists",
               kind: "processed",
               reason:
-                fulfillmentResult === "created"
+                fulfillmentResult.kind === "created"
                   ? "ticket_created"
                   : "ticket_already_exists",
               stripeEventId: event.id,
