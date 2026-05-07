@@ -217,6 +217,7 @@ describe("finance optimistic cache helpers", () => {
     expect(calculateTicketPaymentCoverage(ticket.finance, ticket.payments)).toEqual({
       paidTotal: 0,
       payableTotal: 100,
+      pendingScheduledTotal: 75,
       scheduledDifference: -25,
       scheduledTotal: 75,
       status: "under_scheduled",

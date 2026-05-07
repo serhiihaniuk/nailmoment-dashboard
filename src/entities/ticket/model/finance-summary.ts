@@ -21,6 +21,7 @@ export type TicketPaymentCoverageStatus =
 export type TicketPaymentCoverage = {
   paidTotal: number;
   payableTotal: number;
+  pendingScheduledTotal: number;
   scheduledDifference: number;
   scheduledTotal: number;
   status: TicketPaymentCoverageStatus;
@@ -139,6 +140,10 @@ export function calculateTicketPaymentCoverage(
     if (!payment.is_paid) return sum;
     return sum + toMoneyCents(payment.amount);
   }, 0);
+  const pendingScheduledCents = countedPayments.reduce((sum, payment) => {
+    if (payment.is_paid) return sum;
+    return sum + toMoneyCents(payment.amount);
+  }, 0);
   const scheduledCents = countedPayments.reduce(
     (sum, payment) => sum + toMoneyCents(payment.amount),
     0
@@ -148,6 +153,7 @@ export function calculateTicketPaymentCoverage(
   return {
     paidTotal: centsToMoney(paidCents),
     payableTotal: centsToMoney(payableCents),
+    pendingScheduledTotal: centsToMoney(pendingScheduledCents),
     scheduledDifference: centsToMoney(scheduledDifferenceCents),
     scheduledTotal: centsToMoney(scheduledCents),
     status: getPaymentCoverageStatus(scheduledDifferenceCents),

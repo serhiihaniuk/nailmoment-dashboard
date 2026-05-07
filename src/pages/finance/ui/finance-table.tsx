@@ -343,7 +343,8 @@ export function FinanceTable() {
                 );
                 const paymentCoverageTitle = [
                   `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
-                  `${formatZloty(paymentCoverage.scheduledTotal)} заплановано`,
+                  `${formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано`,
+                  `${formatZloty(paymentCoverage.scheduledTotal)} разом у платежах`,
                   `${formatZloty(paymentCoverage.payableTotal)} до оплати`,
                 ].join(" / ");
                 const paymentCoverageMismatchLabel =

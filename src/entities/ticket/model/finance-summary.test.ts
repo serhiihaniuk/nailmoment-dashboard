@@ -109,6 +109,7 @@ describe("ticket finance totals", () => {
     expect(coverage).toEqual({
       paidTotal: 200,
       payableTotal: 400,
+      pendingScheduledTotal: 199,
       scheduledDifference: -1,
       scheduledTotal: 399,
       status: "under_scheduled",
@@ -128,6 +129,7 @@ describe("ticket finance totals", () => {
     ]);
 
     expect(coverage).toMatchObject({
+      pendingScheduledTotal: 200,
       scheduledDifference: 50,
       scheduledTotal: 450,
       status: "over_scheduled",
@@ -153,6 +155,7 @@ describe("ticket finance totals", () => {
 
       expect(coverage).toMatchObject({
         payableTotal: 400,
+        pendingScheduledTotal: 200,
         scheduledDifference: 0,
         scheduledTotal: 400,
         status: "balanced",
@@ -171,6 +174,7 @@ describe("ticket finance totals", () => {
       expect(coverage).toEqual({
         paidTotal: 0,
         payableTotal: 0,
+        pendingScheduledTotal: 0,
         scheduledDifference: 0,
         scheduledTotal: 0,
         status: "balanced",

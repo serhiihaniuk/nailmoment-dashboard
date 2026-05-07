@@ -145,6 +145,12 @@ export function PaymentsPanel({
       : paymentCoverage.status === "over_scheduled"
         ? `Заплановано на ${formatZloty(paymentCoverageDifference)} більше`
         : null;
+  const paymentCoverageTitle = [
+    `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
+    `${formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано`,
+    `${formatZloty(paymentCoverage.scheduledTotal)} разом у платежах`,
+    `${formatZloty(paymentCoverage.payableTotal)} до оплати`,
+  ].join(" / ");
   const unscheduledGrossPaymentAmount =
     getUnscheduledGrossPaymentAmount(ticket);
   const hasUnscheduledGrossPaymentAmount =
@@ -290,6 +296,7 @@ export function PaymentsPanel({
       </div>
 
       <div
+        title={paymentCoverageTitle}
         className={cn(
           "mb-6 rounded-md border px-3 py-2 text-[12px]",
           hasPaymentCoverageMismatch
@@ -307,7 +314,7 @@ export function PaymentsPanel({
           </span>
           <span className="text-muted-foreground">/</span>
           <span className="tabular-nums">
-            {formatZloty(paymentCoverage.scheduledTotal)} заплановано
+            {formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано
           </span>
           <span className="text-muted-foreground">/</span>
           <span className="tabular-nums">
