@@ -17,6 +17,7 @@ runtime boundary, response parser, and side effects.
 | `/pdf/:id` | `app/(protected)/pdf/[id]/page.tsx` | `src/pages/pdf-ticket-preview` | Protected layout | Ticket email/PDF preview UI. |
 | `/pdf/demo` | `app/(protected)/pdf/demo/page.tsx` | `src/pages/pdf-demo` | Protected layout | Demo email/PDF preview. |
 | `/speaker_vote` | `app/(protected)/speaker_vote/page.tsx` | `src/pages/speaker-vote` | Protected layout | Speaker vote results dashboard. |
+| `/cookie-analytics` | `app/(protected)/cookie-analytics/page.tsx` | `src/pages/cookie-analytics` | Protected layout | Cookie consent analytics, charts, and recent events. |
 | `/info` | `app/(protected)/info/page.tsx` | `src/pages/info` | Protected layout | Help/info page. |
 
 Protected routes render through:
@@ -53,6 +54,8 @@ app/(protected)/layout.tsx
 | `GET /api/battle-ticket/:id` | `app/api/battle-ticket/[id]/route.ts` | `src/app/api-routes/battle-ticket/[id]/route.ts` | Required | `ticketIdSchema` route param | Battle ticket panel | Reads one battle ticket. |
 | `PATCH /api/battle-ticket/:id` | `app/api/battle-ticket/[id]/route.ts` | `src/app/api-routes/battle-ticket/[id]/route.ts` | Required | `ticketIdSchema`, `updateBattleTicketSchema` | Battle ticket panel/dialog | Updates battle ticket. |
 | `POST /api/webhooks/stripe` | `app/api/webhooks/stripe/route.ts` | `src/app/api-routes/webhooks/stripe/route.ts`, `src/app/stripe/*` | Stripe signature, not session auth | Raw body + `stripe-signature`; Stripe SDK; checkout guards | Stripe normalized handler result | Claims webhook, creates tickets/battle tickets, finance/payment rows, QR, email best-effort. |
+| `GET /api/analytics/cookie-consent` | `app/api/analytics/cookie-consent/route.ts` | `src/app/api-routes/analytics/cookie-consent/route.ts` | Required | none | `parseCookieConsentAnalytics()` in cookie consent entity client | Reads cookie consent summary, timeline, breakdowns, and recent events. |
+| `POST /api/analytics/cookie-consent` | `app/api/analytics/cookie-consent/route.ts` | `src/app/api-routes/analytics/cookie-consent/route.ts` | Origin allowlist | `cookieConsentEventClientSchema` | JSON `{ ok: true }` | Records anonymous nailmoment.pl cookie consent event. |
 | `POST /api/tg/festival-bot` | `app/api/tg/festival-bot/route.ts` | `src/app/api-routes/tg/festival-bot/route.ts` | Telegram webhook token route config | Grammy update parsing | Telegram response | Festival voting, media slider, broadcasts, DB votes/users. |
 | `POST /api/tg/speaker-bot` | `app/api/tg/speaker-bot/route.ts` | `src/app/api-routes/tg/speaker-bot/route.ts` | Telegram webhook token route config | Grammy update parsing | Telegram response | Speaker/battle category voting and broadcasts. |
 | `GET /api/speaker_vote` | `app/api/speaker_vote/route.ts` | `src/app/api-routes/speaker_vote/route.ts` | Required | none | Speaker vote page | Aggregates `speaker_vote_tg` counts. |

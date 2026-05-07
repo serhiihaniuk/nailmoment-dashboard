@@ -1,7 +1,7 @@
 import {
   parseCookieConsentAnalytics,
   type CookieConsentAnalytics,
-} from "@/pages/dashboard/model/cookie-consent-analytics";
+} from "../model/cookie-consent-analytics";
 
 export async function fetchCookieConsentAnalytics(): Promise<CookieConsentAnalytics> {
   const response = await fetch("/api/analytics/cookie-consent");
