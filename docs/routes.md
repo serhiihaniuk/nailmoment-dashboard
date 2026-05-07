@@ -31,6 +31,8 @@ app/(protected)/layout.tsx
 
 ## API Routes
 
+> Legacy note: `/api/tg/*` routes are leftovers from a previous event season. Do not deepen or refactor them; future Telegram voting should be redesigned from scratch. See [ADR-0001](adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
+
 | Method / URL | Root route file | Implementation | Auth | Request parsing | Response parsing / consumer | Side effects |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ALL /api/auth/[...all]` | `app/api/auth/[...all]/route.ts` | `src/app/api-routes/auth/[...all]/route.ts` | Better Auth route | Better Auth | Better Auth client/hooks | Session/account auth. |
