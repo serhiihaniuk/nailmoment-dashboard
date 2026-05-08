@@ -1,12 +1,23 @@
 "use client";
 
-import { Archive, X } from "lucide-react";
+import {
+  AlertCircle,
+  Archive,
+  CheckCircle2,
+  Lock,
+  X,
+} from "lucide-react";
 
 import type {
   AudienceVote,
   VoteCandidate,
   VoteCandidateMedia,
 } from "@/entities/audience-vote";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Separator } from "@/shared/ui/separator";
@@ -27,19 +38,24 @@ export function VoteCandidateMediaPanel({
   const state = useVoteCandidateMedia({ candidate, vote });
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border/70 bg-muted/20 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-            Candidate media
+    <section className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-surface">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold">Candidate media</h3>
             <Badge className="rounded-md" variant="outline">
               {candidate.display_name}
             </Badge>
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {state.activeMedia.length} active / {state.archivedMedia.length}{" "}
-            archived
-          </p>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge className="rounded-md" variant="secondary">
+              {state.activeMedia.length} active
+            </Badge>
+            <Badge className="rounded-md" variant="outline">
+              {state.archivedMedia.length} archived
+            </Badge>
+            <span>{vote.title}</span>
+          </div>
         </div>
         <Button
           aria-label="Close media panel"
@@ -51,62 +67,101 @@ export function VoteCandidateMediaPanel({
           <X aria-hidden="true" />
         </Button>
       </div>
-      {state.isClosed ? (
-        <p className="rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          Media management is locked for closed Audience Votes.
-        </p>
-      ) : (
-        <VoteCandidateMediaUploadForm
-          activeMedia={state.activeMedia}
-          candidate={candidate}
-          file={state.file}
-          fileInputKey={state.fileInputKey}
-          isUploading={state.isUploading}
-          onFileChange={state.handleFileChange}
-          onReplaceMediaChange={state.handleReplaceMediaChange}
-          onUpload={state.uploadSelectedFile}
-          replaceMediaSelectValue={state.replaceMediaSelectValue}
-          uploadProgress={state.uploadProgress}
-        />
-      )}
 
-      {state.formError ? (
-        <p className="text-sm font-medium text-destructive">
-          {state.formError}
-        </p>
-      ) : null}
+      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-3">
+          {state.isClosed ? (
+            <Alert>
+              <Lock aria-hidden="true" />
+              <AlertTitle>Media locked</AlertTitle>
+              <AlertDescription>
+                Media management is locked for closed Audience Votes.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <VoteCandidateMediaUploadForm
+              activeMedia={state.activeMedia}
+              candidate={candidate}
+              file={state.file}
+              fileInputKey={state.fileInputKey}
+              isUploading={state.isUploading}
+              onFileChange={state.handleFileChange}
+              onFileSelect={state.selectFile}
+              onReplaceMediaChange={state.handleReplaceMediaChange}
+              onUpload={state.uploadSelectedFile}
+              replaceMediaSelectValue={state.replaceMediaSelectValue}
+              uploadProgress={state.uploadProgress}
+            />
+          )}
 
-      {state.isQueryError ? (
-        <p className="text-sm font-medium text-destructive">
-          Could not load media: {state.queryError?.message}
-        </p>
-      ) : null}
+          {state.formError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>Media update failed</AlertTitle>
+              <AlertDescription>{state.formError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-      {state.isLoading ? <Skeleton className="h-36 w-full rounded-lg" /> : null}
+          {state.successMessage ? (
+            <Alert>
+              <CheckCircle2 aria-hidden="true" />
+              <AlertTitle>{state.successMessage}</AlertTitle>
+              <AlertDescription>
+                The candidate media list has been refreshed.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
 
-      {!state.isLoading && !state.isQueryError ? (
-        <>
-          <VoteCandidateMediaGrid
-            canSoftDelete={state.canSoftDelete}
-            isDeleting={state.isDeleting}
-            media={state.activeMedia}
-            onSoftDelete={state.softDeleteMedia}
-          />
-          {state.archivedMedia.length > 0 ? (
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-medium">Media library</h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Active files appear in voter-facing order.
+              </p>
+            </div>
+          </div>
+
+          {state.isQueryError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>Could not load media</AlertTitle>
+              <AlertDescription>
+                {state.queryError?.message ?? "Refresh the media panel."}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {state.isLoading ? (
+            <Skeleton className="h-80 w-full rounded-lg" />
+          ) : null}
+
+          {!state.isLoading && !state.isQueryError ? (
             <>
-              <Separator />
-              <ArchivedMediaSection
+              <VoteCandidateMediaGrid
                 canSoftDelete={state.canSoftDelete}
                 isDeleting={state.isDeleting}
-                media={state.archivedMedia}
+                media={state.activeMedia}
                 onSoftDelete={state.softDeleteMedia}
-                onToggle={() => state.setShowArchived(!state.showArchived)}
-                showArchived={state.showArchived}
               />
+              {state.archivedMedia.length > 0 ? (
+                <>
+                  <Separator />
+                  <ArchivedMediaSection
+                    canSoftDelete={state.canSoftDelete}
+                    isDeleting={state.isDeleting}
+                    media={state.archivedMedia}
+                    onSoftDelete={state.softDeleteMedia}
+                    onToggle={() => state.setShowArchived(!state.showArchived)}
+                    showArchived={state.showArchived}
+                  />
+                </>
+              ) : null}
             </>
           ) : null}
-        </>
-      ) : null}
+        </div>
+      </div>
     </section>
   );
 }

@@ -22,6 +22,7 @@ export type AudienceVoteUpdateScreenFieldErrors = Partial<
 >;
 
 export type AudienceVoteUpdateScreenApiError = {
+  code?: "missing_database_table" | undefined;
   errors?: Record<string, string[] | undefined> | undefined;
   message: string;
 };
@@ -31,6 +32,7 @@ type ParseUpdateScreenDraftResult =
   | { errors: AudienceVoteUpdateScreenFieldErrors; ok: false };
 
 const audienceVoteUpdateScreenApiErrorSchema = z.object({
+  code: z.literal("missing_database_table").optional(),
   errors: z.record(z.array(z.string()).optional()).optional(),
   message: z.string(),
 });

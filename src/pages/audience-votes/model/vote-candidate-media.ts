@@ -8,6 +8,12 @@ import {
   type VoteCandidateMediaType,
 } from "@/entities/audience-vote";
 
+const browserPreviewableImageContentTypes = new Set<string>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 export type VoteCandidateMediaApiError = {
   errors?: Record<string, string[] | undefined> | undefined;
   message: string;
@@ -76,4 +82,24 @@ export function formatVoteCandidateMediaFileSize(bytes: number): string {
   }
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function formatVoteCandidateMediaType(
+  mediaType: VoteCandidateMediaType
+): string {
+  return mediaType === "photo" ? "Photo" : "Video";
+}
+
+export function canBrowserPreviewVoteCandidateMedia({
+  contentType,
+  mediaType,
+}: {
+  contentType: string;
+  mediaType: VoteCandidateMediaType;
+}): boolean {
+  if (mediaType === "video") {
+    return true;
+  }
+
+  return browserPreviewableImageContentTypes.has(contentType);
 }

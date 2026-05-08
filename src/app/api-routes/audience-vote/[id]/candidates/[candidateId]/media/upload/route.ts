@@ -1,3 +1,4 @@
+import { head, type HeadBlobResult } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -30,6 +31,15 @@ const routeParamsSchema = z.object({
   id: audienceVoteIdSchema,
 });
 
+const completedBlobSchema = z.object({
+  contentDisposition: z.string(),
+  contentType: z.string().min(1),
+  downloadUrl: z.string().url(),
+  etag: z.string(),
+  pathname: z.string().min(1),
+  url: z.string().url(),
+});
+
 const blobUploadBodySchema = z.discriminatedUnion("type", [
   z.object({
     payload: z.object({
@@ -53,7 +63,16 @@ const blobUploadBodySchema = z.discriminatedUnion("type", [
     }),
     type: z.literal("blob.upload-completed"),
   }),
+  z.object({
+    payload: z.object({
+      blob: completedBlobSchema,
+      clientPayload: z.string().nullable(),
+    }),
+    type: z.literal("app.confirm-client-upload"),
+  }),
 ]);
+
+type CompletedBlob = z.output<typeof completedBlobSchema>;
 
 function getCandidateForVote({
   audienceVoteId,
@@ -111,6 +130,36 @@ function assertPayloadMatchesRoute({
   }
 }
 
+async function assertCompletedBlobMatchesPayload({
+  blob,
+  payload,
+}: {
+  blob: CompletedBlob;
+  payload: VoteCandidateMediaUploadPayload;
+}): Promise<HeadBlobResult> {
+  const expectedPath = buildVoteCandidateMediaPath(payload);
+
+  if (blob.pathname !== expectedPath) {
+    throw new Error("Completed Blob path does not match token payload.");
+  }
+
+  if (blob.contentType !== payload.contentType) {
+    throw new Error("Completed Blob content type does not match payload.");
+  }
+
+  const blobMetadata = await head(expectedPath);
+
+  if (
+    blobMetadata.pathname !== expectedPath ||
+    blobMetadata.contentType !== payload.contentType ||
+    blobMetadata.size !== payload.sizeBytes
+  ) {
+    throw new Error("Completed Blob metadata does not match token payload.");
+  }
+
+  return blobMetadata;
+}
+
 async function getUploadableCandidate({
   allowClosed,
   candidateId,
@@ -152,9 +201,36 @@ export async function POST(
     return validationErrorResponse(parsedBody.error);
   }
 
-  const body: HandleUploadBody = parsedBody.data;
+  const body = parsedBody.data;
   const parsedParams = await parseRouteParams(params, routeParamsSchema);
   if (!parsedParams.ok) return parsedParams.response;
+
+  if (body.type === "app.confirm-client-upload") {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+      const media = await completeUploadedMedia({
+        allowClosed: true,
+        blob: body.payload.blob,
+        candidateId: parsedParams.data.candidateId,
+        clientPayload: body.payload.clientPayload,
+        voteId: parsedParams.data.id,
+      });
+
+      return NextResponse.json(media, { status: 200 });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not confirm vote candidate media upload.";
+
+      return NextResponse.json({ message }, { status: 400 });
+    }
+  }
 
   if (body.type === "blob.generate-client-token") {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -165,8 +241,9 @@ export async function POST(
   }
 
   try {
+    const uploadBody: HandleUploadBody = body;
     const jsonResponse = await handleUpload({
-      body,
+      body: uploadBody,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const payload = parseUploadPayload(clientPayload);
@@ -199,43 +276,12 @@ export async function POST(
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        const payload = parseUploadPayload(tokenPayload);
-        assertPayloadMatchesRoute({
-          candidateId: parsedParams.data.candidateId,
-          payload,
-          voteId: parsedParams.data.id,
-        });
-
-        const { candidate } = await getUploadableCandidate({
+        await completeUploadedMedia({
           allowClosed: true,
-          candidateId: payload.candidateId,
-          voteId: payload.audienceVoteId,
-        });
-        const expectedPath = buildVoteCandidateMediaPath(payload);
-
-        if (blob.pathname !== expectedPath) {
-          throw new Error("Completed Blob path does not match token payload.");
-        }
-
-        if (blob.contentType !== payload.contentType) {
-          throw new Error("Completed Blob content type does not match payload.");
-        }
-
-        await audienceVoteService.completeVoteCandidateMediaUpload({
-          mediaData: {
-            blob_download_url: blob.downloadUrl,
-            blob_pathname: blob.pathname,
-            blob_url: blob.url,
-            candidate_id: candidate.id,
-            content_type: payload.contentType,
-            file_name: payload.fileName,
-            file_size_bytes: payload.sizeBytes,
-            id: payload.mediaId,
-            media_type: getVoteCandidateMediaTypeForContentType(
-              payload.contentType
-            ),
-          },
-          replacesMediaId: payload.replacesMediaId ?? null,
+          blob,
+          candidateId: parsedParams.data.candidateId,
+          clientPayload: tokenPayload,
+          voteId: parsedParams.data.id,
         });
       },
     });
@@ -252,3 +298,49 @@ export async function POST(
 }
 
 export const dynamic = "force-dynamic";
+
+async function completeUploadedMedia({
+  allowClosed,
+  blob,
+  candidateId,
+  clientPayload,
+  voteId,
+}: {
+  allowClosed: boolean;
+  blob: CompletedBlob;
+  candidateId: string;
+  clientPayload: string | null | undefined;
+  voteId: string;
+}) {
+  const payload = parseUploadPayload(clientPayload);
+  assertPayloadMatchesRoute({
+    candidateId,
+    payload,
+    voteId,
+  });
+
+  const { candidate } = await getUploadableCandidate({
+    allowClosed,
+    candidateId: payload.candidateId,
+    voteId: payload.audienceVoteId,
+  });
+  const blobMetadata = await assertCompletedBlobMatchesPayload({
+    blob,
+    payload,
+  });
+
+  return audienceVoteService.completeVoteCandidateMediaUpload({
+    mediaData: {
+      blob_download_url: blobMetadata.downloadUrl,
+      blob_pathname: blobMetadata.pathname,
+      blob_url: blobMetadata.url,
+      candidate_id: candidate.id,
+      content_type: payload.contentType,
+      file_name: payload.fileName,
+      file_size_bytes: payload.sizeBytes,
+      id: payload.mediaId,
+      media_type: getVoteCandidateMediaTypeForContentType(payload.contentType),
+    },
+    replacesMediaId: payload.replacesMediaId ?? null,
+  });
+}

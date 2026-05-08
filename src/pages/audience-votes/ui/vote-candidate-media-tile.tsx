@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import {
+  Download,
   ExternalLink,
   ImageIcon,
+  ImageOff,
   Loader2,
   Trash2,
   Video,
 } from "lucide-react";
 
 import type { VoteCandidateMedia } from "@/entities/audience-vote";
+import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
   Card,
@@ -17,7 +21,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
-import { formatVoteCandidateMediaFileSize } from "../model/vote-candidate-media";
+import {
+  canBrowserPreviewVoteCandidateMedia,
+  formatVoteCandidateMediaFileSize,
+  formatVoteCandidateMediaType,
+} from "../model/vote-candidate-media";
 
 export function VoteCandidateMediaTile({
   canSoftDelete,
@@ -31,8 +39,8 @@ export function VoteCandidateMediaTile({
   onSoftDelete: (media: VoteCandidateMedia) => void;
 }) {
   return (
-    <Card className="gap-3 py-3 shadow-none">
-      <CardHeader className="grid-cols-[1fr_auto] gap-3 px-3">
+    <Card className="gap-3 overflow-hidden py-0 shadow-none">
+      <CardHeader className="grid-cols-[1fr_auto] gap-3 px-3 pt-3">
         <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
           {media.media_type === "photo" ? (
             <ImageIcon aria-hidden="true" />
@@ -51,17 +59,22 @@ export function VoteCandidateMediaTile({
           />
         </CardAction>
       </CardHeader>
-      <CardContent className="grid gap-2 px-3">
+      <CardContent className="grid gap-3 px-3 pb-3">
         <MediaPreview media={media} />
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <span>#{media.display_order}</span>
-          <span className="text-border">/</span>
-          <span>{formatVoteCandidateMediaFileSize(media.file_size_bytes)}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className="rounded-md" variant="secondary">
+            #{media.display_order}
+          </Badge>
+          <Badge className="rounded-md" variant="outline">
+            {formatVoteCandidateMediaType(media.media_type)}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {formatVoteCandidateMediaFileSize(media.file_size_bytes)}
+          </span>
           {media.archived ? (
-            <>
-              <span className="text-border">/</span>
-              <span>Archived</span>
-            </>
+            <Badge className="rounded-md" variant="outline">
+              Archived
+            </Badge>
           ) : null}
         </div>
       </CardContent>
@@ -70,20 +83,66 @@ export function VoteCandidateMediaTile({
 }
 
 function MediaPreview({ media }: { media: VoteCandidateMedia }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const canPreview =
+    !previewFailed &&
+    canBrowserPreviewVoteCandidateMedia({
+      contentType: media.content_type,
+      mediaType: media.media_type,
+    });
+
+  if (!canPreview) {
+    return <MediaPreviewFallback media={media} />;
+  }
+
   return (
-    <div className="aspect-video overflow-hidden rounded-md bg-muted">
+    <div className="aspect-4/5 overflow-hidden rounded-md bg-muted">
       {media.media_type === "photo" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt={media.file_name}
-          className="size-full object-cover"
+          className="size-full object-contain"
+          onError={() => setPreviewFailed(true)}
           src={media.blob_url}
         />
       ) : (
-        <video className="size-full bg-black object-contain" controls>
+        <video
+          className="size-full bg-black object-contain"
+          controls
+          onError={() => setPreviewFailed(true)}
+          preload="metadata"
+        >
           <source src={media.blob_url} type={media.content_type} />
         </video>
       )}
+    </div>
+  );
+}
+
+function MediaPreviewFallback({ media }: { media: VoteCandidateMedia }) {
+  return (
+    <div className="flex aspect-4/5 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/30 p-4 text-center">
+      <ImageOff aria-hidden="true" className="size-8 text-muted-foreground" />
+      <div>
+        <p className="text-sm font-medium">Preview unavailable</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {media.content_type} can still be opened directly.
+        </p>
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button asChild size="sm" variant="outline">
+          <a href={media.blob_url} rel="noreferrer" target="_blank">
+            <ExternalLink aria-hidden="true" data-icon="inline-start" />
+            Open
+          </a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <a href={media.blob_download_url} rel="noreferrer" target="_blank">
+            <Download aria-hidden="true" data-icon="inline-start" />
+            Download
+          </a>
+        </Button>
+      </div>
     </div>
   );
 }
@@ -110,7 +169,7 @@ function MediaTileActions({
           rel="noreferrer"
           target="_blank"
         >
-          <ExternalLink aria-hidden="true" />
+          <ExternalLink aria-hidden="true" data-icon="inline-start" />
         </a>
       </Button>
       {!isArchived ? (

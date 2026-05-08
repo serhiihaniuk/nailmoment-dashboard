@@ -13,6 +13,7 @@ import {
   AudienceVoteWriteError,
   createAudienceVoteService,
 } from "@/shared/db/service/audience-vote-service";
+import { isPostgresUndefinedTableError } from "@/shared/db/postgres-errors";
 import type { TelegramMiniAppUser } from "@/shared/telegram/mini-app-init-data";
 import { validateTelegramMiniAppInitData } from "@/shared/telegram/mini-app-init-data";
 
@@ -26,8 +27,7 @@ export async function GET(request: Request) {
     const openVote = await audienceVoteService.getOpenAudienceVote();
 
     if (!openVote) {
-      const updateScreen =
-        await audienceVoteService.getAudienceVoteUpdateScreen();
+      const updateScreen = await getSafeAudienceVoteUpdateScreen();
 
       return NextResponse.json(
         parseAudienceVoteMiniAppResponse({
@@ -80,13 +80,8 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error("API Error fetching Audience Vote Mini App feed:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not fetch Audience Vote Mini App feed.";
-
     return NextResponse.json(
-      { message: `Internal Server Error: ${message}` },
+      { message: "Could not fetch Audience Vote Mini App feed." },
       { status: 500 }
     );
   }
@@ -127,13 +122,27 @@ export async function POST(request: Request) {
       );
     }
 
-    const message =
-      error instanceof Error ? error.message : "Could not save Audience Vote.";
-
     return NextResponse.json(
-      { message: `Internal Server Error: ${message}` },
+      { message: "Could not save Audience Vote." },
       { status: 500 }
     );
+  }
+}
+
+async function getSafeAudienceVoteUpdateScreen() {
+  try {
+    return await audienceVoteService.getAudienceVoteUpdateScreen();
+  } catch (error) {
+    if (
+      isPostgresUndefinedTableError(error, "audience_vote_update_screen")
+    ) {
+      console.warn(
+        "Audience Vote update screen table is missing; falling back to default Mini App screen."
+      );
+      return undefined;
+    }
+
+    throw error;
   }
 }
 

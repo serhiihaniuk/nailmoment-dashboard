@@ -31,6 +31,25 @@ import {
 
 export const AUDIENCE_VOTE_UPDATE_SCREEN_ID = "default";
 
+export function buildAudienceVoteCurrentVoteInsertSelectFields({
+  candidateId,
+  currentVoteId,
+  telegramUserId,
+}: {
+  candidateId: string;
+  currentVoteId: string;
+  telegramUserId: number;
+}) {
+  return {
+    id: sql<string>`${currentVoteId}`.as("id"),
+    audience_vote_id: audienceVoteTable.id,
+    candidate_id: sql<string>`${candidateId}`.as("candidate_id"),
+    telegram_user_id: sql<number>`${telegramUserId}`.as("telegram_user_id"),
+    created_at: sql<Date>`now()`.as("created_at"),
+    updated_at: sql<Date>`now()`.as("updated_at"),
+  };
+}
+
 export interface GetAudienceVotesFilters {
   archived?: boolean;
 }
@@ -946,13 +965,13 @@ export function createAudienceVoteService(
       .insert(audienceVoteCurrentVoteTable)
       .select((qb) =>
         qb
-          .select({
-            audience_vote_id: audienceVoteTable.id,
-            candidate_id: sql<string>`${candidateId}`.as("candidate_id"),
-            id: sql<string>`${currentVoteId}`.as("id"),
-            telegram_user_id:
-              sql<number>`${telegramUserId}`.as("telegram_user_id"),
-          })
+          .select(
+            buildAudienceVoteCurrentVoteInsertSelectFields({
+              candidateId,
+              currentVoteId,
+              telegramUserId,
+            })
+          )
           .from(audienceVoteTable)
           .where(
             and(

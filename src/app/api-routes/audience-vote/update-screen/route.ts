@@ -8,6 +8,7 @@ import {
 } from "@/entities/audience-vote";
 import { auth } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
+import { isPostgresUndefinedTableError } from "@/shared/db/postgres-errors";
 import { updateAudienceVoteUpdateScreenClientSchema } from "@/shared/db/schema.zod";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
 
@@ -34,6 +35,12 @@ export async function GET() {
     });
   } catch (error) {
     console.error("API Error fetching Audience Vote Update Screen:", error);
+    if (
+      isPostgresUndefinedTableError(error, "audience_vote_update_screen")
+    ) {
+      return missingUpdateScreenTableResponse();
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -69,6 +76,12 @@ export async function PATCH(request: Request) {
     });
   } catch (error) {
     console.error("API Error updating Audience Vote Update Screen:", error);
+    if (
+      isPostgresUndefinedTableError(error, "audience_vote_update_screen")
+    ) {
+      return missingUpdateScreenTableResponse();
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -82,3 +95,14 @@ export async function PATCH(request: Request) {
 }
 
 export const dynamic = "force-dynamic";
+
+function missingUpdateScreenTableResponse() {
+  return NextResponse.json(
+    {
+      code: "missing_database_table",
+      message:
+        "Database table audience_vote_update_screen is missing. Apply drizzle/0029_audience_vote_update_screen.sql before editing this screen.",
+    },
+    { status: 503 }
+  );
+}

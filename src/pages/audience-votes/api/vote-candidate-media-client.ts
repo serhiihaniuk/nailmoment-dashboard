@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 
 import {
   buildVoteCandidateMediaPath,
+  parseVoteCandidateMedia,
   parseVoteCandidateMediaList,
   voteCandidateMediaUploadPayloadSchema,
   type AudienceVoteId,
@@ -79,7 +80,7 @@ export async function uploadVoteCandidateMedia({
   onUploadProgress?: UploadOptions["onUploadProgress"];
   replacesMediaId?: VoteCandidateMediaId | null;
   voteId: AudienceVoteId;
-}): Promise<void> {
+}): Promise<VoteCandidateMedia> {
   const resolvedFile = resolveVoteCandidateMediaFile(file);
   if (!resolvedFile.ok) {
     throw { message: resolvedFile.message } satisfies VoteCandidateMediaApiError;
@@ -107,7 +108,25 @@ export async function uploadVoteCandidateMedia({
     uploadOptions.onUploadProgress = onUploadProgress;
   }
 
-  await upload(pathname, file, uploadOptions);
+  const blob = await upload(pathname, file, uploadOptions);
+  const response = await fetch(voteCandidateMediaUploadUrl(voteId, candidateId), {
+    body: JSON.stringify({
+      payload: {
+        blob,
+        clientPayload: uploadOptions.clientPayload,
+      },
+      type: "app.confirm-client-upload",
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  const json = await readJson(response);
+
+  if (!response.ok) {
+    throw parseVoteCandidateMediaApiError(json);
+  }
+
+  return parseVoteCandidateMedia(json);
 }
 
 export async function deleteVoteCandidateMedia({

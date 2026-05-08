@@ -2,10 +2,23 @@
 
 import { type FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Save, Smartphone } from "lucide-react";
 
 import type { AudienceVoteUpdateScreen } from "@/entities/audience-vote";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
 import {
   Field,
   FieldDescription,
@@ -82,6 +95,8 @@ export function AudienceVoteUpdateScreenPanel() {
 
   const draft =
     draftOverride ?? createAudienceVoteUpdateScreenDraft(updateScreen);
+  const isSchemaMissing =
+    isError && error.code === "missing_database_table";
 
   function updateDraft<Field extends keyof AudienceVoteUpdateScreenFormDraft>(
     field: Field,
@@ -117,101 +132,154 @@ export function AudienceVoteUpdateScreenPanel() {
   }
 
   const isPending = mutation.isPending;
-  const isDisabled = isLoading || isPending;
+  const isDisabled = isLoading || isPending || isSchemaMissing;
 
   return (
-    <section className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-heading-3">Mini App update screen</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Shown to voters when no Audience Vote is open.
-          </p>
-        </div>
+    <section>
+      <Card className="gap-0 overflow-hidden shadow-surface">
+        <CardHeader className="border-b border-border/60">
+          <CardTitle>Mini App update screen</CardTitle>
+          <CardDescription>
+            Public fallback shown when no Audience Vote is open.
+          </CardDescription>
         {isFetching && !isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 aria-hidden="true" className="animate-spin" size={14} />
-            Refreshing
-          </div>
+          <CardAction className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 aria-hidden="true" className="animate-spin" />
+            <span>Refreshing</span>
+          </CardAction>
         ) : null}
-      </div>
+        </CardHeader>
+        <CardContent className="grid gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex min-w-0 flex-col gap-3">
+            {isSchemaMissing ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Database migration required</AlertTitle>
+                <AlertDescription>
+                  Apply drizzle/0029_audience_vote_update_screen.sql before
+                  editing this screen.
+                </AlertDescription>
+              </Alert>
+            ) : isError ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Could not load update screen</AlertTitle>
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
+            ) : null}
 
-      {isError ? (
-        <p className="font-medium text-destructive">
-          Could not load update screen: {error.message}
-        </p>
-      ) : null}
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Could not save update screen</AlertTitle>
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            ) : null}
 
-      {isLoading ? <Skeleton className="h-52 w-full rounded-lg" /> : null}
+            {savedAt ? (
+              <Alert>
+                <CheckCircle2 aria-hidden="true" />
+                <AlertTitle>Update screen saved</AlertTitle>
+                <AlertDescription>
+                  Saved {formatAudienceVoteDate(savedAt)}.
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-      {!isLoading ? (
-        <form
-          className="grid gap-4 rounded-lg border border-border/60 bg-white p-4 shadow-surface"
-          onSubmit={handleSubmit}
-        >
-          <FieldGroup className="gap-4">
-            <Field data-invalid={Boolean(errors.title)}>
-              <FieldLabel htmlFor="audience-vote-update-screen-title">
-                Title
-              </FieldLabel>
-              <Input
-                aria-invalid={errors.title ? true : undefined}
-                disabled={isDisabled}
-                id="audience-vote-update-screen-title"
-                onChange={(event) => updateDraft("title", event.target.value)}
-                value={draft.title}
-              />
-              <FieldError>{errors.title}</FieldError>
-            </Field>
+            {isLoading ? (
+              <Skeleton className="h-72 w-full rounded-lg" />
+            ) : (
+              <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+                <FieldGroup className="gap-4">
+                  <Field data-invalid={Boolean(errors.title)}>
+                    <FieldLabel htmlFor="audience-vote-update-screen-title">
+                      Title
+                    </FieldLabel>
+                    <Input
+                      aria-invalid={errors.title ? true : undefined}
+                      disabled={isDisabled}
+                      id="audience-vote-update-screen-title"
+                      onChange={(event) =>
+                        updateDraft("title", event.target.value)
+                      }
+                      value={draft.title}
+                    />
+                    <FieldError>{errors.title}</FieldError>
+                  </Field>
 
-            <Field data-invalid={Boolean(errors.message)}>
-              <FieldLabel htmlFor="audience-vote-update-screen-message">
-                Message
-              </FieldLabel>
-              <Textarea
-                aria-invalid={errors.message ? true : undefined}
-                disabled={isDisabled}
-                id="audience-vote-update-screen-message"
-                maxRows={6}
-                onChange={(event) =>
-                  updateDraft("message", event.target.value)
-                }
-                value={draft.message}
-              />
-              <FieldDescription>
-                This text is public in the Telegram Mini App.
-              </FieldDescription>
-              <FieldError>{errors.message}</FieldError>
-            </Field>
-          </FieldGroup>
+                  <Field data-invalid={Boolean(errors.message)}>
+                    <FieldLabel htmlFor="audience-vote-update-screen-message">
+                      Message
+                    </FieldLabel>
+                    <Textarea
+                      aria-invalid={errors.message ? true : undefined}
+                      disabled={isDisabled}
+                      id="audience-vote-update-screen-message"
+                      maxRows={7}
+                      onChange={(event) =>
+                        updateDraft("message", event.target.value)
+                      }
+                      value={draft.message}
+                    />
+                    <FieldDescription>
+                      Ukrainian-only text shown inside Telegram Mini App.
+                    </FieldDescription>
+                    <FieldError>{errors.message}</FieldError>
+                  </Field>
+                </FieldGroup>
 
-          {formError ? (
-            <p className="font-medium text-destructive">{formError}</p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {savedAt
-                ? `Saved ${formatAudienceVoteDate(savedAt)}`
-                : updateScreen
-                  ? `Last updated ${formatAudienceVoteDate(updateScreen.updated_at)}`
-                  : "Not saved yet"}
-            </p>
-            <Button disabled={isDisabled} type="submit">
-              {isPending ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
-              ) : (
-                <Save aria-hidden="true" data-icon="inline-start" />
-              )}
-              Save
-            </Button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    {savedAt
+                      ? `Saved ${formatAudienceVoteDate(savedAt)}`
+                      : updateScreen
+                        ? `Last updated ${formatAudienceVoteDate(updateScreen.updated_at)}`
+                        : "Not saved yet"}
+                  </p>
+                  <Button disabled={isDisabled} type="submit">
+                    {isPending ? (
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin"
+                        data-icon="inline-start"
+                      />
+                    ) : (
+                      <Save aria-hidden="true" data-icon="inline-start" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
-        </form>
-      ) : null}
+
+          <MiniAppUpdateScreenPreview draft={draft} />
+        </CardContent>
+      </Card>
     </section>
+  );
+}
+
+function MiniAppUpdateScreenPreview({
+  draft,
+}: {
+  draft: AudienceVoteUpdateScreenFormDraft;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Smartphone aria-hidden="true" />
+        Public preview
+      </div>
+      <div className="rounded-lg border border-border/70 bg-background p-4 shadow-xs">
+        <p className="text-sm font-semibold">{draft.title}</p>
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+          {draft.message}
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        This is the quiet waiting state voters see before the next vote opens.
+      </p>
+    </div>
   );
 }

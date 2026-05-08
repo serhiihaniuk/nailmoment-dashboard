@@ -81,4 +81,25 @@ describe("Audience Vote Mini App API client", () => {
     });
     expect(JSON.stringify(response)).not.toContain("total_votes");
   });
+
+  test("hides raw server errors from voters when saving fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          message:
+            "Internal Server Error: Insert select error: selected fields are not the same",
+        },
+        { status: 500 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      saveAudienceVoteMiniAppVote({
+        audienceVoteId: audienceVoteIdSchema.parse("vote_1"),
+        candidateId: voteCandidateIdSchema.parse("candidate_2"),
+        initData: "signed-init-data",
+      })
+    ).rejects.toThrow("Не вдалося зберегти голос.");
+  });
 });

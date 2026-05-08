@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleStop, Loader2, Radio } from "lucide-react";
+import { AlertCircle, CircleStop, Loader2, Radio, Send } from "lucide-react";
 
 import type {
   AudienceVote,
@@ -10,8 +10,28 @@ import type {
   AudienceVoteBroadcastId,
   AudienceVoteBroadcastStatus,
 } from "@/entities/audience-vote";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/shared/ui/empty";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
   fetchAudienceVoteBroadcasts,
@@ -101,53 +121,70 @@ export function AudienceVoteBroadcastsPanel({
     processMutation.error?.message ?? interruptMutation.error?.message ?? null;
 
   return (
-    <section className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-heading-3">Broadcasts</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Confirmation, canary status, and Operator interrupt.
-          </p>
-        </div>
+    <section>
+      <Card className="gap-0 overflow-hidden shadow-surface">
+        <CardHeader className="border-b border-border/60">
+          <CardTitle>Broadcasts</CardTitle>
+          <CardDescription>
+            Canary checks, delivery progress, and Operator interrupt.
+          </CardDescription>
         {isProcessingBroadcast ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 aria-hidden="true" className="animate-spin" size={14} />
-            Processing broadcast
-          </div>
+          <CardAction className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 aria-hidden="true" className="animate-spin" />
+            <span>Processing</span>
+          </CardAction>
         ) : null}
-      </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 p-4">
+          {isError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>Could not load broadcasts</AlertTitle>
+              <AlertDescription>{error.message}</AlertDescription>
+            </Alert>
+          ) : null}
 
-      {isError ? (
-        <p className="font-medium text-destructive">
-          Could not load broadcasts: {error.message}
-        </p>
-      ) : null}
+          {mutationError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>Broadcast action failed</AlertTitle>
+              <AlertDescription>{mutationError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-      {mutationError ? (
-        <p className="font-medium text-destructive">{mutationError}</p>
-      ) : null}
+          {isLoading ? <Skeleton className="h-36 w-full rounded-lg" /> : null}
 
-      {isLoading ? <Skeleton className="h-32 w-full rounded-lg" /> : null}
+          {!isLoading && broadcasts && broadcasts.length === 0 ? (
+            <Empty className="border border-border/70 bg-muted/20">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Send aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>No broadcasts yet</EmptyTitle>
+                <EmptyDescription>
+                  Create one when voters need a Telegram reminder.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : null}
 
-      {!isLoading && broadcasts && broadcasts.length === 0 ? (
-        <div className="rounded-lg border border-border/60 bg-white p-6 text-sm text-muted-foreground">
-          No Audience Vote Broadcasts yet.
-        </div>
-      ) : null}
-
-      {!isLoading && broadcasts && broadcasts.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border/60 bg-white shadow-surface">
-          {broadcasts.map((broadcast) => (
-            <BroadcastRow
-              broadcast={broadcast}
-              interruptDisabled={interruptMutation.isPending}
-              key={broadcast.id}
-              onInterrupt={() => interruptMutation.mutate(broadcast.id)}
-              voteTitle={voteTitles.get(broadcast.audience_vote_id) ?? "Vote"}
-            />
-          ))}
-        </div>
-      ) : null}
+          {!isLoading && broadcasts && broadcasts.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-border/70">
+              {broadcasts.map((broadcast) => (
+                <BroadcastRow
+                  broadcast={broadcast}
+                  interruptDisabled={interruptMutation.isPending}
+                  key={broadcast.id}
+                  onInterrupt={() => interruptMutation.mutate(broadcast.id)}
+                  voteTitle={
+                    voteTitles.get(broadcast.audience_vote_id) ?? "Vote"
+                  }
+                />
+              ))}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </section>
   );
 }

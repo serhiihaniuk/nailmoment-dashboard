@@ -39,6 +39,7 @@ export function useVoteCandidateMedia({
   const [file, setFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [replaceMediaId, setReplaceMediaId] =
     useState<VoteCandidateMediaId | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -65,7 +66,7 @@ export function useVoteCandidateMedia({
   );
 
   const uploadMutation = useMutation<
-    void,
+    VoteCandidateMedia,
     VoteCandidateMediaApiError,
     { file: File; replacesMediaId: VoteCandidateMediaId | null }
   >({
@@ -81,16 +82,24 @@ export function useVoteCandidateMedia({
       }),
     onError: (error) => {
       setFormError(error.message);
+      setSuccessMessage(null);
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: audienceVoteCandidateMediaQueryKey({
-          candidateId: candidate.id,
-          voteId: vote.id,
-        }),
+    onSuccess: async (uploadedMedia, variables) => {
+      const queryKey = audienceVoteCandidateMediaQueryKey({
+        candidateId: candidate.id,
+        voteId: vote.id,
       });
+      queryClient.setQueryData<VoteCandidateMedia[]>(queryKey, (current) =>
+        mergeUploadedMedia({
+          media: current,
+          replacesMediaId: variables.replacesMediaId,
+          uploadedMedia,
+        })
+      );
+      await queryClient.invalidateQueries({ queryKey });
       resetFileInput();
       setFormError(null);
+      setSuccessMessage("Media uploaded.");
       setReplaceMediaId(null);
       setUploadProgress(null);
     },
@@ -109,6 +118,7 @@ export function useVoteCandidateMedia({
       }),
     onError: (error) => {
       setFormError(error.message);
+      setSuccessMessage(null);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -118,27 +128,32 @@ export function useVoteCandidateMedia({
         }),
       });
       setFormError(null);
+      setSuccessMessage("Media archived.");
     },
   });
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0] ?? null;
+  function selectFile(selectedFile: File | null) {
     setUploadProgress(null);
+    setSuccessMessage(null);
 
     if (!selectedFile) {
-      setFile(null);
+      resetFileInput();
       return;
     }
 
     const resolvedFile = resolveVoteCandidateMediaFile(selectedFile);
     if (!resolvedFile.ok) {
-      setFile(null);
+      resetFileInput();
       setFormError(resolvedFile.message);
       return;
     }
 
     setFile(selectedFile);
     setFormError(null);
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    selectFile(event.target.files?.[0] ?? null);
   }
 
   function handleReplaceMediaChange(value: string) {
@@ -158,6 +173,8 @@ export function useVoteCandidateMedia({
       return;
     }
 
+    setFormError(null);
+    setSuccessMessage(null);
     uploadMutation.mutate({ file, replacesMediaId: replaceMediaId });
   }
 
@@ -196,10 +213,38 @@ export function useVoteCandidateMedia({
     replaceMediaId,
     replaceMediaSelectValue,
     resetFileInput,
+    selectFile,
     setShowArchived,
     showArchived,
     softDeleteMedia,
+    successMessage,
     uploadProgress,
     uploadSelectedFile,
   };
+}
+
+function mergeUploadedMedia({
+  media,
+  replacesMediaId,
+  uploadedMedia,
+}: {
+  media: VoteCandidateMedia[] | undefined;
+  replacesMediaId: VoteCandidateMediaId | null;
+  uploadedMedia: VoteCandidateMedia;
+}): VoteCandidateMedia[] {
+  const currentMedia = media ?? [];
+  const mergedMedia = currentMedia
+    .filter((item) => item.id !== uploadedMedia.id)
+    .map((item) =>
+      replacesMediaId && item.id === replacesMediaId
+        ? { ...item, archived: true }
+        : item
+    );
+
+  return [...mergedMedia, uploadedMedia].sort(
+    (first, second) =>
+      Number(first.archived) - Number(second.archived) ||
+      first.display_order - second.display_order ||
+      first.created_at.getTime() - second.created_at.getTime()
+  );
 }

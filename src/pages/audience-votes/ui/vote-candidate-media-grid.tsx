@@ -25,14 +25,15 @@ export function VoteCandidateMediaGrid({
 }) {
   if (media.length === 0) {
     return (
-      <Empty className="border border-border/70">
+      <Empty className="min-h-80 border border-border/70 bg-muted/20">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <Images aria-hidden="true" />
           </EmptyMedia>
-          <EmptyTitle>No media</EmptyTitle>
+          <EmptyTitle>No active media</EmptyTitle>
           <EmptyDescription>
-            Upload public Vote Candidate Media before this Audience Vote opens.
+            Upload at least one public photo or video before this Audience Vote
+            opens.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -40,7 +41,7 @@ export function VoteCandidateMediaGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
       {media.map((item) => (
         <VoteCandidateMediaTile
           canSoftDelete={canSoftDelete}

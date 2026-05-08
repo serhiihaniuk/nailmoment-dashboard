@@ -1,9 +1,9 @@
 import {
-  parseAudienceVoteMiniAppVoteResponse,
   parseAudienceVoteMiniAppResponse,
+  parseAudienceVoteMiniAppVoteResponse,
   type AudienceVoteId,
-  type AudienceVoteMiniAppVoteResponse,
   type AudienceVoteMiniAppResponse,
+  type AudienceVoteMiniAppVoteResponse,
   type VoteCandidateId,
 } from "@/entities/audience-vote";
 
@@ -19,7 +19,13 @@ export async function fetchAudienceVoteMiniAppFeed(
   const json: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(parseMiniAppApiErrorMessage(json));
+    throw new Error(
+      parseMiniAppApiErrorMessage({
+        fallback: "Не вдалося завантажити голосування.",
+        status: response.status,
+        value: json,
+      })
+    );
   }
 
   return parseAudienceVoteMiniAppResponse(json);
@@ -49,13 +55,31 @@ export async function saveAudienceVoteMiniAppVote({
   const json: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(parseMiniAppApiErrorMessage(json));
+    throw new Error(
+      parseMiniAppApiErrorMessage({
+        fallback: "Не вдалося зберегти голос.",
+        status: response.status,
+        value: json,
+      })
+    );
   }
 
   return parseAudienceVoteMiniAppVoteResponse(json);
 }
 
-function parseMiniAppApiErrorMessage(value: unknown): string {
+function parseMiniAppApiErrorMessage({
+  fallback,
+  status,
+  value,
+}: {
+  fallback: string;
+  status: number;
+  value: unknown;
+}): string {
+  if (status >= 500) {
+    return fallback;
+  }
+
   if (
     value &&
     typeof value === "object" &&
@@ -65,5 +89,5 @@ function parseMiniAppApiErrorMessage(value: unknown): string {
     return value.message;
   }
 
-  return "Не вдалося завантажити голосування.";
+  return fallback;
 }

@@ -2,9 +2,37 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  Archive,
+  CalendarClock,
+  CheckCircle2,
+  CircleDot,
+  FileText,
+  Loader2,
+  Vote,
+} from "lucide-react";
 
 import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/shared/ui/empty";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
   Table,
@@ -53,12 +81,12 @@ export default function AudienceVotesPage() {
   const stats = useMemo(() => buildVoteStats(votes ?? []), [votes]);
 
   return (
-    <div className="page-container flex flex-col gap-4 py-6">
+    <div className="page-container flex flex-col gap-5 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-heading-1">Audience Votes</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Core setup for Mini App voting stages.
+            Mini App voting stages, broadcasts, and voter-facing fallback text.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -67,28 +95,17 @@ export default function AudienceVotesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <span>{stats.total} total</span>
-        <span className="text-border">/</span>
-        <span>{stats.draft} draft</span>
-        <span className="text-border">/</span>
-        <span>{stats.scheduled} scheduled</span>
-        <span className="text-border">/</span>
-        <span>{stats.open} open</span>
-        <span className="text-border">/</span>
-        <span>{stats.closed} closed</span>
-        {isFetching && !isLoading ? (
-          <>
-            <span className="text-border">/</span>
-            <span>Refreshing...</span>
-          </>
-        ) : null}
-      </div>
+      <AudienceVoteStatsCards
+        isRefreshing={isFetching && !isLoading}
+        stats={stats}
+      />
 
       {isError ? (
-        <p className="font-medium text-destructive">
-          Could not load audience votes: {error.message}
-        </p>
+        <Alert variant="destructive">
+          <FileText aria-hidden="true" />
+          <AlertTitle>Could not load audience votes</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
       ) : null}
 
       {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
@@ -103,73 +120,89 @@ export default function AudienceVotesPage() {
 }
 
 function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
-  if (votes.length === 0) {
-    return (
-      <div className="rounded-lg border border-border/60 bg-white p-10 text-center text-sm text-muted-foreground">
-        No Audience Votes yet.
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-white shadow-surface **:data-[slot=table-container]:rounded-none **:data-[slot=table-container]:border-0">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Title</TableHead>
-            <TableHead>Kind</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Planning window</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Updated</TableHead>
-            <TableHead className="text-right">Candidates</TableHead>
-            <TableHead className="text-right">Results</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {votes.map((vote) => (
-            <TableRow key={vote.id}>
-              <TableCell>
-                <div className="min-w-48">
-                  <div className="font-medium">{vote.title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {vote.id}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>{formatAudienceVoteKind(vote.kind)}</TableCell>
-              <TableCell>
-                <Badge
-                  className="rounded-md"
-                  variant={getStatusBadgeVariant(vote.status)}
-                >
-                  {formatAudienceVoteStatus(vote.status)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatAudienceVoteWindow(vote)}
-              </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
-                {formatAudienceVoteDate(vote.created_at)}
-              </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
-                {formatAudienceVoteDate(vote.updated_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                <AudienceVoteCandidatesDialog vote={vote} />
-              </TableCell>
-              <TableCell className="text-right">
-                <AudienceVoteResultsDialog vote={vote} />
-              </TableCell>
-              <TableCell className="text-right">
-                <AudienceVoteLifecycleActions vote={vote} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Card className="gap-0 overflow-hidden shadow-surface">
+      <CardHeader className="border-b border-border/60">
+        <CardTitle>Voting stages</CardTitle>
+        <CardDescription>
+          Draft, schedule, open, close, and review vote results.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4">
+        {votes.length === 0 ? (
+          <Empty className="border border-border/70 bg-muted/20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Vote aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>No voting stages yet</EmptyTitle>
+              <EmptyDescription>
+                Create the first speaker or battle vote before the event starts.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="**:data-[slot=table-container]:rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Title</TableHead>
+                  <TableHead>Kind</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Planning window</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Candidates</TableHead>
+                  <TableHead className="text-right">Results</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {votes.map((vote) => (
+                  <TableRow key={vote.id}>
+                    <TableCell>
+                      <div className="min-w-48">
+                        <div className="font-medium">{vote.title}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {vote.id}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatAudienceVoteKind(vote.kind)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className="rounded-md"
+                        variant={getStatusBadgeVariant(vote.status)}
+                      >
+                        {formatAudienceVoteStatus(vote.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatAudienceVoteWindow(vote)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {formatAudienceVoteDate(vote.created_at)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {formatAudienceVoteDate(vote.updated_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AudienceVoteCandidatesDialog vote={vote} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AudienceVoteResultsDialog vote={vote} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AudienceVoteLifecycleActions vote={vote} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -187,6 +220,75 @@ function buildVoteStats(votes: AudienceVote[]) {
       scheduled: 0,
       total: 0,
     } satisfies Record<AudienceVoteStatus, number> & { total: number }
+  );
+}
+
+function AudienceVoteStatsCards({
+  isRefreshing,
+  stats,
+}: {
+  isRefreshing: boolean;
+  stats: ReturnType<typeof buildVoteStats>;
+}) {
+  const items = [
+    {
+      icon: Vote,
+      label: "Total",
+      value: stats.total,
+    },
+    {
+      icon: FileText,
+      label: "Draft",
+      value: stats.draft,
+    },
+    {
+      icon: CalendarClock,
+      label: "Scheduled",
+      value: stats.scheduled,
+    },
+    {
+      icon: CircleDot,
+      label: "Open",
+      value: stats.open,
+    },
+    {
+      icon: Archive,
+      label: "Closed",
+      value: stats.closed,
+    },
+  ] as const;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      {items.map(({ icon: Icon, label, value }) => (
+        <Card className="gap-0 py-0 shadow-none" key={label}>
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">
+                {label}
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {value}
+              </p>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <Icon aria-hidden="true" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      {isRefreshing ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground xl:col-span-5">
+          <Loader2 aria-hidden="true" className="animate-spin" />
+          <span>Refreshing dashboard data</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground xl:col-span-5">
+          <CheckCircle2 aria-hidden="true" />
+          <span>Dashboard data is current</span>
+        </div>
+      )}
+    </div>
   );
 }
 
