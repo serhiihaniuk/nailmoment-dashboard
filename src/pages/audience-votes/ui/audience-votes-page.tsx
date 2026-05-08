@@ -25,6 +25,7 @@ import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog"
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
 import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
+import { AudienceVoteUpdateScreenPanel } from "./audience-vote-update-screen-panel";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 
 type BadgeVariant =
@@ -84,6 +85,8 @@ export default function AudienceVotesPage() {
           Could not load audience votes: {error.message}
         </p>
       ) : null}
+
+      <AudienceVoteUpdateScreenPanel />
 
       {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
 

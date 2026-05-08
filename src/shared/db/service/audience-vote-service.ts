@@ -1,15 +1,17 @@
-import { and, asc, count, desc, eq, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
   audienceVoteCurrentVoteTable,
+  audienceVoteUpdateScreenTable,
   telegramUsersTable,
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
   type AudienceVoteCurrentVote,
+  type AudienceVoteUpdateScreen,
   type InsertAudienceVote,
   type TelegramUser,
   type InsertVoteCandidateMedia,
@@ -23,7 +25,21 @@ import {
   insertVoteCandidateSchema,
   patchVoteCandidateClientSchema,
   type PatchVoteCandidateClientInput,
+  updateAudienceVoteUpdateScreenClientSchema,
+  type UpdateAudienceVoteUpdateScreenClientInput,
 } from "@/shared/db/schema.zod";
+
+const AUDIENCE_VOTE_UPDATE_SCREEN_ID = "default";
+
+const defaultAudienceVoteUpdateScreenContent = {
+  body: "Наразі немає відкритого голосування. Ми покажемо нове голосування тут, щойно воно стартує.",
+  button_label: null,
+  button_url: null,
+  headline: "Голосування скоро",
+} satisfies Omit<
+  AudienceVoteUpdateScreen,
+  "created_at" | "id" | "updated_at"
+>;
 
 export interface GetAudienceVotesFilters {
   archived?: boolean;
@@ -142,6 +158,8 @@ export interface IAudienceVoteService {
   getOpenAudienceVote: (
     excludeId?: string
   ) => Promise<AudienceVote | undefined>;
+  getNextPlannedAudienceVote: () => Promise<AudienceVote | undefined>;
+  getAudienceVoteUpdateScreen: () => Promise<AudienceVoteUpdateScreen>;
   getAudienceVoteCurrentVoteCounts: (
     audienceVoteId: string
   ) => Promise<AudienceVoteCurrentVoteCount[]>;
@@ -171,6 +189,9 @@ export interface IAudienceVoteService {
     id: string,
     candidateData: PatchVoteCandidateClientInput
   ) => Promise<VoteCandidate | undefined>;
+  updateAudienceVoteUpdateScreen: (
+    screenData: UpdateAudienceVoteUpdateScreenClientInput
+  ) => Promise<AudienceVoteUpdateScreen>;
   openAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
   upsertTelegramVoter: (
     input: UpsertTelegramVoterInput
@@ -226,6 +247,57 @@ export function createAudienceVoteService(
 
     return result[0];
   };
+
+  const getNextPlannedAudienceVote = async (): Promise<
+    AudienceVote | undefined
+  > => {
+    const result = await db
+      .select()
+      .from(audienceVoteTable)
+      .where(
+        and(
+          eq(audienceVoteTable.archived, false),
+          or(
+            eq(audienceVoteTable.status, "scheduled"),
+            eq(audienceVoteTable.status, "draft")
+          )
+        )
+      )
+      .orderBy(
+        sql`case when ${audienceVoteTable.status} = 'scheduled' then 0 else 1 end`,
+        sql`case when ${audienceVoteTable.window_start} is null then 1 else 0 end`,
+        asc(audienceVoteTable.window_start),
+        desc(audienceVoteTable.created_at)
+      )
+      .limit(1);
+
+    return result[0];
+  };
+
+  const getAudienceVoteUpdateScreen =
+    async (): Promise<AudienceVoteUpdateScreen> => {
+      const result = await db
+        .select()
+        .from(audienceVoteUpdateScreenTable)
+        .where(
+          eq(audienceVoteUpdateScreenTable.id, AUDIENCE_VOTE_UPDATE_SCREEN_ID)
+        )
+        .limit(1);
+
+      const storedScreen = result[0];
+      if (storedScreen) {
+        return storedScreen;
+      }
+
+      const now = new Date();
+
+      return {
+        ...defaultAudienceVoteUpdateScreenContent,
+        created_at: now,
+        id: AUDIENCE_VOTE_UPDATE_SCREEN_ID,
+        updated_at: now,
+      };
+    };
 
   const getAudienceVoteCurrentVoteCounts = async (
     audienceVoteId: string
@@ -386,6 +458,38 @@ export function createAudienceVoteService(
     }
 
     return newAudienceVote;
+  };
+
+  const updateAudienceVoteUpdateScreen = async (
+    screenData: UpdateAudienceVoteUpdateScreenClientInput
+  ): Promise<AudienceVoteUpdateScreen> => {
+    const validatedData =
+      updateAudienceVoteUpdateScreenClientSchema.parse(screenData);
+    const now = new Date();
+
+    const [updatedScreen] = await db
+      .insert(audienceVoteUpdateScreenTable)
+      .values({
+        ...validatedData,
+        id: AUDIENCE_VOTE_UPDATE_SCREEN_ID,
+        updated_at: now,
+      })
+      .onConflictDoUpdate({
+        set: {
+          ...validatedData,
+          updated_at: now,
+        },
+        target: audienceVoteUpdateScreenTable.id,
+      })
+      .returning();
+
+    if (!updatedScreen) {
+      throw new Error(
+        "Audience Vote Update Screen update failed to return the record."
+      );
+    }
+
+    return updatedScreen;
   };
 
   const addVoteCandidate = async (
@@ -952,8 +1056,10 @@ export function createAudienceVoteService(
     completeVoteCandidateMediaUpload,
     getAudienceVote,
     getAudienceVoteCurrentVoteCounts,
+    getAudienceVoteUpdateScreen,
     getAudienceVotes,
     getCurrentVoteForTelegramVoter,
+    getNextPlannedAudienceVote,
     getOpenAudienceVote,
     getVoteCandidate,
     getVoteCandidateMedia,
@@ -963,6 +1069,7 @@ export function createAudienceVoteService(
     saveCurrentVote,
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
+    updateAudienceVoteUpdateScreen,
     updateVoteCandidate,
     upsertTelegramVoter,
   };

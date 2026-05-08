@@ -5,9 +5,11 @@ import {
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
   saveAudienceVoteMiniAppVoteRequestSchema,
+  type AudienceVoteUpdateScreenNextVote,
 } from "@/entities/audience-vote";
 import { readTelegramAudienceVoteBotToken } from "@/shared/config/env";
 import { db } from "@/shared/db";
+import type { AudienceVote } from "@/shared/db/schema";
 import {
   AudienceVoteWriteError,
   createAudienceVoteService,
@@ -17,12 +19,6 @@ import { validateTelegramMiniAppInitData } from "@/shared/telegram/mini-app-init
 
 const audienceVoteService = createAudienceVoteService(db);
 
-const fallbackUpdateScreen = {
-  message:
-    "Наразі немає відкритого голосування. Ми покажемо нове голосування тут, щойно воно стартує.",
-  title: "Голосування скоро",
-};
-
 export async function GET(request: Request) {
   try {
     const authenticated = await authenticateMiniAppRequest(request);
@@ -31,10 +27,21 @@ export async function GET(request: Request) {
     const openVote = await audienceVoteService.getOpenAudienceVote();
 
     if (!openVote) {
+      const [updateScreen, nextVote] = await Promise.all([
+        audienceVoteService.getAudienceVoteUpdateScreen(),
+        audienceVoteService.getNextPlannedAudienceVote(),
+      ]);
+
       return NextResponse.json(
         parseAudienceVoteMiniAppResponse({
           status: "update_screen",
-          update_screen: fallbackUpdateScreen,
+          update_screen: {
+            body: updateScreen.body,
+            button_label: updateScreen.button_label,
+            button_url: updateScreen.button_url,
+            headline: updateScreen.headline,
+            next_vote: toUpdateScreenNextVote(nextVote),
+          },
         }),
         { status: 200 }
       );
@@ -187,6 +194,22 @@ async function authenticateMiniAppRequest(
   });
 
   return { ok: true, user: validatedInitData.user };
+}
+
+function toUpdateScreenNextVote(
+  vote: AudienceVote | undefined
+): AudienceVoteUpdateScreenNextVote | null {
+  if (!vote || (vote.status !== "draft" && vote.status !== "scheduled")) {
+    return null;
+  }
+
+  return {
+    kind: vote.kind,
+    status: vote.status,
+    title: vote.title,
+    window_end: vote.window_end,
+    window_start: vote.window_start,
+  };
 }
 
 export const dynamic = "force-dynamic";

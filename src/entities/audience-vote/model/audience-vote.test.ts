@@ -5,6 +5,8 @@ import {
   parsePublicVoteCandidate,
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
+  parseAudienceVoteUpdateScreenSettings,
+  parsePublicAudienceVoteUpdateScreen,
   parseAudienceVote,
   parseAudienceVoteList,
   buildAudienceVoteResults,
@@ -332,6 +334,62 @@ describe("audience vote parsing", () => {
     expect(JSON.stringify(feed)).not.toContain("blob_download_url");
     expect(JSON.stringify(feed)).not.toContain("blob_pathname");
     expect(JSON.stringify(feed)).not.toContain("total_votes");
+  });
+
+  test("parses Operator-managed update screen settings", () => {
+    const settings = parseAudienceVoteUpdateScreenSettings({
+      body: "Нове голосування зʼявиться після старту.",
+      button_label: "Відкрити сайт",
+      button_url: "https://nailmoment.pl",
+      created_at: "2026-05-08T10:00:00.000Z",
+      headline: "Голосування скоро",
+      id: "default",
+      updated_at: "2026-05-08T10:00:00.000Z",
+    });
+
+    expect(settings.created_at).toBeInstanceOf(Date);
+    expect(settings.button_url).toBe("https://nailmoment.pl");
+  });
+
+  test("parses Mini App update screen without result totals", () => {
+    const updateScreen = parsePublicAudienceVoteUpdateScreen({
+      body: "Нове голосування зʼявиться після старту.",
+      button_label: null,
+      button_url: null,
+      headline: "Голосування скоро",
+      next_vote: {
+        kind: "battle",
+        status: "scheduled",
+        title: "Battle vote",
+        window_end: "2026-05-08T18:00:00.000Z",
+        window_start: "2026-05-08T17:00:00.000Z",
+      },
+    });
+
+    expect(updateScreen.next_vote?.window_start).toBeInstanceOf(Date);
+    expect(JSON.stringify(updateScreen)).not.toContain("total_votes");
+    expect(JSON.stringify(updateScreen)).not.toContain("results");
+  });
+
+  test("parses Mini App update screen responses without result totals", () => {
+    const response = parseAudienceVoteMiniAppResponse({
+      status: "update_screen",
+      update_screen: {
+        body: "Нове голосування зʼявиться після старту.",
+        button_label: "Відкрити сайт",
+        button_url: "https://nailmoment.pl",
+        headline: "Голосування скоро",
+        next_vote: null,
+      },
+    });
+
+    expect(response).toMatchObject({
+      status: "update_screen",
+      update_screen: {
+        headline: "Голосування скоро",
+      },
+    });
+    expect(JSON.stringify(response)).not.toContain("total_votes");
   });
 
   test("parses Mini App save vote responses without result totals", () => {

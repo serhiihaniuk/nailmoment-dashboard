@@ -2,9 +2,11 @@ import {
   parseAudienceVote,
   parseAudienceVoteList,
   parseAudienceVoteResults,
+  parseAudienceVoteUpdateScreenSettings,
   type AudienceVote,
   type AudienceVoteId,
   type AudienceVoteResults,
+  type AudienceVoteUpdateScreenSettings,
 } from "@/entities/audience-vote";
 import {
   parseCreateAudienceVoteApiError,
@@ -15,6 +17,11 @@ import {
   parseAudienceVoteLifecycleApiError,
   type AudienceVoteLifecycleApiError,
 } from "../model/audience-vote-lifecycle";
+import {
+  parseAudienceVoteUpdateScreenApiError,
+  type AudienceVoteUpdateScreenApiError,
+  type AudienceVoteUpdateScreenFormValues,
+} from "../model/audience-vote-update-screen-form";
 
 export async function fetchAudienceVotes(): Promise<AudienceVote[]> {
   const response = await fetch("/api/audience-vote");
@@ -38,6 +45,34 @@ export async function fetchAudienceVoteResults(
   }
 
   return parseAudienceVoteResults(await response.json());
+}
+
+export async function fetchAudienceVoteUpdateScreen(): Promise<AudienceVoteUpdateScreenSettings> {
+  const response = await fetch("/api/audience-vote/update-screen");
+  const json: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error("Could not load Audience Vote Update Screen.");
+  }
+
+  return parseAudienceVoteUpdateScreenSettings(json);
+}
+
+export async function updateAudienceVoteUpdateScreen(
+  body: AudienceVoteUpdateScreenFormValues
+): Promise<AudienceVoteUpdateScreenSettings> {
+  const response = await fetch("/api/audience-vote/update-screen", {
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    method: "PATCH",
+  });
+  const json: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw parseAudienceVoteUpdateScreenApiError(json);
+  }
+
+  return parseAudienceVoteUpdateScreenSettings(json);
 }
 
 export async function createAudienceVote(
@@ -87,5 +122,8 @@ async function updateAudienceVoteLifecycle(
   return parseAudienceVote(json);
 }
 
-export type { AudienceVoteLifecycleApiError, CreateAudienceVoteApiError };
-
+export type {
+  AudienceVoteLifecycleApiError,
+  AudienceVoteUpdateScreenApiError,
+  CreateAudienceVoteApiError,
+};

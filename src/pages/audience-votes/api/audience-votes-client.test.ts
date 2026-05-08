@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { audienceVoteIdSchema } from "@/entities/audience-vote";
-import { fetchAudienceVoteResults } from "./audience-votes-client";
+import {
+  fetchAudienceVoteResults,
+  fetchAudienceVoteUpdateScreen,
+  updateAudienceVoteUpdateScreen,
+} from "./audience-votes-client";
 
 describe("audience votes API client", () => {
   afterEach(() => {
@@ -56,5 +60,65 @@ describe("audience votes API client", () => {
     await expect(
       fetchAudienceVoteResults(audienceVoteIdSchema.parse("vote_1"))
     ).rejects.toThrow("Could not load Audience Vote results.");
+  });
+
+  test("fetches Operator-managed update screen settings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        body: "Нове голосування зʼявиться після старту.",
+        button_label: null,
+        button_url: null,
+        created_at: "2026-05-08T10:00:00.000Z",
+        headline: "Голосування скоро",
+        id: "default",
+        updated_at: "2026-05-08T10:00:00.000Z",
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = await fetchAudienceVoteUpdateScreen();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/update-screen"
+    );
+    expect(settings.updated_at).toBeInstanceOf(Date);
+    expect(settings.headline).toBe("Голосування скоро");
+  });
+
+  test("updates Operator-managed update screen settings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        body: "Нове голосування зʼявиться після старту.",
+        button_label: "Відкрити сайт",
+        button_url: "https://nailmoment.pl",
+        created_at: "2026-05-08T10:00:00.000Z",
+        headline: "Голосування скоро",
+        id: "default",
+        updated_at: "2026-05-08T10:01:00.000Z",
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = await updateAudienceVoteUpdateScreen({
+      body: "Нове голосування зʼявиться після старту.",
+      button_label: "Відкрити сайт",
+      button_url: "https://nailmoment.pl",
+      headline: "Голосування скоро",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/update-screen",
+      {
+        body: JSON.stringify({
+          body: "Нове голосування зʼявиться після старту.",
+          button_label: "Відкрити сайт",
+          button_url: "https://nailmoment.pl",
+          headline: "Голосування скоро",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
+      }
+    );
+    expect(settings.button_url).toBe("https://nailmoment.pl");
   });
 });

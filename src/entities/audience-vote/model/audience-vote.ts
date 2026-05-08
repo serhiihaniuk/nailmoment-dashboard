@@ -205,6 +205,32 @@ export const publicAudienceVoteSchema = z.object({
   window_start: nullableDateSchema,
 });
 
+export const audienceVoteUpdateScreenSettingsSchema = z.object({
+  body: nonEmptyStringSchema,
+  button_label: nullableTextSchema,
+  button_url: z.string().url().nullable(),
+  created_at: dateSchema,
+  headline: nonEmptyStringSchema,
+  id: nonEmptyStringSchema,
+  updated_at: dateSchema,
+});
+
+export const audienceVoteUpdateScreenNextVoteSchema = z.object({
+  kind: audienceVoteKindSchema,
+  status: z.enum(["draft", "scheduled"]),
+  title: nonEmptyStringSchema,
+  window_end: nullableDateSchema,
+  window_start: nullableDateSchema,
+});
+
+export const publicAudienceVoteUpdateScreenSchema = z.object({
+  body: nonEmptyStringSchema,
+  button_label: nullableTextSchema,
+  button_url: z.string().url().nullable(),
+  headline: nonEmptyStringSchema,
+  next_vote: audienceVoteUpdateScreenNextVoteSchema.nullable(),
+});
+
 export const audienceVoteMiniAppResponseSchema = z.discriminatedUnion(
   "status",
   [
@@ -216,10 +242,7 @@ export const audienceVoteMiniAppResponseSchema = z.discriminatedUnion(
     }),
     z.object({
       status: z.literal("update_screen"),
-      update_screen: z.object({
-        message: nonEmptyStringSchema,
-        title: nonEmptyStringSchema,
-      }),
+      update_screen: publicAudienceVoteUpdateScreenSchema,
     }),
   ]
 );
@@ -309,6 +332,15 @@ export type PublicVoteCandidateMedia = z.infer<
 >;
 export type MiniAppVoteCandidate = z.infer<typeof miniAppVoteCandidateSchema>;
 export type PublicAudienceVote = z.infer<typeof publicAudienceVoteSchema>;
+export type AudienceVoteUpdateScreenSettings = z.infer<
+  typeof audienceVoteUpdateScreenSettingsSchema
+>;
+export type AudienceVoteUpdateScreenNextVote = z.infer<
+  typeof audienceVoteUpdateScreenNextVoteSchema
+>;
+export type PublicAudienceVoteUpdateScreen = z.infer<
+  typeof publicAudienceVoteUpdateScreenSchema
+>;
 export type AudienceVoteMiniAppResponse = z.infer<
   typeof audienceVoteMiniAppResponseSchema
 >;
@@ -560,6 +592,18 @@ export function parseAudienceVoteMiniAppResponse(
   value: unknown
 ): AudienceVoteMiniAppResponse {
   return audienceVoteMiniAppResponseSchema.parse(value);
+}
+
+export function parseAudienceVoteUpdateScreenSettings(
+  value: unknown
+): AudienceVoteUpdateScreenSettings {
+  return audienceVoteUpdateScreenSettingsSchema.parse(value);
+}
+
+export function parsePublicAudienceVoteUpdateScreen(
+  value: unknown
+): PublicAudienceVoteUpdateScreen {
+  return publicAudienceVoteUpdateScreenSchema.parse(value);
 }
 
 export function parseAudienceVoteMiniAppVoteResponse(

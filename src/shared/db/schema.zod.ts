@@ -7,6 +7,7 @@ import {
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
   audienceVoteTable,
+  audienceVoteUpdateScreenTable,
   battleTicketTable,
   cookieConsentActionEnum,
   cookieConsentEventTable,
@@ -162,6 +163,16 @@ const audienceVoteTitleSchema = z
   .trim()
   .min(1, "Title is required")
   .max(160, "Title must be 160 characters or fewer");
+const audienceVoteUpdateScreenHeadlineSchema = z
+  .string()
+  .trim()
+  .min(1, "Headline is required")
+  .max(120, "Headline must be 120 characters or fewer");
+const audienceVoteUpdateScreenBodySchema = z
+  .string()
+  .trim()
+  .min(1, "Body is required")
+  .max(1000, "Body must be 1000 characters or fewer");
 const voteCandidateDisplayNameSchema = z
   .string()
   .trim()
@@ -199,6 +210,36 @@ function optionalNullableTrimmedTextSchema(max: number, message: string) {
   );
 }
 
+function optionalNullableUrlSchema(max: number, message: string) {
+  return z.preprocess(
+    normalizeOptionalText,
+    z
+      .string()
+      .url("Button link must be a valid URL")
+      .max(max, message)
+      .nullable()
+      .optional()
+  );
+}
+
+function validateAudienceVoteUpdateScreenButton(
+  value: { button_label?: string | null; button_url?: string | null },
+  ctx: z.RefinementCtx
+) {
+  const hasLabel = Boolean(value.button_label);
+  const hasUrl = Boolean(value.button_url);
+
+  if (hasLabel === hasUrl) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "Button label and link must be filled together",
+    path: hasLabel ? ["button_url"] : ["button_label"],
+  });
+}
+
 export const selectAudienceVoteSchema = createSelectSchema(audienceVoteTable);
 
 export const insertAudienceVoteSchema = createInsertSchema(
@@ -231,6 +272,56 @@ export type CreateAudienceVoteClientInput = z.input<
 >;
 export type CreateAudienceVoteClientOutput = z.output<
   typeof createAudienceVoteClientSchema
+>;
+
+export const selectAudienceVoteUpdateScreenSchema = createSelectSchema(
+  audienceVoteUpdateScreenTable
+);
+
+export const insertAudienceVoteUpdateScreenSchema = createInsertSchema(
+  audienceVoteUpdateScreenTable,
+  {
+    body: audienceVoteUpdateScreenBodySchema,
+    button_label: nullableTrimmedTextSchema(
+      80,
+      "Button label must be 80 characters or fewer"
+    ),
+    button_url: z.preprocess(
+      normalizeOptionalText,
+      z
+        .string()
+        .url("Button link must be a valid URL")
+        .max(500, "Button link must be 500 characters or fewer")
+        .nullable()
+    ),
+    headline: audienceVoteUpdateScreenHeadlineSchema,
+    id: z.string().trim().min(1, "ID is required"),
+  }
+).superRefine(validateAudienceVoteUpdateScreenButton);
+
+export const updateAudienceVoteUpdateScreenClientSchema = z
+  .object({
+    body: audienceVoteUpdateScreenBodySchema,
+    button_label: optionalNullableTrimmedTextSchema(
+      80,
+      "Button label must be 80 characters or fewer"
+    ).transform((value) => value ?? null),
+    button_url: optionalNullableUrlSchema(
+      500,
+      "Button link must be 500 characters or fewer"
+    ).transform((value) => value ?? null),
+    headline: audienceVoteUpdateScreenHeadlineSchema,
+  })
+  .superRefine(validateAudienceVoteUpdateScreenButton);
+
+export type InsertAudienceVoteUpdateScreenInput = z.input<
+  typeof insertAudienceVoteUpdateScreenSchema
+>;
+export type UpdateAudienceVoteUpdateScreenClientInput = z.input<
+  typeof updateAudienceVoteUpdateScreenClientSchema
+>;
+export type UpdateAudienceVoteUpdateScreenClientOutput = z.output<
+  typeof updateAudienceVoteUpdateScreenClientSchema
 >;
 
 export const selectVoteCandidateSchema = createSelectSchema(voteCandidateTable);

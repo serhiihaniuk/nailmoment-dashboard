@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  CalendarClock,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   ImageIcon,
   Loader2,
   RefreshCw,
@@ -16,7 +18,9 @@ import { useEffect, useState } from "react";
 import type {
   AudienceVoteKind,
   AudienceVoteMiniAppResponse,
+  AudienceVoteUpdateScreenNextVote,
   MiniAppVoteCandidate,
+  PublicAudienceVoteUpdateScreen,
   PublicVoteCandidateMedia,
   VoteCandidateId,
 } from "@/entities/audience-vote";
@@ -180,15 +184,56 @@ function MiniAppBody({
   }
 
   if (loadState.data.status === "update_screen") {
-    return (
-      <CenteredPanel
-        message={loadState.data.update_screen.message}
-        title={loadState.data.update_screen.title}
-      />
-    );
+    return <UpdateScreen updateScreen={loadState.data.update_screen} />;
   }
 
   return <VoteFeed data={loadState.data} initData={loadState.initData} />;
+}
+
+function UpdateScreen({
+  updateScreen,
+}: {
+  updateScreen: PublicAudienceVoteUpdateScreen;
+}) {
+  const hasButton = Boolean(
+    updateScreen.button_label && updateScreen.button_url
+  );
+
+  return (
+    <CenteredPanel
+      action={
+        hasButton ? (
+          <a
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-neutral-950 transition hover:bg-white/90"
+            href={updateScreen.button_url ?? undefined}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {updateScreen.button_label}
+            <ExternalLink aria-hidden="true" className="size-4" />
+          </a>
+        ) : undefined
+      }
+      icon={<CalendarClock aria-hidden="true" />}
+      message={updateScreen.body}
+      title={updateScreen.headline}
+    >
+      {updateScreen.next_vote ? (
+        <div className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-3 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-300">
+            Далі
+          </p>
+          <p className="mt-1 text-sm font-medium text-white">
+            {updateScreen.next_vote.title}
+          </p>
+          <p className="mt-1 text-xs text-white/60">
+            {formatAudienceVoteKind(updateScreen.next_vote.kind)}
+            {formatNextVoteWindow(updateScreen.next_vote)}
+          </p>
+        </div>
+      ) : null}
+    </CenteredPanel>
+  );
 }
 
 function VoteFeed({
@@ -403,11 +448,13 @@ function CandidateMedia({
 
 function CenteredPanel({
   action,
+  children,
   icon,
   message,
   title,
 }: {
   action?: ReactNode;
+  children?: ReactNode;
   icon?: ReactNode;
   message: string;
   title: string;
@@ -422,8 +469,11 @@ function CenteredPanel({
         ) : null}
         <div>
           <h2 className="text-xl font-semibold">{title}</h2>
-          <p className="mt-2 text-sm leading-6 text-white/70">{message}</p>
+          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-white/70">
+            {message}
+          </p>
         </div>
+        {children}
         {action}
       </div>
     </section>
@@ -440,4 +490,35 @@ function formatAudienceVoteKind(kind: AudienceVoteKind): string {
   }
 
   return "Фінальний батл";
+}
+
+function formatNextVoteWindow({
+  window_end,
+  window_start,
+}: AudienceVoteUpdateScreenNextVote): string {
+  if (window_start && window_end) {
+    return ` / ${formatMiniAppDate(window_start)} - ${formatMiniAppDate(
+      window_end
+    )}`;
+  }
+
+  if (window_start) {
+    return ` / ${formatMiniAppDate(window_start)}`;
+  }
+
+  if (window_end) {
+    return ` / до ${formatMiniAppDate(window_end)}`;
+  }
+
+  return "";
+}
+
+function formatMiniAppDate(value: Date): string {
+  return new Intl.DateTimeFormat("uk-UA", {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    timeZone: "Europe/Warsaw",
+  }).format(value);
 }

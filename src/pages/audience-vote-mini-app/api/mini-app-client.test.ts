@@ -46,6 +46,40 @@ describe("Audience Vote Mini App API client", () => {
     expect(JSON.stringify(feed)).not.toContain("total_votes");
   });
 
+  test("fetches the managed update screen without result totals", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        status: "update_screen",
+        update_screen: {
+          body: "Нове голосування зʼявиться після старту.",
+          button_label: "Відкрити сайт",
+          button_url: "https://nailmoment.pl",
+          headline: "Голосування скоро",
+          next_vote: {
+            kind: "speaker",
+            status: "scheduled",
+            title: "Speaker vote",
+            window_end: null,
+            window_start: "2026-05-08T17:00:00.000Z",
+          },
+        },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const feed = await fetchAudienceVoteMiniAppFeed("signed-init-data");
+
+    expect(feed).toMatchObject({
+      status: "update_screen",
+      update_screen: {
+        headline: "Голосування скоро",
+        next_vote: { title: "Speaker vote" },
+      },
+    });
+    expect(JSON.stringify(feed)).not.toContain("total_votes");
+    expect(JSON.stringify(feed)).not.toContain("results");
+  });
+
   test("saves the current vote through the Telegram initData boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({

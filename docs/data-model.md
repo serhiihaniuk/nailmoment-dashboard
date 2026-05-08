@@ -160,6 +160,16 @@ erDiagram
     timestamptz updated_at
   }
 
+  audience_vote_update_screen {
+    text id PK
+    text headline
+    text body
+    text button_label
+    text button_url
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
   speaker_vote_tg {
     text id PK
     text voted_for_id
@@ -343,6 +353,12 @@ the current selection instead of preserving vote-change history. Operator
 results aggregate this table by `candidate_id` and do not expose a voter list.
 Broadcasts are handled by later Audience Vote slices.
 
+`audience_vote_update_screen` stores singleton Operator-managed Ukrainian
+content for the Mini App waiting state when no Audience Vote is open. It can
+include a headline, body, and optional button label/link. The Mini App may add
+next planned Audience Vote context from `audience_vote`, but never adds results
+or vote totals to the update-screen response.
+
 ## Finance Formula
 
 ```txt
@@ -384,5 +400,7 @@ Relevant finance/Stripe migrations:
   allows only one non-deleted open Audience Vote.
 - `drizzle/0026_audience_vote_current_votes.sql`: adds the current vote rows
   used for aggregate Operator results and later Mini App vote changes.
+- `drizzle/0027_audience_vote_update_screen.sql`: adds the singleton content
+  table for the Audience Vote Update Screen.
 
 Production migration work must follow `AGENTS.md`.

@@ -138,12 +138,13 @@ GET /audience-vote
 GET /api/audience-vote/mini-app
   -> validates Telegram Mini App initData with TG_AUDIENCE_VOTE_BOT_TOKEN
   -> upserts/reactivates the Telegram Voter
-  -> returns the open public Audience Vote feed or a safe update screen fallback
+  -> returns the open public Audience Vote feed or the Operator-managed update screen
 ```
 
 This API is intentionally not Better Auth protected. It trusts only server-side
 Telegram `initData` validation and never returns Vote Candidate Internal Names
-or Operator-only media fields.
+or Operator-only media fields. When no Audience Vote is open, it may include
+next planned Audience Vote context, but it does not return result totals.
 
 ## Audience Vote Bot
 
