@@ -294,6 +294,10 @@ Important fields:
 - `window_start` / `window_end`: optional planning/display window.
 - `archived`: soft-delete flag; normal Operator lists exclude archived rows.
 
+Only one non-archived `audience_vote` row may have `status = 'open'` at a
+time. The app validates that rule before opening, and
+`audience_vote_one_open_active_idx` enforces it in Postgres.
+
 `vote_candidate` stores Operator-managed options for an Audience Vote.
 
 Important fields:
@@ -319,8 +323,8 @@ Important fields:
   Operators and later cleanup, but normal voter-facing reads should use active
   media only.
 
-Opening, closing, voter rows, and broadcasts are handled by later Audience Vote
-slices.
+Opening and closing are handled by the Audience Vote lifecycle routes. Voter
+rows and broadcasts are handled by later Audience Vote slices.
 
 ## Finance Formula
 
@@ -359,5 +363,7 @@ Relevant finance/Stripe migrations:
 - `drizzle/0023_vote_candidates.sql`: adds Vote Candidates for Audience Votes.
 - `drizzle/0024_vote_candidate_media.sql`: adds Vote Candidate Media records
   for public Vercel Blob uploads.
+- `drizzle/0025_audience_vote_one_open.sql`: adds the partial unique index that
+  allows only one non-deleted open Audience Vote.
 
 Production migration work must follow `AGENTS.md`.

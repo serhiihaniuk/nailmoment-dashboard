@@ -241,6 +241,34 @@ export type VoteCandidateMediaList = z.infer<
   typeof voteCandidateMediaListSchema
 >;
 
+export type AudienceVoteOpenValidationIssueCode =
+  | "already_open"
+  | "another_vote_open"
+  | "closed_final"
+  | "missing_candidate_media"
+  | "missing_kind"
+  | "missing_title"
+  | "not_enough_candidates"
+  | "not_openable_status";
+
+export interface AudienceVoteOpenValidationIssue {
+  candidateId?: string;
+  code: AudienceVoteOpenValidationIssueCode;
+  message: string;
+}
+
+export interface AudienceVoteOpenReadinessInput {
+  activeCandidates: Array<{ display_name: string; id: string }>;
+  activeMediaCountsByCandidateId: ReadonlyMap<string, number>;
+  otherOpenVote?: { id: string; title: string } | null;
+  vote: {
+    id: string;
+    kind: string;
+    status: AudienceVoteStatus;
+    title: string;
+  };
+}
+
 export function getVoteCandidateMediaTypeForContentType(
   contentType: VoteCandidateMediaContentType
 ): VoteCandidateMediaType {
@@ -272,6 +300,75 @@ export function buildVoteCandidateMediaPath({
     "media",
     `${mediaId}.${extension}`,
   ].join("/");
+}
+
+export function validateAudienceVoteOpenReadiness({
+  activeCandidates,
+  activeMediaCountsByCandidateId,
+  otherOpenVote,
+  vote,
+}: AudienceVoteOpenReadinessInput): AudienceVoteOpenValidationIssue[] {
+  const issues: AudienceVoteOpenValidationIssue[] = [];
+
+  if (vote.title.trim().length === 0) {
+    issues.push({
+      code: "missing_title",
+      message: "Audience Vote title is required before opening.",
+    });
+  }
+
+  if (!audienceVoteKindSchema.safeParse(vote.kind).success) {
+    issues.push({
+      code: "missing_kind",
+      message: "Audience Vote kind is required before opening.",
+    });
+  }
+
+  if (vote.status === "closed") {
+    issues.push({
+      code: "closed_final",
+      message: "Closed Audience Votes cannot be reopened.",
+    });
+  } else if (vote.status === "open") {
+    issues.push({
+      code: "already_open",
+      message: "This Audience Vote is already open.",
+    });
+  } else if (vote.status !== "draft" && vote.status !== "scheduled") {
+    issues.push({
+      code: "not_openable_status",
+      message: "Only draft or scheduled Audience Votes can be opened.",
+    });
+  }
+
+  if (otherOpenVote && otherOpenVote.id !== vote.id) {
+    issues.push({
+      code: "another_vote_open",
+      message: `Another Audience Vote is already open: ${otherOpenVote.title}.`,
+    });
+  }
+
+  if (activeCandidates.length < 2) {
+    issues.push({
+      code: "not_enough_candidates",
+      message: "At least two active Vote Candidates are required before opening.",
+    });
+  }
+
+  for (const candidate of activeCandidates) {
+    const activeMediaCount =
+      activeMediaCountsByCandidateId.get(candidate.id) ?? 0;
+
+    if (activeMediaCount < 1) {
+      issues.push({
+        candidateId: candidate.id,
+        code: "missing_candidate_media",
+        message: `${candidate.display_name} needs at least one active media item before opening.`,
+      });
+    }
+  }
+
+  return issues;
 }
 
 export function parseAudienceVote(value: unknown): AudienceVote {

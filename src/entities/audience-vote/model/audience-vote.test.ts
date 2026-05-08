@@ -7,6 +7,7 @@ import {
   parseAudienceVoteList,
   parseVoteCandidate,
   parseVoteCandidateMedia,
+  validateAudienceVoteOpenReadiness,
   voteCandidateMediaUploadPayloadSchema,
 } from "./audience-vote";
 
@@ -141,6 +142,71 @@ describe("audience vote parsing", () => {
         sizeBytes: 21 * 1024 * 1024,
       })
     ).toThrow("Photos must be 20 MB or less");
+  });
+
+  test("validates the ready-to-open ballot rules", () => {
+    const issues = validateAudienceVoteOpenReadiness({
+      activeCandidates: [
+        { display_name: "Speaker A", id: "candidate_1" },
+        { display_name: "Speaker B", id: "candidate_2" },
+      ],
+      activeMediaCountsByCandidateId: new Map([
+        ["candidate_1", 1],
+        ["candidate_2", 1],
+      ]),
+      otherOpenVote: null,
+      vote: {
+        id: "vote_1",
+        kind: "speaker",
+        status: "draft",
+        title: "Speaker vote",
+      },
+    });
+
+    expect(issues).toEqual([]);
+  });
+
+  test("reports all blockers before opening a ballot", () => {
+    const issues = validateAudienceVoteOpenReadiness({
+      activeCandidates: [{ display_name: "Speaker A", id: "candidate_1" }],
+      activeMediaCountsByCandidateId: new Map(),
+      otherOpenVote: { id: "vote_2", title: "Battle vote" },
+      vote: {
+        id: "vote_1",
+        kind: "speaker",
+        status: "scheduled",
+        title: " ",
+      },
+    });
+
+    expect(issues.map((issue) => issue.code)).toEqual([
+      "missing_title",
+      "another_vote_open",
+      "not_enough_candidates",
+      "missing_candidate_media",
+    ]);
+  });
+
+  test("treats closed ballots as final", () => {
+    const issues = validateAudienceVoteOpenReadiness({
+      activeCandidates: [
+        { display_name: "Speaker A", id: "candidate_1" },
+        { display_name: "Speaker B", id: "candidate_2" },
+      ],
+      activeMediaCountsByCandidateId: new Map([
+        ["candidate_1", 1],
+        ["candidate_2", 1],
+      ]),
+      otherOpenVote: null,
+      vote: {
+        id: "vote_1",
+        kind: "speaker",
+        status: "closed",
+        title: "Speaker vote",
+      },
+    });
+
+    expect(issues.map((issue) => issue.code)).toContain("closed_final");
   });
 });
 

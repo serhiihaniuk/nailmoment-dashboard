@@ -176,6 +176,13 @@
       "when": 1778250000000,
       "tag": "0024_vote_candidate_media",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1778253000000,
+      "tag": "0025_audience_vote_one_open",
+      "breakpoints": true
     }
   ]
 }

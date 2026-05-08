@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne, or } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/shared/db";
 import {
@@ -42,11 +42,37 @@ export interface CompleteVoteCandidateMediaUploadInput {
   replacesMediaId?: string | null;
 }
 
+export interface AudienceVoteTransitionIssue {
+  code: string;
+  message: string;
+}
+
+export class AudienceVoteTransitionError extends Error {
+  readonly issues: AudienceVoteTransitionIssue[];
+  readonly status: number;
+
+  constructor({
+    issues = [],
+    message,
+    status,
+  }: {
+    issues?: AudienceVoteTransitionIssue[];
+    message: string;
+    status: number;
+  }) {
+    super(message);
+    this.name = "AudienceVoteTransitionError";
+    this.issues = issues;
+    this.status = status;
+  }
+}
+
 export interface IAudienceVoteService {
   addAudienceVote: (voteData: InsertAudienceVote) => Promise<AudienceVote>;
   addVoteCandidate: (
     candidateData: InsertVoteCandidate
   ) => Promise<VoteCandidate>;
+  closeAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
   completeVoteCandidateMediaUpload: (
     input: CompleteVoteCandidateMediaUploadInput
   ) => Promise<VoteCandidateMedia>;
@@ -54,6 +80,9 @@ export interface IAudienceVoteService {
   getAudienceVotes: (
     filters?: GetAudienceVotesFilters
   ) => Promise<AudienceVote[]>;
+  getOpenAudienceVote: (
+    excludeId?: string
+  ) => Promise<AudienceVote | undefined>;
   getVoteCandidate: (id: string) => Promise<VoteCandidate | undefined>;
   getVoteCandidateMedia: (
     id: string
@@ -74,6 +103,7 @@ export interface IAudienceVoteService {
     id: string,
     candidateData: PatchVoteCandidateClientInput
   ) => Promise<VoteCandidate | undefined>;
+  openAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
 }
 
 export function createAudienceVoteService(
@@ -101,6 +131,29 @@ export function createAudienceVoteService(
       .from(audienceVoteTable)
       .where(eq(audienceVoteTable.archived, showArchived))
       .orderBy(desc(audienceVoteTable.created_at));
+  };
+
+  const getOpenAudienceVote = async (
+    excludeId?: string
+  ): Promise<AudienceVote | undefined> => {
+    const result = await db
+      .select()
+      .from(audienceVoteTable)
+      .where(
+        excludeId
+          ? and(
+              eq(audienceVoteTable.archived, false),
+              eq(audienceVoteTable.status, "open"),
+              ne(audienceVoteTable.id, excludeId)
+            )
+          : and(
+              eq(audienceVoteTable.archived, false),
+              eq(audienceVoteTable.status, "open")
+            )
+      )
+      .limit(1);
+
+    return result[0];
   };
 
   const getVoteCandidate = async (
@@ -226,6 +279,170 @@ export function createAudienceVoteService(
     }
 
     return candidate;
+  };
+
+  const openAudienceVote = async (
+    id: string
+  ): Promise<AudienceVote | undefined> => {
+    const currentVote = await getAudienceVote(id);
+
+    if (!currentVote || currentVote.archived) {
+      return undefined;
+    }
+
+    if (currentVote.status === "closed") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "closed_final",
+            message: "Closed Audience Votes cannot be reopened.",
+          },
+        ],
+        message: "Audience Vote cannot be opened.",
+        status: 409,
+      });
+    }
+
+    if (currentVote.status === "open") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "already_open",
+            message: "This Audience Vote is already open.",
+          },
+        ],
+        message: "Audience Vote cannot be opened.",
+        status: 409,
+      });
+    }
+
+    const otherOpenVote = await getOpenAudienceVote(id);
+    if (otherOpenVote) {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "another_vote_open",
+            message: `Another Audience Vote is already open: ${otherOpenVote.title}.`,
+          },
+        ],
+        message: "Audience Vote cannot be opened.",
+        status: 409,
+      });
+    }
+
+    try {
+      const [openedVote] = await db
+        .update(audienceVoteTable)
+        .set({ status: "open" })
+        .where(
+          and(
+            eq(audienceVoteTable.id, id),
+            eq(audienceVoteTable.archived, false),
+            or(
+              eq(audienceVoteTable.status, "draft"),
+              eq(audienceVoteTable.status, "scheduled")
+            )
+          )
+        )
+        .returning();
+
+      if (!openedVote) {
+        throw new AudienceVoteTransitionError({
+          issues: [
+            {
+              code: "not_openable_status",
+              message: "Only draft or scheduled Audience Votes can be opened.",
+            },
+          ],
+          message: "Audience Vote cannot be opened.",
+          status: 409,
+        });
+      }
+
+      return openedVote;
+    } catch (error) {
+      if (error instanceof AudienceVoteTransitionError) {
+        throw error;
+      }
+
+      if (isOneOpenVoteConstraintError(error)) {
+        throw new AudienceVoteTransitionError({
+          issues: [
+            {
+              code: "another_vote_open",
+              message: "Another Audience Vote is already open.",
+            },
+          ],
+          message: "Audience Vote cannot be opened.",
+          status: 409,
+        });
+      }
+
+      throw error;
+    }
+  };
+
+  const closeAudienceVote = async (
+    id: string
+  ): Promise<AudienceVote | undefined> => {
+    const currentVote = await getAudienceVote(id);
+
+    if (!currentVote || currentVote.archived) {
+      return undefined;
+    }
+
+    if (currentVote.status === "closed") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "already_closed",
+            message: "This Audience Vote is already closed.",
+          },
+        ],
+        message: "Audience Vote cannot be closed.",
+        status: 409,
+      });
+    }
+
+    if (currentVote.status !== "open") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "not_open",
+            message: "Only open Audience Votes can be closed.",
+          },
+        ],
+        message: "Audience Vote cannot be closed.",
+        status: 409,
+      });
+    }
+
+    const [closedVote] = await db
+      .update(audienceVoteTable)
+      .set({ status: "closed" })
+      .where(
+        and(
+          eq(audienceVoteTable.id, id),
+          eq(audienceVoteTable.archived, false),
+          eq(audienceVoteTable.status, "open")
+        )
+      )
+      .returning();
+
+    if (!closedVote) {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "not_open",
+            message: "Only open Audience Votes can be closed.",
+          },
+        ],
+        message: "Audience Vote cannot be closed.",
+        status: 409,
+      });
+    }
+
+    return closedVote;
   };
 
   const completeVoteCandidateMediaUpload = async ({
@@ -444,16 +661,36 @@ export function createAudienceVoteService(
   return {
     addAudienceVote,
     addVoteCandidate,
+    closeAudienceVote,
     completeVoteCandidateMediaUpload,
     getAudienceVote,
     getAudienceVotes,
+    getOpenAudienceVote,
     getVoteCandidate,
     getVoteCandidateMedia,
     getVoteCandidateMediaList,
     getVoteCandidates,
+    openAudienceVote,
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateVoteCandidate,
   };
+}
+
+function isOneOpenVoteConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    constraint?: unknown;
+    message?: unknown;
+  };
+
+  return (
+    maybeError.constraint === "audience_vote_one_open_active_idx" ||
+    (typeof maybeError.message === "string" &&
+      maybeError.message.includes("audience_vote_one_open_active_idx"))
+  );
 }
 

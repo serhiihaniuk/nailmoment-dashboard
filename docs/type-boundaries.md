@@ -28,6 +28,9 @@ state without parsing.
 | Browser API response for payment row | `response.json()` | `paymentInstallmentSchema.parse()` | `PaymentInstallment` | `src/entities/ticket/model/ticket.ts` |
 | Audience Vote create body | JSON from Operator UI | `createAudienceVoteClientSchema` | normalized draft/scheduled create input | `src/shared/db/schema.zod.ts` |
 | Browser API response for Audience Votes | `response.json()` | `parseAudienceVoteList()` / `parseAudienceVote()` | `AudienceVote[]` / `AudienceVote` | `src/entities/audience-vote/model/audience-vote.ts` |
+| Audience Vote open/close route params | raw strings | `audienceVoteIdSchema` | branded Audience Vote id | `src/entities/audience-vote/model/audience-vote.ts` |
+| Audience Vote open validation | database rows for an Operator action | `validateAudienceVoteOpenReadiness()` | structured validation issues for the API/client | `src/entities/audience-vote/model/audience-vote.ts` |
+| Browser API errors for Audience Vote lifecycle actions | `response.json()` | `parseAudienceVoteLifecycleApiError()` | displayable lifecycle error shape | `src/pages/audience-votes/model/audience-vote-lifecycle.ts` |
 | Vote Candidate create body | JSON from Operator UI | `createVoteCandidateClientSchema` | normalized candidate labels and optional order | `src/shared/db/schema.zod.ts` |
 | Vote Candidate patch body | JSON from Operator UI | `patchVoteCandidateClientSchema` | normalized candidate label/order patch | `src/shared/db/schema.zod.ts` |
 | Vote Candidate route params | raw strings | `audienceVoteIdSchema`, `voteCandidateIdSchema` | branded Audience Vote and Vote Candidate ids | `src/entities/audience-vote/model/audience-vote.ts` |
@@ -134,6 +137,7 @@ pages/widgets:
 - `AudienceVoteId`
 - `AudienceVoteKind`
 - `AudienceVoteStatus`
+- `AudienceVoteOpenValidationIssue`
 - `VoteCandidate`
 - `VoteCandidateId`
 - `VoteCandidateMedia`

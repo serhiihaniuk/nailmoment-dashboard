@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -8,6 +9,7 @@ import {
   bigint,
   index,
   unique,
+  uniqueIndex,
   decimal,
 } from "drizzle-orm/pg-core";
 
@@ -393,6 +395,13 @@ export const audienceVoteTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => ({
+    audienceVoteOneOpenActiveIdx: uniqueIndex(
+      "audience_vote_one_open_active_idx"
+    )
+      .on(table.status)
+      .where(
+        sql`${table.status} = 'open' and ${table.archived} = false`
+      ),
     audienceVoteStatusIdx: index("audience_vote_status_idx").on(table.status),
     audienceVoteCreatedAtIdx: index("audience_vote_created_at_idx").on(
       table.created_at
