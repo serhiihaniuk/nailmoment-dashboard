@@ -59,8 +59,9 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
 
   // Auto-select first candidate when list loads
   useEffect(() => {
-    if (state.candidates.length > 0 && !selectedCandidateId && !state.isLoading) {
-      setSelectedCandidateId(state.candidates[0].id);
+    const firstCandidate = state.candidates[0];
+    if (state.candidates.length > 0 && !selectedCandidateId && !state.isLoading && firstCandidate) {
+      setSelectedCandidateId(firstCandidate.id);
     }
   }, [state.candidates, selectedCandidateId, state.isLoading]);
 
@@ -182,8 +183,9 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 onNavigate={(direction) => {
                   const currentIndex = state.candidates.findIndex(c => c.id === selectedCandidateId);
                   const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
-                  if (newIndex >= 0 && newIndex < state.candidates.length) {
-                    setSelectedCandidateId(state.candidates[newIndex].id);
+                  const nextCandidate = state.candidates[newIndex];
+                  if (newIndex >= 0 && newIndex < state.candidates.length && nextCandidate) {
+                    setSelectedCandidateId(nextCandidate.id);
                   }
                 }}
                 canNavigatePrev={state.candidates.findIndex(c => c.id === selectedCandidateId) > 0}
