@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search } from 'lucide-react';
+import { AlertCircle, Loader2, Search } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Input } from '@/shared/ui/input';
 import { Skeleton } from '@/shared/ui/skeleton';
@@ -14,7 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
-import type { TicketWithFinance } from '@/entities/ticket';
+import {
+  calculateTicketPaymentCoverage,
+  type TicketWithFinance,
+} from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import {
   createTicketWithFinance,
@@ -239,7 +242,7 @@ export function FinanceTable() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
         <span className="text-muted-foreground">{tickets.length} квитків</span>
         <span className="hidden md:inline text-border">|</span>
-        <span><span className="text-muted-foreground">До оплати:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
+        <span><span className="text-muted-foreground">Вартість:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
         <span><span className="text-muted-foreground">Оплачено:</span> <span className="font-semibold tabular-nums text-success">{formatZloty(financeTotals.paid)}</span></span>
         <span><span className="text-muted-foreground">Залишилось:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
         {financeTotals.overdue > 0 && (
@@ -285,12 +288,12 @@ export function FinanceTable() {
                   Дата
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
-                  До оплати
+                  Вартість
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
+                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
                   Платежі
                 </TableHead>
                 <TableHead className="h-10 px-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
@@ -329,6 +332,34 @@ export function FinanceTable() {
                 const status = ticket.finance_summary.payment_status;
                 const isOverdue = status === "overdue";
                 const displayedPaymentCount = getDisplayedPaymentCount(ticket);
+                const paymentCoverage = calculateTicketPaymentCoverage(
+                  ticket.finance,
+                  ticket.payments
+                );
+                const hasPaymentCoverageMismatch =
+                  paymentCoverage.status !== "balanced";
+                const paymentCoverageDifference = Math.abs(
+                  paymentCoverage.scheduledDifference
+                );
+                const paymentCoverageTitle = [
+                  `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
+                  `${formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано`,
+                  paymentCoverage.status === "under_scheduled"
+                    ? `${formatZloty(paymentCoverage.missingScheduledTotal)} не заплановано`
+                    : null,
+                  paymentCoverage.status === "over_scheduled"
+                    ? `${formatZloty(paymentCoverage.overScheduledTotal)} понад вартість`
+                    : null,
+                  `${formatZloty(paymentCoverage.payableTotal)} вартість`,
+                ]
+                  .filter((part): part is string => Boolean(part))
+                  .join(" / ");
+                const paymentCoverageMismatchLabel =
+                  paymentCoverage.status === "under_scheduled"
+                    ? `Бракує ${formatZloty(paymentCoverageDifference)}`
+                    : paymentCoverage.status === "over_scheduled"
+                      ? `+${formatZloty(paymentCoverageDifference)}`
+                      : null;
 
                 return (
                   <TableRow
@@ -381,15 +412,32 @@ export function FinanceTable() {
                       {formatZloty(paidTotal)}
                     </TableCell>
                     <TableCell className="py-3.5 px-4">
-                      <Badge
-                        variant="outline"
-                        className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                      <div
+                        className="flex flex-col items-start gap-1"
+                        title={paymentCoverageTitle}
                       >
-                        {
-                          ticket.payments.filter((payment) => payment.is_paid)
-                            .length
-                        }/{displayedPaymentCount}
-                      </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-md px-2 py-1 text-[12px] tabular-nums",
+                            hasPaymentCoverageMismatch &&
+                              "border-warning/35 bg-warning/5 text-foreground"
+                          )}
+                        >
+                          {hasPaymentCoverageMismatch && (
+                            <AlertCircle className="h-3 w-3 text-warning/70" />
+                          )}
+                          {
+                            ticket.payments.filter((payment) => payment.is_paid)
+                              .length
+                          }/{displayedPaymentCount}
+                        </Badge>
+                        {paymentCoverageMismatchLabel && (
+                          <span className="whitespace-nowrap text-[11px] font-normal text-muted-foreground tabular-nums">
+                            {paymentCoverageMismatchLabel}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="py-3.5 px-4 text-center">
                       <InvoiceStatusCell ticket={ticket} />
