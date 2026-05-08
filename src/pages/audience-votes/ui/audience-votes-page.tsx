@@ -22,6 +22,7 @@ import {
   formatAudienceVoteWindow,
 } from "../model/audience-vote-form";
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
+import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 
 type BadgeVariant =
@@ -109,6 +110,7 @@ function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
             <TableHead>Planning window</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Updated</TableHead>
+            <TableHead className="text-right">Candidates</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -139,6 +141,9 @@ function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
               </TableCell>
               <TableCell className="text-muted-foreground tabular-nums">
                 {formatAudienceVoteDate(vote.updated_at)}
+              </TableCell>
+              <TableCell className="text-right">
+                <AudienceVoteCandidatesDialog vote={vote} />
               </TableCell>
             </TableRow>
           ))}

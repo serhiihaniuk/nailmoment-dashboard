@@ -398,6 +398,45 @@ export const audienceVoteTable = pgTable(
 export type AudienceVote = typeof audienceVoteTable.$inferSelect;
 export type InsertAudienceVote = typeof audienceVoteTable.$inferInsert;
 
+export const voteCandidateTable = pgTable(
+  "vote_candidate",
+  {
+    id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    display_order: integer("display_order").notNull().default(1),
+    display_name: text("display_name").notNull(),
+    internal_name: text("internal_name"),
+    caption: text("caption"),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    voteCandidateAudienceVoteIdx: index("vote_candidate_audience_vote_idx").on(
+      table.audience_vote_id
+    ),
+    voteCandidateAudienceVoteOrderIdx: index(
+      "vote_candidate_audience_vote_order_idx"
+    ).on(table.audience_vote_id, table.display_order),
+  })
+);
+
+export type VoteCandidate = typeof voteCandidateTable.$inferSelect;
+export type InsertVoteCandidate = typeof voteCandidateTable.$inferInsert;
+
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 

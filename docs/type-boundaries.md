@@ -28,6 +28,11 @@ state without parsing.
 | Browser API response for payment row | `response.json()` | `paymentInstallmentSchema.parse()` | `PaymentInstallment` | `src/entities/ticket/model/ticket.ts` |
 | Audience Vote create body | JSON from Operator UI | `createAudienceVoteClientSchema` | normalized draft/scheduled create input | `src/shared/db/schema.zod.ts` |
 | Browser API response for Audience Votes | `response.json()` | `parseAudienceVoteList()` / `parseAudienceVote()` | `AudienceVote[]` / `AudienceVote` | `src/entities/audience-vote/model/audience-vote.ts` |
+| Vote Candidate create body | JSON from Operator UI | `createVoteCandidateClientSchema` | normalized candidate labels and optional order | `src/shared/db/schema.zod.ts` |
+| Vote Candidate patch body | JSON from Operator UI | `patchVoteCandidateClientSchema` | normalized candidate label/order patch | `src/shared/db/schema.zod.ts` |
+| Vote Candidate route params | raw strings | `audienceVoteIdSchema`, `voteCandidateIdSchema` | branded Audience Vote and Vote Candidate ids | `src/entities/audience-vote/model/audience-vote.ts` |
+| Browser API response for Vote Candidates | `response.json()` | `parseVoteCandidateList()` / `parseVoteCandidate()` | `VoteCandidate[]` / `VoteCandidate` | `src/entities/audience-vote/model/audience-vote.ts` |
+| Mini App Vote Candidate contract | server candidate rows | `parsePublicVoteCandidateList()` / `parsePublicVoteCandidate()` | candidate data without `internal_name` | `src/entities/audience-vote/model/audience-vote.ts` |
 | Stripe webhook body | raw HTTP body string | `stripe.webhooks.constructEvent()` | `Stripe.Event` | `src/app/stripe/verify-webhook.ts` |
 | Stripe checkout session | authentic Stripe event payload | `validateCheckoutSessionCompletedEvent()`, `resolveCheckoutSession()` | accepted checkout branch | `src/app/stripe/*` |
 | Env vars | `process.env` | scoped readers in `env.ts` | trimmed string config or controlled error | `src/shared/config/env.ts` |
@@ -126,6 +131,9 @@ pages/widgets:
 - `AudienceVoteId`
 - `AudienceVoteKind`
 - `AudienceVoteStatus`
+- `VoteCandidate`
+- `VoteCandidateId`
+- `PublicVoteCandidate`
 
 Use `@/shared/db/schema.zod` types for route request bodies and DB write input:
 
@@ -139,6 +147,11 @@ Use `@/shared/db/schema.zod` types for route request bodies and DB write input:
 - `CreateAudienceVoteClientInput`
 - `CreateAudienceVoteClientOutput`
 - `InsertAudienceVoteInput`
+- `CreateVoteCandidateClientInput`
+- `CreateVoteCandidateClientOutput`
+- `PatchVoteCandidateClientInput`
+- `PatchVoteCandidateClientOutput`
+- `InsertVoteCandidateInput`
 
 ## Money Rules
 

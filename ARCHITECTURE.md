@@ -243,6 +243,7 @@ Primary groups:
 - Finance: `ticket_finance`, `payment_installment`.
 - Stripe audit/idempotency: `stripe_webhook_event`.
 - Telegram voting: `telegram_users`, `battle_vote_tg`, `speaker_vote_tg`.
+- Audience Vote: `audience_vote`, `vote_candidate`.
 
 Important idempotency fields:
 

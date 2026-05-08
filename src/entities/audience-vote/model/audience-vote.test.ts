@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  parsePublicVoteCandidate,
   parseAudienceVote,
   parseAudienceVoteList,
+  parseVoteCandidate,
 } from "./audience-vote";
 
 function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
@@ -16,6 +18,21 @@ function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
     updated_at: "2026-05-08T10:00:00.000Z",
     window_end: null,
     window_start: null,
+    ...overrides,
+  };
+}
+
+function makeVoteCandidateResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    archived: false,
+    audience_vote_id: "vote_1",
+    caption: "Public caption",
+    created_at: "2026-05-08T10:00:00.000Z",
+    display_name: "Speaker A",
+    display_order: 1,
+    id: "candidate_1",
+    internal_name: "Real speaker name",
+    updated_at: "2026-05-08T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -42,6 +59,26 @@ describe("audience vote parsing", () => {
     expect(() =>
       parseAudienceVote(makeAudienceVoteResponse({ status: "published" }))
     ).toThrow();
+  });
+
+  test("parses Operator Vote Candidate responses", () => {
+    const candidate = parseVoteCandidate(makeVoteCandidateResponse());
+
+    expect(candidate.created_at).toBeInstanceOf(Date);
+    expect(candidate.internal_name).toBe("Real speaker name");
+    expect(candidate.display_order).toBe(1);
+  });
+
+  test("strips internal names from the Mini App candidate contract", () => {
+    const candidate = parsePublicVoteCandidate(makeVoteCandidateResponse());
+
+    expect(candidate).toEqual({
+      caption: "Public caption",
+      display_name: "Speaker A",
+      display_order: 1,
+      id: "candidate_1",
+    });
+    expect("internal_name" in candidate).toBe(false);
   });
 });
 

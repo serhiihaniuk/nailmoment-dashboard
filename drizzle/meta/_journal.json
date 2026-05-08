@@ -162,6 +162,13 @@
       "when": 1778245910519,
       "tag": "0022_audience_vote_core",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1778247177386,
+      "tag": "0023_vote_candidates",
+      "breakpoints": true
     }
   ]
 }

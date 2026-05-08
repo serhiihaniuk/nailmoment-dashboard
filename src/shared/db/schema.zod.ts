@@ -14,6 +14,7 @@ import {
   paymentInstallmentTable,
   ticketFinanceTable,
   ticketTable,
+  voteCandidateTable,
 } from "./schema";
 import { TICKET_TYPE_LIST } from "./ticket-grade";
 
@@ -160,6 +161,42 @@ const audienceVoteTitleSchema = z
   .trim()
   .min(1, "Title is required")
   .max(160, "Title must be 160 characters or fewer");
+const voteCandidateDisplayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Display name is required")
+  .max(160, "Display name must be 160 characters or fewer");
+const voteCandidateDisplayOrderSchema = z.coerce
+  .number()
+  .int()
+  .min(1, "Display order must be at least 1")
+  .max(1000, "Display order must be 1000 or less");
+
+function normalizeOptionalText(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  }
+
+  return value;
+}
+
+function nullableTrimmedTextSchema(max: number, message: string) {
+  return z.preprocess(
+    normalizeOptionalText,
+    z.string().max(max, message).nullable()
+  );
+}
+
+function optionalNullableTrimmedTextSchema(max: number, message: string) {
+  return z.preprocess(
+    normalizeOptionalText,
+    z.string().max(max, message).nullable().optional()
+  );
+}
 
 export const selectAudienceVoteSchema = createSelectSchema(audienceVoteTable);
 
@@ -193,6 +230,68 @@ export type CreateAudienceVoteClientInput = z.input<
 >;
 export type CreateAudienceVoteClientOutput = z.output<
   typeof createAudienceVoteClientSchema
+>;
+
+export const selectVoteCandidateSchema = createSelectSchema(voteCandidateTable);
+
+export const insertVoteCandidateSchema = createInsertSchema(
+  voteCandidateTable,
+  {
+    audience_vote_id: z.string().trim().min(1, "Audience Vote ID is required"),
+    caption: nullableTrimmedTextSchema(
+      1000,
+      "Caption must be 1000 characters or fewer"
+    ),
+    display_name: voteCandidateDisplayNameSchema,
+    display_order: voteCandidateDisplayOrderSchema,
+    id: z.string().trim().min(1, "ID is required"),
+    internal_name: nullableTrimmedTextSchema(
+      160,
+      "Internal name must be 160 characters or fewer"
+    ),
+  }
+);
+
+export const createVoteCandidateClientSchema = z.object({
+  caption: optionalNullableTrimmedTextSchema(
+    1000,
+    "Caption must be 1000 characters or fewer"
+  ).transform((value) => value ?? null),
+  display_name: voteCandidateDisplayNameSchema,
+  display_order: voteCandidateDisplayOrderSchema.optional(),
+  internal_name: optionalNullableTrimmedTextSchema(
+    160,
+    "Internal name must be 160 characters or fewer"
+  ).transform((value) => value ?? null),
+});
+
+export const patchVoteCandidateClientSchema = z.object({
+  caption: optionalNullableTrimmedTextSchema(
+    1000,
+    "Caption must be 1000 characters or fewer"
+  ),
+  display_name: voteCandidateDisplayNameSchema.optional(),
+  display_order: voteCandidateDisplayOrderSchema.optional(),
+  internal_name: optionalNullableTrimmedTextSchema(
+    160,
+    "Internal name must be 160 characters or fewer"
+  ),
+});
+
+export type InsertVoteCandidateInput = z.input<
+  typeof insertVoteCandidateSchema
+>;
+export type CreateVoteCandidateClientInput = z.input<
+  typeof createVoteCandidateClientSchema
+>;
+export type CreateVoteCandidateClientOutput = z.output<
+  typeof createVoteCandidateClientSchema
+>;
+export type PatchVoteCandidateClientInput = z.input<
+  typeof patchVoteCandidateClientSchema
+>;
+export type PatchVoteCandidateClientOutput = z.output<
+  typeof patchVoteCandidateClientSchema
 >;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);

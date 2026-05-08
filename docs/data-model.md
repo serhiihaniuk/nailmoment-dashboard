@@ -19,6 +19,7 @@ erDiagram
   stripe_webhook_event ||--o| battle_ticket : correlates
 
   telegram_users ||--o{ battle_vote_tg : casts
+  audience_vote ||--o{ vote_candidate : has
 
   ticket {
     text id PK
@@ -113,6 +114,18 @@ erDiagram
     enum status
     timestamptz window_start
     timestamptz window_end
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  vote_candidate {
+    text id PK
+    text audience_vote_id FK
+    integer display_order
+    text display_name
+    text internal_name
+    text caption
     boolean archived
     timestamptz created_at
     timestamptz updated_at
@@ -264,8 +277,20 @@ Important fields:
 - `window_start` / `window_end`: optional planning/display window.
 - `archived`: soft-delete flag; normal Operator lists exclude archived rows.
 
-Opening, closing, candidates, media, voter rows, and broadcasts are handled by
-later Audience Vote slices.
+`vote_candidate` stores Operator-managed options for an Audience Vote.
+
+Important fields:
+
+- `display_order`: Operator-defined order for the voter-facing feed.
+- `display_name`: public label shown to voters.
+- `internal_name`: Operator-only label or note; Mini App contracts must not
+  expose it.
+- `caption`: optional public text shown with the candidate.
+- `archived`: soft-delete flag; normal Operator lists, voter-facing views, and
+  future opening validation exclude archived rows.
+
+Opening, closing, media, voter rows, and broadcasts are handled by later
+Audience Vote slices.
 
 ## Finance Formula
 
@@ -301,5 +326,6 @@ Relevant finance/Stripe migrations:
   backfill.
 - `drizzle/0022_audience_vote_core.sql`: adds core Audience Vote enums and
   table.
+- `drizzle/0023_vote_candidates.sql`: adds Vote Candidates for Audience Votes.
 
 Production migration work must follow `AGENTS.md`.
