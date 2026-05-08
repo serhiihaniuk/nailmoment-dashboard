@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { 
+  ArrowDown,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
   ImagePlus, 
@@ -43,30 +45,40 @@ import { VOTE_CANDIDATE_MEDIA_ACCEPT } from "@/entities/audience-vote";
 import { formatAudienceVoteStatus } from "../model/audience-vote-form";
 import { useVoteCandidatesDialog } from "../model/use-vote-candidates-dialog";
 import { useVoteCandidateMedia, addNewMediaSelectValue } from "../model/use-vote-candidate-media";
+import { VoteCandidateDeleteDialog } from "./vote-candidate-delete-dialog";
 
 export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
   const state = useVoteCandidatesDialog(vote);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [candidateToDelete, setCandidateToDelete] =
+    useState<VoteCandidate | null>(null);
   
-  const selectedCandidate = state.candidates.find(c => c.id === selectedCandidateId) ?? null;
+  const selectedCandidate =
+    state.candidates.find((candidate) => candidate.id === selectedCandidateId) ??
+    state.candidates[0] ??
+    null;
   
   const handleOpenChange = (open: boolean) => {
     state.handleOpenChange(open);
     if (!open) {
       setSelectedCandidateId(null);
+      setCandidateToDelete(null);
     }
   };
 
-  // Auto-select first candidate when list loads
-  useEffect(() => {
-    const firstCandidate = state.candidates[0];
-    if (state.candidates.length > 0 && !selectedCandidateId && !state.isLoading && firstCandidate) {
-      setSelectedCandidateId(firstCandidate.id);
-    }
-  }, [state.candidates, selectedCandidateId, state.isLoading]);
-
   return (
     <Dialog open={state.open} onOpenChange={handleOpenChange}>
+      <VoteCandidateDeleteDialog
+        candidate={candidateToDelete}
+        disabled={state.isPending}
+        onConfirm={(candidate) => {
+          state.deleteCandidate(candidate);
+          setCandidateToDelete(null);
+        }}
+        onOpenChange={(open) => {
+          if (!open) setCandidateToDelete(null);
+        }}
+      />
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[12px]">
           <Users size={14} />
@@ -115,6 +127,27 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                   {state.errors.display_name && (
                     <p className="text-[11px] text-destructive">{state.errors.display_name}</p>
                   )}
+                  <Input
+                    placeholder="Internal name (optional)"
+                    value={state.draft.internal_name}
+                    onChange={(e) => state.updateDraft("internal_name", e.target.value)}
+                    className="h-8 text-[13px]"
+                    disabled={state.isCreating}
+                  />
+                  {state.errors.internal_name && (
+                    <p className="text-[11px] text-destructive">{state.errors.internal_name}</p>
+                  )}
+                  <Textarea
+                    placeholder="Caption (optional)"
+                    value={state.draft.caption}
+                    onChange={(e) => state.updateDraft("caption", e.target.value)}
+                    className="min-h-15 text-[13px]"
+                    disabled={state.isCreating}
+                    rows={2}
+                  />
+                  {state.errors.caption && (
+                    <p className="text-[11px] text-destructive">{state.errors.caption}</p>
+                  )}
                   <Button 
                     type="submit" 
                     size="sm" 
@@ -138,13 +171,17 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
+              ) : state.isQueryError ? (
+                <div className="p-4 text-center text-[13px] text-destructive">
+                  Could not load candidates: {state.queryError?.message}
+                </div>
               ) : state.candidates.length === 0 ? (
                 <div className="p-4 text-center text-[13px] text-muted-foreground">
                   No candidates yet
                 </div>
               ) : (
                 <div className="py-1">
-                  {state.candidates.map((candidate, index) => (
+                  {state.candidates.map((candidate) => (
                     <button
                       key={candidate.id}
                       type="button"
@@ -152,16 +189,23 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                       className={cn(
                         "w-full px-3 py-2.5 text-left flex items-center gap-2 transition-colors",
                         "hover:bg-muted/60",
-                        selectedCandidateId === candidate.id 
+                        selectedCandidate?.id === candidate.id
                           ? "bg-muted/80 border-l-2 border-primary" 
                           : "border-l-2 border-transparent"
                       )}
                     >
                       <span className="text-[11px] text-muted-foreground w-5 shrink-0 tabular-nums">
-                        {index + 1}.
+                        {candidate.display_order}.
                       </span>
-                      <span className="text-[13px] font-medium truncate flex-1">
-                        {candidate.display_name}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium">
+                          {candidate.display_name}
+                        </span>
+                        {candidate.internal_name ? (
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {candidate.internal_name}
+                          </span>
+                        ) : null}
                       </span>
                       {state.pendingCandidateId === candidate.id && (
                         <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
@@ -181,20 +225,23 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 vote={vote}
                 state={state}
                 onNavigate={(direction) => {
-                  const currentIndex = state.candidates.findIndex(c => c.id === selectedCandidateId);
+                  const currentIndex = state.candidates.findIndex(c => c.id === selectedCandidate.id);
                   const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
                   const nextCandidate = state.candidates[newIndex];
                   if (newIndex >= 0 && newIndex < state.candidates.length && nextCandidate) {
                     setSelectedCandidateId(nextCandidate.id);
                   }
                 }}
-                canNavigatePrev={state.candidates.findIndex(c => c.id === selectedCandidateId) > 0}
-                canNavigateNext={state.candidates.findIndex(c => c.id === selectedCandidateId) < state.candidates.length - 1}
+                canNavigatePrev={state.candidates.findIndex(c => c.id === selectedCandidate.id) > 0}
+                canNavigateNext={state.candidates.findIndex(c => c.id === selectedCandidate.id) < state.candidates.length - 1}
+                onRequestDelete={setCandidateToDelete}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-[13px] p-8 text-center">
                 {state.isLoading 
                   ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : state.isQueryError
+                    ? "Could not load candidates"
                   : state.candidates.length === 0 
                     ? "Add a candidate to get started"
                     : "Select a candidate to view details"
@@ -220,6 +267,7 @@ function CandidateDetailPanel({
   vote,
   state,
   onNavigate,
+  onRequestDelete,
   canNavigatePrev,
   canNavigateNext,
 }: {
@@ -227,6 +275,7 @@ function CandidateDetailPanel({
   vote: AudienceVote;
   state: ReturnType<typeof useVoteCandidatesDialog>;
   onNavigate: (direction: "prev" | "next") => void;
+  onRequestDelete: (candidate: VoteCandidate) => void;
   canNavigatePrev: boolean;
   canNavigateNext: boolean;
 }) {
@@ -238,7 +287,7 @@ function CandidateDetailPanel({
     <div className="p-4 sm:p-6 space-y-6">
       {/* Navigation header */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
@@ -260,6 +309,31 @@ function CandidateDetailPanel({
           >
             <ChevronRight size={16} />
           </Button>
+          {!state.isLocked && (
+            <>
+              <span className="mx-1 h-4 w-px bg-border" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => state.moveCandidate(candidate, candidate.display_order - 1)}
+                disabled={state.isPending || currentIndex <= 0}
+                aria-label="Move candidate up"
+              >
+                <ArrowUp size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => state.moveCandidate(candidate, candidate.display_order + 1)}
+                disabled={state.isPending || currentIndex >= state.candidates.length - 1}
+                aria-label="Move candidate down"
+              >
+                <ArrowDown size={14} />
+              </Button>
+            </>
+          )}
         </div>
         
         {!state.isLocked && (
@@ -267,7 +341,7 @@ function CandidateDetailPanel({
             variant="ghost"
             size="sm"
             className="h-7 text-[12px] text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => state.deleteCandidate(candidate)}
+            onClick={() => onRequestDelete(candidate)}
             disabled={state.isDeleting}
           >
             {state.pendingCandidateId === candidate.id && state.isDeleting ? (
@@ -297,11 +371,23 @@ function CandidateDetailPanel({
               )}
             </div>
             <div>
+              <Label className="text-[12px] text-muted-foreground">Internal Name (optional)</Label>
+              <Input
+                value={state.editDraft.internal_name}
+                onChange={(e) => state.updateEditDraft("internal_name", e.target.value)}
+                className="mt-1 h-9"
+                disabled={state.isEditing}
+              />
+              {state.editErrors.internal_name && (
+                <p className="text-[11px] text-destructive mt-1">{state.editErrors.internal_name}</p>
+              )}
+            </div>
+            <div>
               <Label className="text-[12px] text-muted-foreground">Caption (optional)</Label>
               <Textarea
                 value={state.editDraft.caption}
                 onChange={(e) => state.updateEditDraft("caption", e.target.value)}
-                className="mt-1 min-h-[60px] text-[13px]"
+                className="mt-1 min-h-15 text-[13px]"
                 disabled={state.isEditing}
                 rows={2}
               />
@@ -320,6 +406,15 @@ function CandidateDetailPanel({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h3 className="text-lg font-semibold">{candidate.display_name}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+                <span>Order {candidate.display_order}</span>
+                {candidate.internal_name ? (
+                  <>
+                    <span className="text-border">&middot;</span>
+                    <span>{candidate.internal_name}</span>
+                  </>
+                ) : null}
+              </div>
               {candidate.caption ? (
                 <p className="text-[13px] text-muted-foreground mt-1">{candidate.caption}</p>
               ) : (

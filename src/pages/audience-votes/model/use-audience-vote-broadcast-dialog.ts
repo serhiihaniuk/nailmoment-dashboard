@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState, useEffect } from "react";
+import { type FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type {
@@ -38,7 +38,7 @@ export function useAudienceVoteBroadcastDialog(
   const { preselectedVote, onOpenChange } = options;
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CreateAudienceVoteBroadcastFormDraft>(() =>
-    createAudienceVoteBroadcastDefaultDraft(votes)
+    createBroadcastDraft(votes, preselectedVote)
   );
   const [errors, setErrors] = useState<CreateAudienceVoteBroadcastFieldErrors>(
     {}
@@ -47,17 +47,6 @@ export function useAudienceVoteBroadcastDialog(
   const [open, setOpen] = useState(false);
   const [preview, setPreview] =
     useState<AudienceVoteBroadcastPreview | null>(null);
-
-  // Open dialog when preselectedVote is set
-  useEffect(() => {
-    if (preselectedVote) {
-      setDraft((current) => ({
-        ...current,
-        audience_vote_id: preselectedVote.id,
-      }));
-      setOpen(true);
-    }
-  }, [preselectedVote]);
 
   const previewMutation = useMutation<
     AudienceVoteBroadcastPreview,
@@ -90,7 +79,7 @@ export function useAudienceVoteBroadcastDialog(
   });
 
   function resetDialogState() {
-    setDraft(createAudienceVoteBroadcastDefaultDraft(votes));
+    setDraft(createBroadcastDraft(votes, preselectedVote));
     setErrors({});
     setFormError(null);
     setPreview(null);
@@ -100,9 +89,7 @@ export function useAudienceVoteBroadcastDialog(
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) {
-      resetDialogState();
-    }
+    resetDialogState();
     onOpenChange?.(nextOpen);
   }
 
@@ -174,4 +161,15 @@ export function useAudienceVoteBroadcastDialog(
     preview,
     updateDraft,
   };
+}
+
+function createBroadcastDraft(
+  votes: AudienceVote[],
+  preselectedVote: AudienceVote | null | undefined
+): CreateAudienceVoteBroadcastFormDraft {
+  const draft = createAudienceVoteBroadcastDefaultDraft(votes);
+
+  return preselectedVote
+    ? { ...draft, audience_vote_id: preselectedVote.id }
+    : draft;
 }

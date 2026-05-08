@@ -21,8 +21,10 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/shared/lib/cn";
 import { fetchAudienceVotes } from "../api/audience-votes-client";
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
+import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
+import { AudienceVoteUpdateScreenPanel } from "./audience-vote-update-screen-panel";
 import { VoteCard } from "./vote-card";
 
 type StatusFilter = "all" | AudienceVoteStatus;
@@ -81,7 +83,10 @@ export default function AudienceVotesPage() {
             Mini App voting stages, broadcasts, and voter-facing fallback text.
           </p>
         </div>
-        <CreateAudienceVoteDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          <AudienceVoteBroadcastDialog votes={votes ?? []} />
+          <CreateAudienceVoteDialog />
+        </div>
       </div>
 
       {/* Stats bar */}
@@ -137,8 +142,9 @@ export default function AudienceVotesPage() {
             </div>
           )}
 
-          {/* Broadcasts panel */}
           <AudienceVoteBroadcastsPanel votes={votes} />
+
+          <AudienceVoteUpdateScreenPanel />
         </>
       ) : null}
     </div>

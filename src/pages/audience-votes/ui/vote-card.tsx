@@ -16,7 +16,6 @@ import type {
   AudienceVoteStatus,
 } from "@/entities/audience-vote";
 import { Badge } from "@/shared/ui/badge";
-import { Button } from "@/shared/ui/button";
 import { Progress } from "@/shared/ui/progress";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -172,7 +171,7 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
 
       {/* Results bars */}
       <div className="space-y-2">
-        {topResults.map((result, index) => (
+        {topResults.map((result) => (
           <div key={result.candidate_id} className="flex items-center gap-3">
             <span className="w-5 text-right text-[11px] tabular-nums text-muted-foreground font-medium">
               {result.rank}

@@ -39,7 +39,7 @@ export function VoteCandidateMediaPanel({
   const state = useVoteCandidateMedia({ candidate, vote });
 
   return (
-    <section className="overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-b from-primary/5 to-background shadow-lg">
+    <section className="overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-b from-primary/5 to-background shadow-lg">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-white/80 px-5 py-4">
         <div className="min-w-0">

@@ -193,9 +193,9 @@ function AudienceVoteResultsPanel({
                   value={result.percentage} 
                   className={cn(
                     "h-2",
-                    index === 0 && "[&>[data-slot=indicator]]:bg-amber-500",
-                    index === 1 && "[&>[data-slot=indicator]]:bg-slate-500",
-                    index === 2 && "[&>[data-slot=indicator]]:bg-orange-500"
+                    index === 0 && "*:data-[slot=indicator]:bg-amber-500",
+                    index === 1 && "*:data-[slot=indicator]:bg-slate-500",
+                    index === 2 && "*:data-[slot=indicator]:bg-orange-500"
                   )}
                 />
               </div>

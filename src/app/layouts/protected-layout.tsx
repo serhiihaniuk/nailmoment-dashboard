@@ -2,7 +2,6 @@
 
 import { Suspense } from "react";
 import { Card, CardContent } from "@/shared/ui/card";
-import { isBetterAuthUiDisabledForDev } from "@/shared/better-auth/dev-bypass";
 import { useSession } from "@/shared/better-auth/hooks";
 import QueryProvider from "@/app/providers/react-query";
 import { Header } from "@/widgets/header";
@@ -11,14 +10,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  if (isBetterAuthUiDisabledForDev()) {
-    return children;
-  }
-
-  return <SessionAuthGuard>{children}</SessionAuthGuard>;
-}
-
-function SessionAuthGuard({ children }: { children: React.ReactNode }) {
   const session = useSession();
   const router = useRouter();
   const pathname = usePathname();
