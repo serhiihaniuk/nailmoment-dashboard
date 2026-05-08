@@ -417,13 +417,15 @@ export function FinanceTable() {
                         title={paymentCoverageTitle}
                       >
                         <Badge
-                          variant={
-                            hasPaymentCoverageMismatch ? "warning" : "outline"
-                          }
-                          className="rounded-md px-2 py-1 text-[12px] tabular-nums"
+                          variant="outline"
+                          className={cn(
+                            "rounded-md px-2 py-1 text-[12px] tabular-nums",
+                            hasPaymentCoverageMismatch &&
+                              "border-warning/35 bg-warning/5 text-foreground"
+                          )}
                         >
                           {hasPaymentCoverageMismatch && (
-                            <AlertCircle className="h-3 w-3" />
+                            <AlertCircle className="h-3 w-3 text-warning/70" />
                           )}
                           {
                             ticket.payments.filter((payment) => payment.is_paid)
@@ -431,7 +433,7 @@ export function FinanceTable() {
                           }/{displayedPaymentCount}
                         </Badge>
                         {paymentCoverageMismatchLabel && (
-                          <span className="whitespace-nowrap text-[11px] font-medium text-warning tabular-nums">
+                          <span className="whitespace-nowrap text-[11px] font-normal text-muted-foreground tabular-nums">
                             {paymentCoverageMismatchLabel}
                           </span>
                         )}
