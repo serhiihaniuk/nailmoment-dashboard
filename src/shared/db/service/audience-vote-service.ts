@@ -4,10 +4,12 @@ import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
   audienceVoteCurrentVoteTable,
+  telegramUsersTable,
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
   type InsertAudienceVote,
+  type TelegramUser,
   type InsertVoteCandidateMedia,
   type InsertVoteCandidate,
   type VoteCandidate,
@@ -38,6 +40,12 @@ export interface GetVoteCandidateMediaFilters {
 export interface AudienceVoteCurrentVoteCount {
   candidate_id: string;
   total_votes: number;
+}
+
+export interface UpsertTelegramVoterInput {
+  firstName: string;
+  telegramUserId: number;
+  username?: string | null;
 }
 
 export interface CompleteVoteCandidateMediaUploadInput {
@@ -113,6 +121,9 @@ export interface IAudienceVoteService {
     candidateData: PatchVoteCandidateClientInput
   ) => Promise<VoteCandidate | undefined>;
   openAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
+  upsertTelegramVoter: (
+    input: UpsertTelegramVoterInput
+  ) => Promise<TelegramUser>;
 }
 
 export function createAudienceVoteService(
@@ -178,6 +189,37 @@ export function createAudienceVoteService(
         eq(audienceVoteCurrentVoteTable.audience_vote_id, audienceVoteId)
       )
       .groupBy(audienceVoteCurrentVoteTable.candidate_id);
+  };
+
+  const upsertTelegramVoter = async ({
+    firstName,
+    telegramUserId,
+    username,
+  }: UpsertTelegramVoterInput): Promise<TelegramUser> => {
+    const normalizedUsername = username ?? null;
+    const [telegramVoter] = await db
+      .insert(telegramUsersTable)
+      .values({
+        firstName,
+        isActive: true,
+        telegramUserId,
+        username: normalizedUsername,
+      })
+      .onConflictDoUpdate({
+        set: {
+          firstName,
+          isActive: true,
+          username: normalizedUsername,
+        },
+        target: telegramUsersTable.telegramUserId,
+      })
+      .returning();
+
+    if (!telegramVoter) {
+      throw new Error("Telegram Voter upsert failed to return the record.");
+    }
+
+    return telegramVoter;
   };
 
   const getVoteCandidate = async (
@@ -699,6 +741,7 @@ export function createAudienceVoteService(
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateVoteCandidate,
+    upsertTelegramVoter,
   };
 }
 

@@ -13,6 +13,8 @@ Better Auth protected dashboard routes.
 | Festival bot constants | `src/app/api-routes/tg/festival-bot/const.ts` |
 | Speaker/battle bot route | `src/app/api-routes/tg/speaker-bot/route.ts` |
 | Voting domain data | `src/entities/voting/model/voting.ts` |
+| Audience Vote Mini App route | `src/pages/audience-vote-mini-app/*` |
+| Audience Vote Mini App API | `src/app/api-routes/audience-vote/mini-app/route.ts` |
 | Speaker vote results API | `src/app/api-routes/speaker_vote/route.ts` |
 | Speaker vote results UI | `src/pages/speaker-vote/*` |
 | DB schema | `src/shared/db/schema.ts` |
@@ -121,6 +123,24 @@ GET /api/speaker_vote
 src/pages/speaker-vote
 ```
 
+## Audience Vote Mini App
+
+The new voter-facing Audience Vote flow uses:
+
+```txt
+GET /audience-vote
+  -> src/pages/audience-vote-mini-app
+
+GET /api/audience-vote/mini-app
+  -> validates Telegram Mini App initData with TG_AUDIENCE_VOTE_BOT_TOKEN
+  -> upserts/reactivates the Telegram Voter
+  -> returns the open public Audience Vote feed or a safe update screen fallback
+```
+
+This API is intentionally not Better Auth protected. It trusts only server-side
+Telegram `initData` validation and never returns Vote Candidate Internal Names
+or Operator-only media fields.
+
 ## Env
 
 Telegram tokens are read through scoped env readers:
@@ -128,6 +148,7 @@ Telegram tokens are read through scoped env readers:
 ```txt
 readTelegramFestivalBotToken()
 readTelegramSpeakerBotToken()
+readTelegramAudienceVoteBotToken()
 ```
 
 Owner:

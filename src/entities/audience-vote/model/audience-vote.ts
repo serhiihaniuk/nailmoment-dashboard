@@ -181,6 +181,48 @@ export const publicVoteCandidateListSchema = z.array(
   publicVoteCandidateSchema
 );
 
+export const publicVoteCandidateMediaSchema = z.object({
+  blob_url: z.string().url(),
+  content_type: voteCandidateMediaContentTypeSchema,
+  display_order: z.number().int().min(1),
+  id: voteCandidateMediaIdSchema,
+  media_type: voteCandidateMediaTypeSchema,
+});
+
+export const publicVoteCandidateMediaListSchema = z.array(
+  publicVoteCandidateMediaSchema
+);
+
+export const miniAppVoteCandidateSchema = publicVoteCandidateSchema.extend({
+  media: publicVoteCandidateMediaListSchema,
+});
+
+export const publicAudienceVoteSchema = z.object({
+  id: audienceVoteIdSchema,
+  kind: audienceVoteKindSchema,
+  title: nonEmptyStringSchema,
+  window_end: nullableDateSchema,
+  window_start: nullableDateSchema,
+});
+
+export const audienceVoteMiniAppResponseSchema = z.discriminatedUnion(
+  "status",
+  [
+    z.object({
+      candidates: z.array(miniAppVoteCandidateSchema),
+      status: z.literal("open_vote"),
+      vote: publicAudienceVoteSchema,
+    }),
+    z.object({
+      status: z.literal("update_screen"),
+      update_screen: z.object({
+        message: nonEmptyStringSchema,
+        title: nonEmptyStringSchema,
+      }),
+    }),
+  ]
+);
+
 export const voteCandidateMediaUploadPayloadSchema = z
   .object({
     audienceVoteId: audienceVoteIdSchema,
@@ -250,6 +292,14 @@ export const audienceVoteResultsSchema = z.object({
 export type VoteCandidate = z.infer<typeof voteCandidateSchema>;
 export type VoteCandidateList = z.infer<typeof voteCandidateListSchema>;
 export type PublicVoteCandidate = z.infer<typeof publicVoteCandidateSchema>;
+export type PublicVoteCandidateMedia = z.infer<
+  typeof publicVoteCandidateMediaSchema
+>;
+export type MiniAppVoteCandidate = z.infer<typeof miniAppVoteCandidateSchema>;
+export type PublicAudienceVote = z.infer<typeof publicAudienceVoteSchema>;
+export type AudienceVoteMiniAppResponse = z.infer<
+  typeof audienceVoteMiniAppResponseSchema
+>;
 export type VoteCandidateMediaUploadPayload = z.infer<
   typeof voteCandidateMediaUploadPayloadSchema
 >;
@@ -486,6 +536,12 @@ export function parsePublicVoteCandidateList(
   value: unknown
 ): PublicVoteCandidate[] {
   return publicVoteCandidateListSchema.parse(value);
+}
+
+export function parseAudienceVoteMiniAppResponse(
+  value: unknown
+): AudienceVoteMiniAppResponse {
+  return audienceVoteMiniAppResponseSchema.parse(value);
 }
 
 export function parseVoteCandidateMedia(

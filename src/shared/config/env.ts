@@ -60,6 +60,10 @@ export function readTelegramSpeakerBotToken(env: Env = process.env) {
   return readRequiredEnv("TG_BOT", env);
 }
 
+export function readTelegramAudienceVoteBotToken(env: Env = process.env) {
+  return readRequiredEnv("TG_AUDIENCE_VOTE_BOT_TOKEN", env);
+}
+
 export function readVercelUrl(env: Env = process.env) {
   return readOptionalEnv("VERCEL_URL", env);
 }

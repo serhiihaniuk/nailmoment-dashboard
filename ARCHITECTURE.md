@@ -131,6 +131,7 @@ src/
     pdf-ticket-preview/                 Email preview page and server actions
     speaker-vote/                       Speaker vote results UI
     audience-votes/                     Audience Vote list/create UI
+    audience-vote-mini-app/             Public Telegram Mini App feed UI
     home/                               Root route UI
 
   widgets/
@@ -332,9 +333,14 @@ src/app/api-routes/pdf/[id]/route.tsx
 Change Telegram voting:
 
 ```txt
+app/audience-vote/page.tsx
+app/api/audience-vote/mini-app/route.ts
+src/pages/audience-vote-mini-app/*
 src/pages/audience-votes/*
 src/entities/audience-vote/*
+src/shared/telegram/*
 src/app/api-routes/audience-vote/route.ts
+src/app/api-routes/audience-vote/mini-app/route.ts
 src/app/api-routes/tg/festival-bot/*
 src/app/api-routes/tg/speaker-bot/route.ts
 src/entities/voting/model/voting.ts

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildVoteCandidateMediaPath,
   parsePublicVoteCandidate,
+  parseAudienceVoteMiniAppResponse,
   parseAudienceVote,
   parseAudienceVoteList,
   buildAudienceVoteResults,
@@ -275,6 +276,58 @@ describe("audience vote parsing", () => {
     ]);
     expect(JSON.stringify(results)).not.toContain("telegram");
     expect(JSON.stringify(results)).not.toContain("voter");
+  });
+
+  test("parses Mini App feed responses without private candidate fields", () => {
+    const feed = parseAudienceVoteMiniAppResponse({
+      candidates: [
+        {
+          ...makeVoteCandidateResponse(),
+          media: [
+            {
+              ...makeVoteCandidateMediaResponse(),
+              blob_download_url:
+                "https://example.public.blob.vercel-storage.com/file.jpg?download=1",
+              blob_pathname:
+                "audience-votes/vote_1/candidates/candidate_1/media/media_1.jpg",
+            },
+          ],
+        },
+      ],
+      status: "open_vote",
+      vote: makeAudienceVoteResponse({ status: "open" }),
+    });
+
+    expect(feed).toEqual({
+      candidates: [
+        {
+          caption: "Public caption",
+          display_name: "Speaker A",
+          display_order: 1,
+          id: "candidate_1",
+          media: [
+            {
+              blob_url: "https://example.public.blob.vercel-storage.com/file.jpg",
+              content_type: "image/jpeg",
+              display_order: 1,
+              id: "media_1",
+              media_type: "photo",
+            },
+          ],
+        },
+      ],
+      status: "open_vote",
+      vote: {
+        id: "vote_1",
+        kind: "speaker",
+        title: "Speaker vote",
+        window_end: null,
+        window_start: null,
+      },
+    });
+    expect(JSON.stringify(feed)).not.toContain("internal_name");
+    expect(JSON.stringify(feed)).not.toContain("blob_download_url");
+    expect(JSON.stringify(feed)).not.toContain("blob_pathname");
   });
 });
 
