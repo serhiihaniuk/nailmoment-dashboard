@@ -290,28 +290,6 @@ export function PaymentsPanel({
         </div>
       </div>
 
-      {/* Summary stats */}
-      <div className="flex items-center gap-4 text-[12px] mb-3">
-        <div>
-          <span className="text-muted-foreground">Повна: </span>
-          <span className="font-medium tabular-nums">
-            {formatZloty(toMoneyNumber(ticket.finance_summary.gross_total))}
-          </span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Оплачено: </span>
-          <span className="font-medium tabular-nums text-success">
-            {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
-          </span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Залишок: </span>
-          <span className="font-medium tabular-nums">
-            {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
-          </span>
-        </div>
-      </div>
-
       {/* Contact info section */}
       <div className="space-y-4 mb-6">
         <h3 className="text-label-caps">Контактна інформація</h3>
@@ -452,6 +430,27 @@ export function PaymentsPanel({
               onSave={(nip) => onFinanceChange({ nip }, nipFieldKey)}
             />
           </PaymentField>
+          {/* Summary stats */}
+          <div className="col-span-2 flex items-center gap-4 pt-1 text-[12px]">
+            <div>
+              <span className="text-muted-foreground">Повна: </span>
+              <span className="font-medium tabular-nums">
+                {formatZloty(toMoneyNumber(ticket.finance_summary.gross_total))}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Оплачено: </span>
+              <span className="font-medium tabular-nums text-success">
+                {formatZloty(toMoneyNumber(ticket.finance_summary.paid_total))}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Залишок: </span>
+              <span className="font-medium tabular-nums">
+                {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
+              </span>
+            </div>
+          </div>
           <PaymentField label="Дата">
             <Input
               readOnly
