@@ -64,6 +64,10 @@ _Avoid_: Archived Ticket, hard-deleted ticket, inactive ticket
 A **Battle Ticket** removed from normal operator workflows while preserving its record for audit and historical references.
 _Avoid_: Archived Battle Ticket, hard-deleted battle ticket, inactive battle ticket
 
+**Soft Deleted Audience Vote Record**:
+An **Audience Vote**, **Vote Candidate**, or **Vote Candidate Media** removed from normal voting setup while preserving its record.
+_Avoid_: hard-deleted vote, removed candidate, deleted media
+
 **Customer**:
 A person associated with a **Ticket** or **Battle Ticket** through contact details used for delivery and follow-up.
 _Avoid_: User, attendee, participant, client
@@ -71,6 +75,74 @@ _Avoid_: User, attendee, participant, client
 **Operator**:
 An authenticated dashboard user who manages tickets, battle tickets, finance, delivery, and previews.
 _Avoid_: Customer, admin, user, staff
+
+**Audience Vote**:
+A Telegram Mini App voting workflow for choosing one published option from the current event voting stage.
+_Avoid_: Telegram vote, bot poll, video vote
+
+**Audience Vote Kind**:
+The event stage represented by an **Audience Vote**, such as speaker, battle, or final battle.
+_Avoid_: vote type, bot type, category
+
+**Audience Vote Title**:
+The public label shown to **Telegram Voters** for an **Audience Vote**.
+_Avoid_: kind, internal type, slug
+
+**Battle Category Vote**:
+An **Audience Vote** for one battle category in the sequential battle voting flow.
+_Avoid_: changing battle category, active category, mega vote
+
+**Audience Vote Status**:
+The workflow state of an **Audience Vote**: draft, scheduled, open, or closed.
+_Avoid_: active flag, published flag, enabled
+
+**Vote Candidate**:
+A published option that a **Telegram Voter** can choose in an **Audience Vote**.
+_Avoid_: Speaker Candidate, speaker option, video, contestant
+
+**Vote Candidate Display Name**:
+The public name or anonymous label shown for a **Vote Candidate**.
+_Avoid_: internal name, real name, participant name
+
+**Vote Candidate Internal Name**:
+The Operator-only name or note used to identify a **Vote Candidate** in the dashboard.
+_Avoid_: display name, public name, voter name
+
+**Vote Candidate Caption**:
+Optional public text shown with a **Vote Candidate** in the **Audience Vote Mini App**.
+_Avoid_: internal note, operator note, bio field
+
+**Audience Vote Window**:
+The scheduled time range during which an **Audience Vote** accepts votes from **Telegram Voters**.
+_Avoid_: voting schedule, active time, timer
+
+**Audience Vote Broadcast**:
+An Operator-authored Telegram message sent from the dashboard to **Telegram Voters** for an **Audience Vote**.
+_Avoid_: Speaker Vote Broadcast, bot blast, notification
+
+**Audience Vote Broadcast Delivery**:
+The per-voter delivery record used to send an **Audience Vote Broadcast** safely and retry failures.
+_Avoid_: send attempt, broadcast row, notification status
+
+**Audience Vote Broadcast Canary**:
+The Operator-reviewed test stage before an **Audience Vote Broadcast** is sent to all targeted **Telegram Voters**.
+_Avoid_: admin test, dry run, preview blast
+
+**Audience Vote Mini App**:
+The Telegram-launched web interface where **Telegram Voters** browse **Vote Candidates** and cast votes in an **Audience Vote**.
+_Avoid_: Telegram slider, bot voting UI, web poll
+
+**Audience Vote Update Screen**:
+The Mini App screen shown when no **Audience Vote** is open, with Operator-managed event updates and next voting context.
+_Avoid_: empty state, waiting page, story
+
+**Vote Candidate Media**:
+A public photo or video asset shown for a **Vote Candidate** in the **Audience Vote Mini App**.
+_Avoid_: Telegram file, video file_id, media blob
+
+**Telegram Voter**:
+A Telegram account that opens the voting bot and is allowed to cast at most one vote in an **Audience Vote**.
+_Avoid_: User, Customer, attendee, Operator
 
 **Production Database**:
 The live Neon Postgres database used by the production dashboard.
@@ -155,8 +227,81 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - **Ticket Arrival** is separate from **Ticket Delivery**.
 - A **Soft Deleted Ticket** remains a **Ticket** and is not hard-deleted from storage.
 - A **Soft Deleted Battle Ticket** remains a **Battle Ticket** and is not hard-deleted from storage.
+- A **Soft Deleted Audience Vote Record** is not hard-deleted from storage.
+- A **Soft Deleted Audience Vote Record** is excluded from voter-facing voting and opening validation.
 - A **Customer** may be associated with one or more **Tickets** or **Battle Tickets**.
 - An **Operator** manages **Tickets**, **Battle Tickets**, finance, delivery, and previews through the dashboard.
+- A **Telegram Voter** is separate from a **Customer** and from an **Operator**.
+- A **Telegram Voter** is identified by Telegram user id and may have a Telegram username.
+- A **Telegram Voter** does not need to be linked to a **Ticket** or **Battle Ticket** to vote in an **Audience Vote**.
+- A **Telegram Voter** may cast at most one vote in an **Audience Vote**.
+- A **Telegram Voter** who can open the **Audience Vote Mini App** with valid Telegram identity can vote, even if they were previously unreachable for broadcasts.
+- Opening the **Audience Vote Mini App** with valid Telegram identity may make a **Telegram Voter** active for future **Audience Vote Broadcasts** again.
+- An **Audience Vote** has one **Audience Vote Kind**.
+- An **Audience Vote** has one **Audience Vote Title**.
+- An **Audience Vote** has one **Audience Vote Status**.
+- Supported **Audience Vote Kinds** are speaker, battle, and final battle.
+- Audience voting stages are sequential; only one **Audience Vote** should be open at a time.
+- An **Operator** cannot open an **Audience Vote** while another **Audience Vote** is open.
+- Each battle category is represented by its own **Battle Category Vote**.
+- Operators may prepare multiple draft or scheduled **Audience Votes** ahead of time.
+- An **Audience Vote** cannot open until it has a title, kind, at least two **Vote Candidates**, and active media for each **Vote Candidate**.
+- An **Audience Vote** has one or more **Vote Candidates**.
+- A **Vote Candidate** has one **Vote Candidate Display Name**.
+- A **Vote Candidate** may have one **Vote Candidate Internal Name**.
+- A **Vote Candidate** may have one **Vote Candidate Caption**.
+- **Vote Candidates** are shown in Operator-defined order.
+- **Vote Candidate Media** is shown in upload order.
+- The **Audience Vote Mini App** never shows a **Vote Candidate Internal Name**.
+- Battle **Audience Votes** use anonymous **Vote Candidate Display Names**.
+- Speaker **Audience Votes** may use real speaker names as **Vote Candidate Display Names**.
+- A **Vote Candidate** has one or more **Vote Candidate Media** items.
+- **Vote Candidate Media** uses public asset URLs.
+- **Vote Candidate Media** should be prepared for mobile **Audience Vote Mini App** playback before the **Audience Vote** opens.
+- Photo **Vote Candidate Media** must be 20 MB or less.
+- Video **Vote Candidate Media** must be 100 MB or less.
+- Replaced **Vote Candidate Media** should be kept during event operations and cleaned up only later as an explicit maintenance task.
+- An **Audience Vote** may have an **Audience Vote Window** for planning and display.
+- The **Audience Vote Mini App** is the primary voting surface for an **Audience Vote**.
+- The **Audience Vote Mini App** shows an **Audience Vote Update Screen** when no **Audience Vote** is open.
+- An **Operator** manages the **Audience Vote Update Screen** content from the dashboard.
+- **Audience Vote** voter-facing content is Ukrainian-only.
+- The **Audience Vote Mini App** presents **Vote Candidates** as a vertical feed with an in-card media carousel, text, and vote action.
+- The Telegram bot is the entry point to the **Audience Vote Mini App**, not the primary voting surface.
+- A **Telegram Voter** must open the **Audience Vote Mini App** from Telegram to vote.
+- The Telegram bot and **Audience Vote Mini App** may both record the same **Telegram Voter** idempotently.
+- An **Operator** may upload **Vote Candidate Media** from the dashboard.
+- An **Operator** may update **Vote Candidate Media** before an **Audience Vote** opens.
+- An **Operator** may set up **Vote Candidates** before an **Audience Vote** opens.
+- Once an **Audience Vote** is open, its **Vote Candidates** should remain stable.
+- An **Operator** may replace bad **Vote Candidate Media** while an **Audience Vote** is open, but the original media should be kept and the **Vote Candidate** should remain the same.
+- An **Operator** opens and closes an **Audience Vote** from the dashboard.
+- Closing an **Audience Vote** immediately stops new votes and vote changes.
+- A closed **Audience Vote** cannot be reopened.
+- An **Operator** may send an **Audience Vote Broadcast** from the dashboard.
+- An **Operator** must confirm an **Audience Vote Broadcast** before delivery rows are created.
+- A **Telegram Voter** may ask the bot to send the **Audience Vote Mini App** link again.
+- A **Telegram Voter** casts a vote for one **Vote Candidate** in an **Audience Vote**.
+- A **Telegram Voter** may vote once in each sequential **Audience Vote**.
+- A **Telegram Voter** may change their selected **Vote Candidate** until the **Audience Vote** closes.
+- A **Telegram Voter** vote is saved immediately when they choose a **Vote Candidate**.
+- Saving the same **Telegram Voter** vote more than once should be treated as a successful no-op.
+- Only the current **Telegram Voter** vote is counted; historical vote changes are not preserved.
+- The **Audience Vote Mini App** shows the **Telegram Voter** which **Vote Candidate** is currently selected.
+- A **Telegram Voter** does not see **Audience Vote** results in the **Audience Vote Mini App**.
+- An **Operator** can see **Audience Vote** results in the dashboard.
+- **Audience Vote** dashboard results show ranked **Vote Candidates**, vote totals, and percentages.
+- **Audience Vote** dashboard results are aggregate and do not show a voter list.
+- An **Audience Vote Broadcast** targets all active **Telegram Voters** who have opened the voting bot.
+- An **Audience Vote Broadcast** has message text and may include an open-voting button.
+- An **Audience Vote Broadcast** starts with an **Audience Vote Broadcast Canary** before normal delivery.
+- An **Audience Vote Broadcast Canary** sends first to the **Operator**, waits two minutes, sends to 25 **Telegram Voters** plus the **Operator**, then waits two more minutes before normal delivery.
+- An **Operator** may interrupt an **Audience Vote Broadcast** from the dashboard.
+- Interrupting an **Audience Vote Broadcast** must stop all future unsent deliveries.
+- An **Audience Vote Broadcast** is delivered through **Audience Vote Broadcast Deliveries**.
+- An **Audience Vote Broadcast Delivery** may be retried up to three times for a **Telegram Voter**.
+- **Audience Vote Broadcast Deliveries** are processed by an immediate dashboard-triggered kick and a scheduled retry processor.
+- A **Telegram Voter** that blocks or restricts the bot should be excluded from future **Audience Vote Broadcasts**.
 - The **Production Dashboard** uses the **Production Database**.
 - The **Dev Environment** is separate from the **Production Dashboard** and **Production Database**.
 - The **Production Database** stores live **Tickets**, **Battle Tickets**, **Ticket Finance**, and **Payments**.
