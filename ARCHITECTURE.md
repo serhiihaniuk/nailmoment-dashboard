@@ -37,6 +37,7 @@ Use these as the daily navigation set:
 | Debug Stripe checkout webhook fulfillment and totals | [docs/stripe-flow.md](docs/stripe-flow.md) |
 | Debug ticket creation, QR codes, Resend emails, PDF/email previews | [docs/ticket-email-qr-flow.md](docs/ticket-email-qr-flow.md) |
 | Debug Telegram bots and voting | [docs/telegram-flow.md](docs/telegram-flow.md) |
+| Build new Audience Vote Mini App voting | [docs/audience-vote-plan.md](docs/audience-vote-plan.md) |
 
 > Legacy note: Existing Telegram voting routes are leftovers from a previous event season. Do not deepen or refactor this flow; future Telegram voting should be designed as a fresh implementation. See [ADR-0001](docs/adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
 
