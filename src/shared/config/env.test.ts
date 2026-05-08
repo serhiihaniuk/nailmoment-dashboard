@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
 import {
+  readTelegramAudienceVoteBotToken,
+  readTelegramAudienceVoteMiniAppUrl,
+  readTelegramAudienceVoteOperatorTelegramId,
+  readTelegramAudienceVoteProcessorSecret,
+  readTelegramAudienceVoteWebhookSecret,
   readOptionalEnv,
   readOptionalLogtailConfig,
   readRequiredEnv,
@@ -45,5 +50,25 @@ describe("env readers", () => {
       endpoint: undefined,
       token: "token",
     });
+  });
+
+  test("reads scoped Audience Vote Telegram bot config", () => {
+    const env = testEnv({
+      TG_AUDIENCE_VOTE_BOT_TOKEN: " token ",
+      TG_AUDIENCE_VOTE_MINI_APP_URL: " https://example.com/audience-vote ",
+      TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID: " 299445418 ",
+      TG_AUDIENCE_VOTE_PROCESSOR_SECRET: " processor-secret ",
+      TG_AUDIENCE_VOTE_WEBHOOK_SECRET: " webhook-secret ",
+    });
+
+    expect(readTelegramAudienceVoteBotToken(env)).toBe("token");
+    expect(readTelegramAudienceVoteMiniAppUrl(env)).toBe(
+      "https://example.com/audience-vote"
+    );
+    expect(readTelegramAudienceVoteOperatorTelegramId(env)).toBe("299445418");
+    expect(readTelegramAudienceVoteProcessorSecret(env)).toBe(
+      "processor-secret"
+    );
+    expect(readTelegramAudienceVoteWebhookSecret(env)).toBe("webhook-secret");
   });
 });

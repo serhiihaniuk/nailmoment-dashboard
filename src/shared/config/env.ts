@@ -64,6 +64,24 @@ export function readTelegramAudienceVoteBotToken(env: Env = process.env) {
   return readRequiredEnv("TG_AUDIENCE_VOTE_BOT_TOKEN", env);
 }
 
+export function readTelegramAudienceVoteWebhookSecret(env: Env = process.env) {
+  return readRequiredEnv("TG_AUDIENCE_VOTE_WEBHOOK_SECRET", env);
+}
+
+export function readTelegramAudienceVoteMiniAppUrl(env: Env = process.env) {
+  return readRequiredEnv("TG_AUDIENCE_VOTE_MINI_APP_URL", env);
+}
+
+export function readTelegramAudienceVoteProcessorSecret(env: Env = process.env) {
+  return readRequiredEnv("TG_AUDIENCE_VOTE_PROCESSOR_SECRET", env);
+}
+
+export function readTelegramAudienceVoteOperatorTelegramId(
+  env: Env = process.env
+) {
+  return readRequiredEnv("TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID", env);
+}
+
 export function readVercelUrl(env: Env = process.env) {
   return readOptionalEnv("VERCEL_URL", env);
 }

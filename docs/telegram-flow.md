@@ -13,6 +13,7 @@ Better Auth protected dashboard routes.
 | Festival bot constants | `src/app/api-routes/tg/festival-bot/const.ts` |
 | Speaker/battle bot route | `src/app/api-routes/tg/speaker-bot/route.ts` |
 | Voting domain data | `src/entities/voting/model/voting.ts` |
+| Audience Vote bot entry webhook | `src/app/api-routes/audience-vote/bot/route.ts` |
 | Audience Vote Mini App route | `src/pages/audience-vote-mini-app/*` |
 | Audience Vote Mini App API | `src/app/api-routes/audience-vote/mini-app/route.ts` |
 | Speaker vote results API | `src/app/api-routes/speaker_vote/route.ts` |
@@ -29,7 +30,10 @@ Telegram
   |    -> src/app/api-routes/tg/festival-bot/route.ts
   |
   +- POST /api/tg/speaker-bot
-       -> src/app/api-routes/tg/speaker-bot/route.ts
+  |    -> src/app/api-routes/tg/speaker-bot/route.ts
+  |
+  +- POST /api/audience-vote/bot
+       -> src/app/api-routes/audience-vote/bot/route.ts
 ```
 
 Both routes end with:
@@ -141,6 +145,69 @@ This API is intentionally not Better Auth protected. It trusts only server-side
 Telegram `initData` validation and never returns Vote Candidate Internal Names
 or Operator-only media fields.
 
+## Audience Vote Bot
+
+The new Audience Vote Telegram bot is only an entry point to the Mini App. It is
+not a Telegram-message voting surface and does not send Vote Candidate Media.
+
+```txt
+POST /api/audience-vote/bot
+  -> validates x-telegram-bot-api-secret-token with TG_AUDIENCE_VOTE_WEBHOOK_SECRET
+  -> handles /start and /vote through Grammy
+  -> upserts/reactivates the Telegram Voter
+  -> sends a Ukrainian Mini App entry message with a web_app button
+```
+
+Required scoped env names:
+
+```txt
+TG_AUDIENCE_VOTE_BOT_TOKEN
+TG_AUDIENCE_VOTE_WEBHOOK_SECRET
+TG_AUDIENCE_VOTE_MINI_APP_URL
+TG_AUDIENCE_VOTE_PROCESSOR_SECRET
+TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID
+```
+
+Telegram webhook and bot menu setup is manual. Do not configure production
+Telegram webhooks during development work. Use separate dev/prod bots and only
+point the dev bot at Preview deployments.
+
+Manual webhook command shape:
+
+```powershell
+$token = "<bot token>"
+$secret = "<TG_AUDIENCE_VOTE_WEBHOOK_SECRET>"
+$webhookUrl = "https://<deployment>/api/audience-vote/bot"
+
+Invoke-RestMethod -Method Post `
+  -Uri "https://api.telegram.org/bot$token/setWebhook" `
+  -ContentType "application/json" `
+  -Body (@{
+    url = $webhookUrl
+    secret_token = $secret
+    allowed_updates = @("message")
+    drop_pending_updates = $true
+  } | ConvertTo-Json)
+```
+
+Manual Mini App menu command shape:
+
+```powershell
+$token = "<bot token>"
+$miniAppUrl = "https://<deployment>/audience-vote"
+
+Invoke-RestMethod -Method Post `
+  -Uri "https://api.telegram.org/bot$token/setChatMenuButton" `
+  -ContentType "application/json" `
+  -Body (@{
+    menu_button = @{
+      type = "web_app"
+      text = "Голосування"
+      web_app = @{ url = $miniAppUrl }
+    }
+  } | ConvertTo-Json -Depth 5)
+```
+
 ## Env
 
 Telegram tokens are read through scoped env readers:
@@ -149,6 +216,10 @@ Telegram tokens are read through scoped env readers:
 readTelegramFestivalBotToken()
 readTelegramSpeakerBotToken()
 readTelegramAudienceVoteBotToken()
+readTelegramAudienceVoteWebhookSecret()
+readTelegramAudienceVoteMiniAppUrl()
+readTelegramAudienceVoteProcessorSecret()
+readTelegramAudienceVoteOperatorTelegramId()
 ```
 
 Owner:
