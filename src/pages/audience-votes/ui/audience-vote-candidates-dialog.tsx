@@ -5,13 +5,6 @@ import { Loader2, Plus, Users } from "lucide-react";
 import type { AudienceVote } from "@/entities/audience-vote";
 import { Button } from "@/shared/ui/button";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { Badge } from "@/shared/ui/badge";
 import {
   formatAudienceVoteKind,
   formatAudienceVoteStatus,
@@ -43,24 +37,43 @@ export function AudienceVoteCandidatesDialog({
           Candidates
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl w-[90vw]">
-        <DialogHeader>
-          <DialogTitle>Vote Candidates</DialogTitle>
-          <DialogDescription>
-            {vote.title} / {formatAudienceVoteKind(vote.kind)} /{" "}
-            {formatAudienceVoteStatus(vote.status)}
-          </DialogDescription>
+      <DialogContent className="max-h-[95vh] sm:max-h-[90vh] overflow-y-auto w-[95vw] sm:w-[90vw] sm:max-w-5xl lg:max-w-6xl p-0 gap-0">
+        {/* Header */}
+        <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border/50 bg-muted/30">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="text-base sm:text-lg">Vote Candidates</DialogTitle>
+              <DialogDescription className="mt-1 sm:mt-1.5 flex items-center gap-1.5 sm:gap-2 flex-wrap text-[12px] sm:text-sm">
+                <span className="font-medium text-foreground truncate">{vote.title}</span>
+                <span className="text-border hidden sm:inline">·</span>
+                <span className="hidden sm:inline">{formatAudienceVoteKind(vote.kind)}</span>
+                <Badge 
+                  variant={vote.status === "open" ? "default" : vote.status === "closed" ? "destructive" : "secondary"}
+                  className="rounded-md text-[10px] px-1.5"
+                >
+                  {formatAudienceVoteStatus(vote.status)}
+                </Badge>
+              </DialogDescription>
+            </div>
+            {!state.isLocked && (
+              <div className="text-right text-[11px] sm:text-[12px] text-muted-foreground shrink-0">
+                <span className="font-medium text-foreground">{state.candidates.length}</span> <span className="hidden sm:inline">candidates</span>
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
-        {state.isLocked ? (
-          <div className="rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-            Candidate management is locked for this status.
-          </div>
-        ) : (
-          <Card className="gap-3 py-4 shadow-none">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm">Add candidate</CardTitle>
-              <CardAction>
+        {/* Content */}
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
+          {/* Add candidate form */}
+          {state.isLocked ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-amber-800">
+              Candidate management is locked for this vote status.
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="text-sm font-semibold">Add New Candidate</h4>
                 <Button
                   disabled={state.isPending}
                   form="create-vote-candidate-form"
@@ -76,13 +89,10 @@ export function AudienceVoteCandidatesDialog({
                   ) : (
                     <Plus aria-hidden="true" data-icon="inline-start" />
                   )}
-                  Add
+                  Add Candidate
                 </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="px-4">
+              </div>
               <form
-                className="flex flex-col gap-3"
                 id="create-vote-candidate-form"
                 onSubmit={state.handleCreateSubmit}
               >
@@ -93,42 +103,46 @@ export function AudienceVoteCandidatesDialog({
                   onChange={state.updateDraft}
                 />
               </form>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-        {state.formError ? (
-          <p className="text-sm font-medium text-destructive">
-            {state.formError}
-          </p>
-        ) : null}
+          {/* Error display */}
+          {state.formError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {state.formError}
+            </div>
+          ) : null}
 
-        {state.isQueryError ? (
-          <p className="text-sm font-medium text-destructive">
-            Could not load candidates: {state.queryError?.message}
-          </p>
-        ) : null}
+          {state.isQueryError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              Could not load candidates: {state.queryError?.message}
+            </div>
+          ) : null}
 
-        {state.isLoading ? <Skeleton className="h-56 w-full rounded-lg" /> : null}
+          {/* Candidates list */}
+          {state.isLoading ? (
+            <Skeleton className="h-64 w-full rounded-lg" />
+          ) : null}
 
-        {!state.isLoading && !state.isQueryError ? (
-          <VoteCandidatesTable
-            candidates={state.candidates}
-            editDraft={state.editDraft}
-            editErrors={state.editErrors}
-            editingCandidateId={state.editingCandidateId}
-            isLocked={state.isLocked}
-            isPending={state.isPending}
-            onCancelEdit={state.cancelEditing}
-            onDelete={state.deleteCandidate}
-            onEditSubmit={state.handleEditSubmit}
-            onMove={state.moveCandidate}
-            onStartEdit={state.startEditing}
-            onUpdateEditDraft={state.updateEditDraft}
-            pendingCandidateId={state.pendingCandidateId}
-            vote={vote}
-          />
-        ) : null}
+          {!state.isLoading && !state.isQueryError ? (
+            <VoteCandidatesTable
+              candidates={state.candidates}
+              editDraft={state.editDraft}
+              editErrors={state.editErrors}
+              editingCandidateId={state.editingCandidateId}
+              isLocked={state.isLocked}
+              isPending={state.isPending}
+              onCancelEdit={state.cancelEditing}
+              onDelete={state.deleteCandidate}
+              onEditSubmit={state.handleEditSubmit}
+              onMove={state.moveCandidate}
+              onStartEdit={state.startEditing}
+              onUpdateEditDraft={state.updateEditDraft}
+              pendingCandidateId={state.pendingCandidateId}
+              vote={vote}
+            />
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

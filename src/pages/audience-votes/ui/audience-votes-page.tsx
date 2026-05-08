@@ -205,31 +205,33 @@ function StatusFilterSegment({
   stats: ReturnType<typeof buildVoteStats>;
 }) {
   return (
-    <div className="flex items-center h-9 rounded-lg border border-border/60 overflow-hidden bg-white w-fit">
-      {STATUS_FILTERS.map((opt) => {
-        const count = opt.value === "all" ? stats.total : stats[opt.value];
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "h-full px-4 text-[12px] font-medium transition-colors whitespace-nowrap",
-              "border-r border-border/40 last:border-r-0",
-              value === opt.value
-                ? "bg-muted/60 text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-            )}
-          >
-            {opt.label}
-            {count > 0 && (
-              <span className="ml-1.5 text-[10px] tabular-nums opacity-60">
-                {count}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center h-9 rounded-lg border border-border/60 overflow-hidden bg-white w-fit min-w-max">
+        {STATUS_FILTERS.map((opt) => {
+          const count = opt.value === "all" ? stats.total : stats[opt.value];
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              className={cn(
+                "h-full px-3 sm:px-4 text-[12px] font-medium transition-colors whitespace-nowrap",
+                "border-r border-border/40 last:border-r-0",
+                value === opt.value
+                  ? "bg-muted/60 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              )}
+            >
+              {opt.label}
+              {count > 0 && (
+                <span className="ml-1 sm:ml-1.5 text-[10px] tabular-nums opacity-60">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

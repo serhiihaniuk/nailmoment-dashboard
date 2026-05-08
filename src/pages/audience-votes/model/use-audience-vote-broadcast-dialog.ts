@@ -27,8 +27,8 @@ export const audienceVoteBroadcastsQueryKey = [
 ] as const;
 
 interface UseAudienceVoteBroadcastDialogOptions {
-  preselectedVote?: AudienceVote | null;
-  onOpenChange?: (open: boolean) => void;
+  preselectedVote?: AudienceVote | null | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
 }
 
 export function useAudienceVoteBroadcastDialog(

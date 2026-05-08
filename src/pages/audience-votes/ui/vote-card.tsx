@@ -7,8 +7,6 @@ import {
   ChevronUp,
   Loader2,
   RefreshCw,
-  Send,
-  Users,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,7 +24,7 @@ import {
   formatAudienceVoteStatus,
   formatAudienceVoteDate,
 } from "../model/audience-vote-form";
-import { fetchAudienceVoteResults } from "../api/audience-vote-results-client";
+import { fetchAudienceVoteResults } from "../api/audience-votes-client";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
@@ -44,7 +42,6 @@ interface VoteCardProps {
 
 export function VoteCard({ vote }: VoteCardProps) {
   const [expanded, setExpanded] = useState(vote.status === "open");
-  const candidateCount = vote.candidates?.length ?? 0;
 
   return (
     <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden">
@@ -69,11 +66,6 @@ export function VoteCard({ vote }: VoteCardProps) {
             <div className="flex items-center gap-2 mt-2 text-[12px] text-muted-foreground">
               <span>{formatAudienceVoteKind(vote.kind)}</span>
               <span className="text-border">·</span>
-              <span className="flex items-center gap-1">
-                <Users size={12} className="shrink-0" />
-                {candidateCount} {candidateCount === 1 ? "candidate" : "candidates"}
-              </span>
-              <span className="text-border">·</span>
               <span>Created {formatAudienceVoteDate(vote.created_at)}</span>
             </div>
           </div>
@@ -93,14 +85,15 @@ export function VoteCard({ vote }: VoteCardProps) {
             type="button"
             onClick={() => setExpanded(!expanded)}
             className={cn(
-              "ml-auto inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-[12px] font-medium transition-colors",
+              "ml-auto inline-flex items-center gap-1.5 px-2 sm:px-3 h-8 rounded-md text-[12px] font-medium transition-colors",
               "border border-border/60 bg-white hover:bg-muted/50",
               expanded && "bg-muted/40"
             )}
           >
-            <BarChart3 size={14} />
-            {expanded ? "Hide Preview" : "Quick Preview"}
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <BarChart3 size={14} className="shrink-0" />
+            <span className="hidden sm:inline">{expanded ? "Hide Preview" : "Quick Preview"}</span>
+            <span className="sm:hidden">{expanded ? "Hide" : "Preview"}</span>
+            {expanded ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
           </button>
         </div>
       </div>
