@@ -4,6 +4,7 @@ import {
   buildVoteCandidateMediaPath,
   parsePublicVoteCandidate,
   parseAudienceVoteMiniAppResponse,
+  parseAudienceVoteMiniAppVoteResponse,
   parseAudienceVote,
   parseAudienceVoteList,
   buildAudienceVoteResults,
@@ -294,6 +295,7 @@ describe("audience vote parsing", () => {
           ],
         },
       ],
+      selected_candidate_id: "candidate_1",
       status: "open_vote",
       vote: makeAudienceVoteResponse({ status: "open" }),
     });
@@ -316,6 +318,7 @@ describe("audience vote parsing", () => {
           ],
         },
       ],
+      selected_candidate_id: "candidate_1",
       status: "open_vote",
       vote: {
         id: "vote_1",
@@ -328,6 +331,22 @@ describe("audience vote parsing", () => {
     expect(JSON.stringify(feed)).not.toContain("internal_name");
     expect(JSON.stringify(feed)).not.toContain("blob_download_url");
     expect(JSON.stringify(feed)).not.toContain("blob_pathname");
+    expect(JSON.stringify(feed)).not.toContain("total_votes");
+  });
+
+  test("parses Mini App save vote responses without result totals", () => {
+    const response = parseAudienceVoteMiniAppVoteResponse({
+      audience_vote_id: "vote_1",
+      selected_candidate_id: "candidate_2",
+      status: "saved",
+    });
+
+    expect(response).toEqual({
+      audience_vote_id: "vote_1",
+      selected_candidate_id: "candidate_2",
+      status: "saved",
+    });
+    expect(JSON.stringify(response)).not.toContain("total_votes");
   });
 });
 

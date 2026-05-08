@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ImageIcon,
@@ -17,9 +18,13 @@ import type {
   AudienceVoteMiniAppResponse,
   MiniAppVoteCandidate,
   PublicVoteCandidateMedia,
+  VoteCandidateId,
 } from "@/entities/audience-vote";
 import { cn } from "@/shared/lib/cn";
-import { fetchAudienceVoteMiniAppFeed } from "../api/mini-app-client";
+import {
+  fetchAudienceVoteMiniAppFeed,
+  saveAudienceVoteMiniAppVote,
+} from "../api/mini-app-client";
 import {
   getTelegramWebApp,
   readTelegramInitData,
@@ -29,7 +34,7 @@ type LoadState =
   | { status: "booting" }
   | { status: "missing-init-data" }
   | { status: "loading" }
-  | { data: AudienceVoteMiniAppResponse; status: "loaded" }
+  | { data: AudienceVoteMiniAppResponse; initData: string; status: "loaded" }
   | { message: string; status: "error" };
 
 export default function AudienceVoteMiniAppPage() {
@@ -62,7 +67,7 @@ export default function AudienceVoteMiniAppPage() {
         const data = await fetchAudienceVoteMiniAppFeed(initData);
 
         if (!cancelled) {
-          setLoadState({ data, status: "loaded" });
+          setLoadState({ data, initData, status: "loaded" });
         }
       } catch (error) {
         if (!cancelled) {
@@ -183,24 +188,82 @@ function MiniAppBody({
     );
   }
 
-  return <VoteFeed data={loadState.data} />;
+  return <VoteFeed data={loadState.data} initData={loadState.initData} />;
 }
 
 function VoteFeed({
   data,
+  initData,
 }: {
   data: Extract<AudienceVoteMiniAppResponse, { status: "open_vote" }>;
+  initData: string;
 }) {
+  const [selectedCandidateId, setSelectedCandidateId] =
+    useState<VoteCandidateId | null>(data.selected_candidate_id);
+  const [pendingCandidateId, setPendingCandidateId] =
+    useState<VoteCandidateId | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleVote(candidateId: VoteCandidateId) {
+    const previousCandidateId = selectedCandidateId;
+
+    setSelectedCandidateId(candidateId);
+    setPendingCandidateId(candidateId);
+    setSaveError(null);
+
+    try {
+      const response = await saveAudienceVoteMiniAppVote({
+        audienceVoteId: data.vote.id,
+        candidateId,
+        initData,
+      });
+      setSelectedCandidateId(response.selected_candidate_id);
+    } catch (error) {
+      setSelectedCandidateId(previousCandidateId);
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Не вдалося зберегти голос."
+      );
+    } finally {
+      setPendingCandidateId(null);
+    }
+  }
+
   return (
     <section className="flex flex-col gap-4">
+      {saveError ? (
+        <div className="rounded-md border border-red-400/40 bg-red-950/50 px-3 py-2 text-sm text-red-100">
+          {saveError}
+        </div>
+      ) : null}
       {data.candidates.map((candidate) => (
-        <CandidateCard candidate={candidate} key={candidate.id} />
+        <CandidateCard
+          candidate={candidate}
+          isPending={pendingCandidateId === candidate.id}
+          isSelected={selectedCandidateId === candidate.id}
+          key={candidate.id}
+          onVote={() => void handleVote(candidate.id)}
+          votingLocked={pendingCandidateId !== null}
+        />
       ))}
     </section>
   );
 }
 
-function CandidateCard({ candidate }: { candidate: MiniAppVoteCandidate }) {
+function CandidateCard({
+  candidate,
+  isPending,
+  isSelected,
+  onVote,
+  votingLocked,
+}: {
+  candidate: MiniAppVoteCandidate;
+  isPending: boolean;
+  isSelected: boolean;
+  onVote: () => void;
+  votingLocked: boolean;
+}) {
   const [mediaIndex, setMediaIndex] = useState(0);
   const currentMedia = candidate.media[mediaIndex] ?? null;
 
@@ -276,12 +339,30 @@ function CandidateCard({ candidate }: { candidate: MiniAppVoteCandidate }) {
           ) : null}
         </div>
         <button
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white opacity-70"
-          disabled
+          className={cn(
+            "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition",
+            isSelected
+              ? "bg-emerald-500 hover:bg-emerald-400"
+              : "bg-orange-500 hover:bg-orange-400",
+            votingLocked && !isPending && "opacity-60",
+            isPending && "opacity-90"
+          )}
+          disabled={votingLocked}
+          onClick={onVote}
           type="button"
         >
-          <Vote aria-hidden="true" className="size-4" />
-          Голосувати
+          {isPending ? (
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          ) : isSelected ? (
+            <CheckCircle2 aria-hidden="true" className="size-4" />
+          ) : (
+            <Vote aria-hidden="true" className="size-4" />
+          )}
+          {isPending
+            ? "Зберігаємо..."
+            : isSelected
+              ? "Обрано"
+              : "Голосувати"}
         </button>
       </div>
     </article>

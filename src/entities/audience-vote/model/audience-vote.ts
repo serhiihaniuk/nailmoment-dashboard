@@ -210,6 +210,7 @@ export const audienceVoteMiniAppResponseSchema = z.discriminatedUnion(
   [
     z.object({
       candidates: z.array(miniAppVoteCandidateSchema),
+      selected_candidate_id: voteCandidateIdSchema.nullable(),
       status: z.literal("open_vote"),
       vote: publicAudienceVoteSchema,
     }),
@@ -222,6 +223,17 @@ export const audienceVoteMiniAppResponseSchema = z.discriminatedUnion(
     }),
   ]
 );
+
+export const saveAudienceVoteMiniAppVoteRequestSchema = z.object({
+  audience_vote_id: audienceVoteIdSchema,
+  candidate_id: voteCandidateIdSchema,
+});
+
+export const audienceVoteMiniAppVoteResponseSchema = z.object({
+  audience_vote_id: audienceVoteIdSchema,
+  selected_candidate_id: voteCandidateIdSchema,
+  status: z.literal("saved"),
+});
 
 export const voteCandidateMediaUploadPayloadSchema = z
   .object({
@@ -299,6 +311,12 @@ export type MiniAppVoteCandidate = z.infer<typeof miniAppVoteCandidateSchema>;
 export type PublicAudienceVote = z.infer<typeof publicAudienceVoteSchema>;
 export type AudienceVoteMiniAppResponse = z.infer<
   typeof audienceVoteMiniAppResponseSchema
+>;
+export type SaveAudienceVoteMiniAppVoteRequest = z.infer<
+  typeof saveAudienceVoteMiniAppVoteRequestSchema
+>;
+export type AudienceVoteMiniAppVoteResponse = z.infer<
+  typeof audienceVoteMiniAppVoteResponseSchema
 >;
 export type VoteCandidateMediaUploadPayload = z.infer<
   typeof voteCandidateMediaUploadPayloadSchema
@@ -542,6 +560,12 @@ export function parseAudienceVoteMiniAppResponse(
   value: unknown
 ): AudienceVoteMiniAppResponse {
   return audienceVoteMiniAppResponseSchema.parse(value);
+}
+
+export function parseAudienceVoteMiniAppVoteResponse(
+  value: unknown
+): AudienceVoteMiniAppVoteResponse {
+  return audienceVoteMiniAppVoteResponseSchema.parse(value);
 }
 
 export function parseVoteCandidateMedia(

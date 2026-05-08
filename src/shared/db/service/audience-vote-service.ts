@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, ne, or } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
 import {
@@ -8,6 +9,7 @@ import {
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
+  type AudienceVoteCurrentVote,
   type InsertAudienceVote,
   type TelegramUser,
   type InsertVoteCandidateMedia,
@@ -48,6 +50,23 @@ export interface UpsertTelegramVoterInput {
   username?: string | null;
 }
 
+export interface GetCurrentVoteForTelegramVoterInput {
+  audienceVoteId: string;
+  telegramUserId: number;
+}
+
+export interface SaveCurrentVoteInput
+  extends GetCurrentVoteForTelegramVoterInput {
+  candidateId: string;
+}
+
+export type SaveCurrentVoteOutcome = "created" | "unchanged" | "updated";
+
+export interface SaveCurrentVoteResult {
+  currentVote: AudienceVoteCurrentVote;
+  outcome: SaveCurrentVoteOutcome;
+}
+
 export interface CompleteVoteCandidateMediaUploadInput {
   mediaData: Omit<
     InsertVoteCandidateMedia,
@@ -81,6 +100,32 @@ export class AudienceVoteTransitionError extends Error {
   }
 }
 
+export type AudienceVoteWriteErrorCode =
+  | "candidate_not_available"
+  | "no_open_vote"
+  | "vote_closed"
+  | "vote_not_open";
+
+export class AudienceVoteWriteError extends Error {
+  readonly code: AudienceVoteWriteErrorCode;
+  readonly status: number;
+
+  constructor({
+    code,
+    message,
+    status,
+  }: {
+    code: AudienceVoteWriteErrorCode;
+    message: string;
+    status: number;
+  }) {
+    super(message);
+    this.name = "AudienceVoteWriteError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export interface IAudienceVoteService {
   addAudienceVote: (voteData: InsertAudienceVote) => Promise<AudienceVote>;
   addVoteCandidate: (
@@ -100,6 +145,9 @@ export interface IAudienceVoteService {
   getAudienceVoteCurrentVoteCounts: (
     audienceVoteId: string
   ) => Promise<AudienceVoteCurrentVoteCount[]>;
+  getCurrentVoteForTelegramVoter: (
+    input: GetCurrentVoteForTelegramVoterInput
+  ) => Promise<AudienceVoteCurrentVote | undefined>;
   getVoteCandidate: (id: string) => Promise<VoteCandidate | undefined>;
   getVoteCandidateMedia: (
     id: string
@@ -116,6 +164,9 @@ export interface IAudienceVoteService {
   softDeleteVoteCandidate: (
     id: string
   ) => Promise<{ id: string } | undefined>;
+  saveCurrentVote: (
+    input: SaveCurrentVoteInput
+  ) => Promise<SaveCurrentVoteResult>;
   updateVoteCandidate: (
     id: string,
     candidateData: PatchVoteCandidateClientInput
@@ -189,6 +240,26 @@ export function createAudienceVoteService(
         eq(audienceVoteCurrentVoteTable.audience_vote_id, audienceVoteId)
       )
       .groupBy(audienceVoteCurrentVoteTable.candidate_id);
+  };
+
+  const getCurrentVoteForTelegramVoter = async ({
+    audienceVoteId,
+    telegramUserId,
+  }: GetCurrentVoteForTelegramVoterInput): Promise<
+    AudienceVoteCurrentVote | undefined
+  > => {
+    const [currentVote] = await db
+      .select()
+      .from(audienceVoteCurrentVoteTable)
+      .where(
+        and(
+          eq(audienceVoteCurrentVoteTable.audience_vote_id, audienceVoteId),
+          eq(audienceVoteCurrentVoteTable.telegram_user_id, telegramUserId)
+        )
+      )
+      .limit(1);
+
+    return currentVote;
   };
 
   const upsertTelegramVoter = async ({
@@ -511,6 +582,99 @@ export function createAudienceVoteService(
     return closedVote;
   };
 
+  const saveCurrentVote = async ({
+    audienceVoteId,
+    candidateId,
+    telegramUserId,
+  }: SaveCurrentVoteInput): Promise<SaveCurrentVoteResult> => {
+    const openVote = await getOpenAudienceVote();
+
+    if (!openVote) {
+      await assertVoteIsNotClosed(audienceVoteId);
+      throw new AudienceVoteWriteError({
+        code: "no_open_vote",
+        message: "No Audience Vote is open for voting.",
+        status: 409,
+      });
+    }
+
+    if (openVote.id !== audienceVoteId) {
+      await assertVoteIsNotClosed(audienceVoteId);
+      throw new AudienceVoteWriteError({
+        code: "vote_not_open",
+        message: "This Audience Vote is not the current open vote.",
+        status: 409,
+      });
+    }
+
+    await assertCandidateCanReceiveVote({
+      audienceVoteId: openVote.id,
+      candidateId,
+    });
+
+    const existingVote = await getCurrentVoteForTelegramVoter({
+      audienceVoteId,
+      telegramUserId,
+    });
+
+    if (existingVote?.candidate_id === candidateId) {
+      return { currentVote: existingVote, outcome: "unchanged" };
+    }
+
+    if (existingVote) {
+      return {
+        currentVote: await updateExistingCurrentVote({
+          candidateId,
+          currentVoteId: existingVote.id,
+        }),
+        outcome: "updated",
+      };
+    }
+
+    const [insertedVote] = await db
+      .insert(audienceVoteCurrentVoteTable)
+      .values({
+        audience_vote_id: audienceVoteId,
+        candidate_id: candidateId,
+        id: nanoid(12),
+        telegram_user_id: telegramUserId,
+      })
+      .onConflictDoNothing({
+        target: [
+          audienceVoteCurrentVoteTable.audience_vote_id,
+          audienceVoteCurrentVoteTable.telegram_user_id,
+        ],
+      })
+      .returning();
+
+    if (insertedVote) {
+      return { currentVote: insertedVote, outcome: "created" };
+    }
+
+    const conflictedVote = await getCurrentVoteForTelegramVoter({
+      audienceVoteId,
+      telegramUserId,
+    });
+
+    if (!conflictedVote) {
+      throw new Error(
+        "Audience Vote current vote insert conflicted, but no existing vote was found."
+      );
+    }
+
+    if (conflictedVote.candidate_id === candidateId) {
+      return { currentVote: conflictedVote, outcome: "unchanged" };
+    }
+
+    return {
+      currentVote: await updateExistingCurrentVote({
+        candidateId,
+        currentVoteId: conflictedVote.id,
+      }),
+      outcome: "updated",
+    };
+  };
+
   const completeVoteCandidateMediaUpload = async ({
     mediaData,
     replacesMediaId,
@@ -659,6 +823,63 @@ export function createAudienceVoteService(
     }
   }
 
+  async function assertVoteIsNotClosed(audienceVoteId: string) {
+    const requestedVote = await getAudienceVote(audienceVoteId);
+
+    if (requestedVote?.status === "closed") {
+      throw new AudienceVoteWriteError({
+        code: "vote_closed",
+        message: "This Audience Vote is closed.",
+        status: 409,
+      });
+    }
+  }
+
+  async function assertCandidateCanReceiveVote({
+    audienceVoteId,
+    candidateId,
+  }: {
+    audienceVoteId: string;
+    candidateId: string;
+  }) {
+    const candidate = await getVoteCandidate(candidateId);
+
+    if (
+      !candidate ||
+      candidate.archived ||
+      candidate.audience_vote_id !== audienceVoteId
+    ) {
+      throw new AudienceVoteWriteError({
+        code: "candidate_not_available",
+        message: "This Vote Candidate is not available for the open vote.",
+        status: 400,
+      });
+    }
+  }
+
+  async function updateExistingCurrentVote({
+    candidateId,
+    currentVoteId,
+  }: {
+    candidateId: string;
+    currentVoteId: string;
+  }): Promise<AudienceVoteCurrentVote> {
+    const [updatedVote] = await db
+      .update(audienceVoteCurrentVoteTable)
+      .set({
+        candidate_id: candidateId,
+        updated_at: new Date(),
+      })
+      .where(eq(audienceVoteCurrentVoteTable.id, currentVoteId))
+      .returning();
+
+    if (!updatedVote) {
+      throw new Error("Audience Vote current vote update returned no record.");
+    }
+
+    return updatedVote;
+  }
+
   async function reorderActiveCandidates(
     audienceVoteId: string,
     movedCandidateId?: string,
@@ -732,12 +953,14 @@ export function createAudienceVoteService(
     getAudienceVote,
     getAudienceVoteCurrentVoteCounts,
     getAudienceVotes,
+    getCurrentVoteForTelegramVoter,
     getOpenAudienceVote,
     getVoteCandidate,
     getVoteCandidateMedia,
     getVoteCandidateMediaList,
     getVoteCandidates,
     openAudienceVote,
+    saveCurrentVote,
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateVoteCandidate,
