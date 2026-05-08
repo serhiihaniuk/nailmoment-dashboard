@@ -43,7 +43,7 @@ export function AudienceVoteCandidatesDialog({
           Candidates
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl w-[90vw]">
         <DialogHeader>
           <DialogTitle>Vote Candidates</DialogTitle>
           <DialogDescription>

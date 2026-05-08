@@ -1,12 +1,8 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  FileText,
-  Loader2,
-  Vote,
-} from "lucide-react";
+import { FileText, Loader2, Vote } from "lucide-react";
 
 import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
 import {
@@ -25,17 +21,22 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/shared/lib/cn";
 import { fetchAudienceVotes } from "../api/audience-votes-client";
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
-import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
+import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
 import { VoteCard } from "./vote-card";
-import { VoteDetailPanel } from "./vote-detail-panel";
 
 type StatusFilter = "all" | AudienceVoteStatus;
 
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "draft", label: "Draft" },
+  { value: "closed", label: "Closed" },
+];
+
 export default function AudienceVotesPage() {
-  const [selectedVoteId, setSelectedVoteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [broadcastDialogVote, setBroadcastDialogVote] = useState<AudienceVote | null>(null);
 
   const {
     data: votes,
@@ -57,16 +58,18 @@ export default function AudienceVotesPage() {
     return votes.filter((v) => v.status === statusFilter);
   }, [votes, statusFilter]);
 
-  const selectedVote = useMemo(() => {
-    if (!votes || !selectedVoteId) return null;
-    return votes.find((v) => v.id === selectedVoteId) ?? null;
-  }, [votes, selectedVoteId]);
-
-  const handleClosePanel = useCallback(() => setSelectedVoteId(null), []);
-  const handleSelectVote = useCallback((id: string) => setSelectedVoteId(id), []);
-  const handleSendBroadcast = useCallback((vote: AudienceVote) => {
-    setBroadcastDialogVote(vote);
-  }, []);
+  // Sort: open first, then scheduled, then draft, then closed
+  const sortedVotes = useMemo(() => {
+    const statusOrder: Record<AudienceVoteStatus, number> = {
+      open: 0,
+      scheduled: 1,
+      draft: 2,
+      closed: 3,
+    };
+    return [...filteredVotes].sort(
+      (a, b) => statusOrder[a.status] - statusOrder[b.status]
+    );
+  }, [filteredVotes]);
 
   return (
     <div className="page-container flex flex-col gap-5 py-6">
@@ -78,9 +81,7 @@ export default function AudienceVotesPage() {
             Mini App voting stages, broadcasts, and voter-facing fallback text.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <CreateAudienceVoteDialog />
-        </div>
+        <CreateAudienceVoteDialog />
       </div>
 
       {/* Stats bar */}
@@ -96,19 +97,22 @@ export default function AudienceVotesPage() {
       ) : null}
 
       {/* Loading state */}
-      {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
+      ) : null}
 
       {/* Main content */}
       {!isLoading && votes ? (
-        <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
-          {/* Toolbar with filters */}
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border/40">
-            <StatusFilterSegment value={statusFilter} onChange={setStatusFilter} />
-          </div>
+        <>
+          {/* Status filter tabs */}
+          <StatusFilterSegment value={statusFilter} onChange={setStatusFilter} stats={stats} />
 
-          {/* Vote list */}
-          {filteredVotes.length === 0 ? (
-            <Empty className="m-4 border border-border/70 bg-muted/20">
+          {/* Vote cards */}
+          {sortedVotes.length === 0 ? (
+            <Empty className="rounded-xl border border-border/60 bg-white shadow-surface">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <Vote aria-hidden="true" />
@@ -126,35 +130,17 @@ export default function AudienceVotesPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <div>
-              {filteredVotes.map((vote) => (
-                <VoteCard
-                  key={vote.id}
-                  vote={vote}
-                  isSelected={selectedVoteId === vote.id}
-                  onClick={() => handleSelectVote(vote.id)}
-                />
+            <div className="space-y-4">
+              {sortedVotes.map((vote) => (
+                <VoteCard key={vote.id} vote={vote} />
               ))}
             </div>
           )}
-        </div>
+
+          {/* Broadcasts panel */}
+          <AudienceVoteBroadcastsPanel votes={votes} />
+        </>
       ) : null}
-
-      {/* Detail panel */}
-      <VoteDetailPanel
-        vote={selectedVote}
-        onClose={handleClosePanel}
-        onSendBroadcast={handleSendBroadcast}
-      />
-
-      {/* Broadcast dialog - triggered from panel */}
-      <AudienceVoteBroadcastDialog
-        votes={votes ?? []}
-        preselectedVote={broadcastDialogVote}
-        onOpenChange={(open) => {
-          if (!open) setBroadcastDialogVote(null);
-        }}
-      />
     </div>
   );
 }
@@ -170,17 +156,33 @@ function StatsBar({ stats, isRefreshing }: StatsBarProps) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap text-[12px] text-muted-foreground">
       <span>{stats.total} total</span>
-      <span className="text-border">|</span>
-      <span className="text-success">{stats.open} open</span>
-      <span className="text-border">|</span>
-      <span>{stats.scheduled} scheduled</span>
-      <span className="text-border">|</span>
-      <span>{stats.draft} draft</span>
-      <span className="text-border">|</span>
-      <span>{stats.closed} closed</span>
+      {stats.open > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span className="text-success font-medium">{stats.open} open</span>
+        </>
+      )}
+      {stats.scheduled > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.scheduled} scheduled</span>
+        </>
+      )}
+      {stats.draft > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.draft} draft</span>
+        </>
+      )}
+      {stats.closed > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.closed} closed</span>
+        </>
+      )}
       {isRefreshing && (
         <>
-          <span className="text-border">|</span>
+          <span className="text-border">·</span>
           <span className="flex items-center gap-1">
             <Loader2 size={11} className="animate-spin" />
             Refreshing
@@ -193,39 +195,41 @@ function StatsBar({ stats, isRefreshing }: StatsBarProps) {
 
 /* ── Status Filter Segment ── */
 
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "draft", label: "Draft" },
-  { value: "closed", label: "Closed" },
-];
-
 function StatusFilterSegment({
   value,
   onChange,
+  stats,
 }: {
   value: StatusFilter;
   onChange: (v: StatusFilter) => void;
+  stats: ReturnType<typeof buildVoteStats>;
 }) {
   return (
-    <div className="flex items-center h-8 rounded-md border border-border/60 overflow-hidden">
-      {STATUS_FILTERS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            "h-full px-3 text-[12px] transition-colors duration-150 whitespace-nowrap",
-            value === opt.value
-              ? "bg-[#f5f5f5] text-foreground font-medium"
-              : "bg-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/40",
-            opt.value !== "all" && "border-l border-border/60",
-          )}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="flex items-center h-9 rounded-lg border border-border/60 overflow-hidden bg-white w-fit">
+      {STATUS_FILTERS.map((opt) => {
+        const count = opt.value === "all" ? stats.total : stats[opt.value];
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "h-full px-4 text-[12px] font-medium transition-colors whitespace-nowrap",
+              "border-r border-border/40 last:border-r-0",
+              value === opt.value
+                ? "bg-muted/60 text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )}
+          >
+            {opt.label}
+            {count > 0 && (
+              <span className="ml-1.5 text-[10px] tabular-nums opacity-60">
+                {count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

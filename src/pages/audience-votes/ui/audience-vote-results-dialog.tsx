@@ -50,7 +50,7 @@ export function AudienceVoteResultsDialog({ vote }: { vote: AudienceVote }) {
           Results
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl lg:max-w-5xl w-[85vw]">
         <DialogHeader>
           <DialogTitle>Audience Vote Results</DialogTitle>
           <DialogDescription>
