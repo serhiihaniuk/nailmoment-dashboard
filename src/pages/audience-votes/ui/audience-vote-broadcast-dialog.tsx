@@ -30,11 +30,17 @@ import {
 } from "../model/audience-vote-form";
 import { useAudienceVoteBroadcastDialog } from "../model/use-audience-vote-broadcast-dialog";
 
+interface AudienceVoteBroadcastDialogProps {
+  votes: AudienceVote[];
+  preselectedVote?: AudienceVote | null;
+  onOpenChange?: (open: boolean) => void;
+}
+
 export function AudienceVoteBroadcastDialog({
   votes,
-}: {
-  votes: AudienceVote[];
-}) {
+  preselectedVote,
+  onOpenChange: onOpenChangeProp,
+}: AudienceVoteBroadcastDialogProps) {
   const {
     confirmBroadcast,
     draft,
@@ -48,7 +54,10 @@ export function AudienceVoteBroadcastDialog({
     open,
     preview,
     updateDraft,
-  } = useAudienceVoteBroadcastDialog(votes);
+  } = useAudienceVoteBroadcastDialog(votes, {
+    preselectedVote,
+    onOpenChange: onOpenChangeProp,
+  });
   const disabled = votes.length === 0;
 
   return (

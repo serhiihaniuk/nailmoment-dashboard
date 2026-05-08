@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type {
@@ -26,7 +26,16 @@ export const audienceVoteBroadcastsQueryKey = [
   "audienceVoteBroadcasts",
 ] as const;
 
-export function useAudienceVoteBroadcastDialog(votes: AudienceVote[]) {
+interface UseAudienceVoteBroadcastDialogOptions {
+  preselectedVote?: AudienceVote | null;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function useAudienceVoteBroadcastDialog(
+  votes: AudienceVote[],
+  options: UseAudienceVoteBroadcastDialogOptions = {}
+) {
+  const { preselectedVote, onOpenChange } = options;
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CreateAudienceVoteBroadcastFormDraft>(() =>
     createAudienceVoteBroadcastDefaultDraft(votes)
@@ -38,6 +47,17 @@ export function useAudienceVoteBroadcastDialog(votes: AudienceVote[]) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] =
     useState<AudienceVoteBroadcastPreview | null>(null);
+
+  // Open dialog when preselectedVote is set
+  useEffect(() => {
+    if (preselectedVote) {
+      setDraft((current) => ({
+        ...current,
+        audience_vote_id: preselectedVote.id,
+      }));
+      setOpen(true);
+    }
+  }, [preselectedVote]);
 
   const previewMutation = useMutation<
     AudienceVoteBroadcastPreview,
@@ -80,7 +100,10 @@ export function useAudienceVoteBroadcastDialog(votes: AudienceVote[]) {
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    resetDialogState();
+    if (!nextOpen) {
+      resetDialogState();
+    }
+    onOpenChange?.(nextOpen);
   }
 
   function updateDraft<Field extends keyof CreateAudienceVoteBroadcastFormDraft>(
