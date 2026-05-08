@@ -215,6 +215,8 @@ describe("finance optimistic cache helpers", () => {
 
     const ticket = readTicket(result);
     expect(calculateTicketPaymentCoverage(ticket.finance, ticket.payments)).toEqual({
+      missingScheduledTotal: 25,
+      overScheduledTotal: 0,
       paidTotal: 0,
       payableTotal: 100,
       pendingScheduledTotal: 75,

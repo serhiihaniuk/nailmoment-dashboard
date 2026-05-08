@@ -19,6 +19,8 @@ export type TicketPaymentCoverageStatus =
   | "under_scheduled";
 
 export type TicketPaymentCoverage = {
+  missingScheduledTotal: number;
+  overScheduledTotal: number;
   paidTotal: number;
   payableTotal: number;
   pendingScheduledTotal: number;
@@ -151,6 +153,12 @@ export function calculateTicketPaymentCoverage(
   const scheduledDifferenceCents = scheduledCents - payableCents;
 
   return {
+    missingScheduledTotal: centsToMoney(
+      Math.max(payableCents - scheduledCents, 0)
+    ),
+    overScheduledTotal: centsToMoney(
+      Math.max(scheduledCents - payableCents, 0)
+    ),
     paidTotal: centsToMoney(paidCents),
     payableTotal: centsToMoney(payableCents),
     pendingScheduledTotal: centsToMoney(pendingScheduledCents),

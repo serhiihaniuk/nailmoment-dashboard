@@ -242,7 +242,7 @@ export function FinanceTable() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
         <span className="text-muted-foreground">{tickets.length} квитків</span>
         <span className="hidden md:inline text-border">|</span>
-        <span><span className="text-muted-foreground">До оплати:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
+        <span><span className="text-muted-foreground">Вартість:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.gross)}</span></span>
         <span><span className="text-muted-foreground">Оплачено:</span> <span className="font-semibold tabular-nums text-success">{formatZloty(financeTotals.paid)}</span></span>
         <span><span className="text-muted-foreground">Залишилось:</span> <span className="font-semibold tabular-nums">{formatZloty(financeTotals.remaining)}</span></span>
         {financeTotals.overdue > 0 && (
@@ -288,7 +288,7 @@ export function FinanceTable() {
                   Дата
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
-                  До оплати
+                  Вартість
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
@@ -344,9 +344,16 @@ export function FinanceTable() {
                 const paymentCoverageTitle = [
                   `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
                   `${formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано`,
-                  `${formatZloty(paymentCoverage.scheduledTotal)} разом у платежах`,
-                  `${formatZloty(paymentCoverage.payableTotal)} до оплати`,
-                ].join(" / ");
+                  paymentCoverage.status === "under_scheduled"
+                    ? `${formatZloty(paymentCoverage.missingScheduledTotal)} не заплановано`
+                    : null,
+                  paymentCoverage.status === "over_scheduled"
+                    ? `${formatZloty(paymentCoverage.overScheduledTotal)} понад вартість`
+                    : null,
+                  `${formatZloty(paymentCoverage.payableTotal)} вартість`,
+                ]
+                  .filter((part): part is string => Boolean(part))
+                  .join(" / ");
                 const paymentCoverageMismatchLabel =
                   paymentCoverage.status === "under_scheduled"
                     ? `Бракує ${formatZloty(paymentCoverageDifference)}`

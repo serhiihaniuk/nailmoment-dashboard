@@ -139,18 +139,35 @@ export function PaymentsPanel({
   const paymentCoverageDifference = Math.abs(
     paymentCoverage.scheduledDifference
   );
+  const hasMissingPaymentCoverage =
+    paymentCoverage.status === "under_scheduled";
+  const hasOverPaymentCoverage =
+    paymentCoverage.status === "over_scheduled";
   const paymentCoverageMismatchText =
-    paymentCoverage.status === "under_scheduled"
+    hasMissingPaymentCoverage
       ? `Бракує ${formatZloty(paymentCoverageDifference)} у запланованих платежах`
-      : paymentCoverage.status === "over_scheduled"
+      : hasOverPaymentCoverage
         ? `Заплановано на ${formatZloty(paymentCoverageDifference)} більше`
         : null;
   const paymentCoverageTitle = [
     `Платежі: ${formatZloty(paymentCoverage.paidTotal)} оплачено`,
     `${formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано`,
-    `${formatZloty(paymentCoverage.scheduledTotal)} разом у платежах`,
-    `${formatZloty(paymentCoverage.payableTotal)} до оплати`,
-  ].join(" / ");
+    hasMissingPaymentCoverage
+      ? `${formatZloty(paymentCoverage.missingScheduledTotal)} не заплановано`
+      : null,
+    hasOverPaymentCoverage
+      ? `${formatZloty(paymentCoverage.overScheduledTotal)} понад вартість`
+      : null,
+    `${formatZloty(paymentCoverage.payableTotal)} вартість`,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" / ");
+  const paymentCoverageEqualsTotal = hasOverPaymentCoverage
+    ? paymentCoverage.scheduledTotal
+    : paymentCoverage.payableTotal;
+  const paymentCoverageEqualsLabel = hasOverPaymentCoverage
+    ? "у платежах"
+    : "вартість";
   const unscheduledGrossPaymentAmount =
     getUnscheduledGrossPaymentAmount(ticket);
   const hasUnscheduledGrossPaymentAmount =
@@ -312,14 +329,30 @@ export function PaymentsPanel({
           <span className="tabular-nums text-success">
             {formatZloty(paymentCoverage.paidTotal)} оплачено
           </span>
-          <span className="text-muted-foreground">/</span>
+          <span className="text-muted-foreground">+</span>
           <span className="tabular-nums">
             {formatZloty(paymentCoverage.pendingScheduledTotal)} заплановано
           </span>
-          <span className="text-muted-foreground">/</span>
+          {hasMissingPaymentCoverage && (
+            <>
+              <span className="text-muted-foreground">+</span>
+              <span className="tabular-nums text-warning">
+                {formatZloty(paymentCoverage.missingScheduledTotal)} не заплановано
+              </span>
+            </>
+          )}
+          <span className="text-muted-foreground">=</span>
           <span className="tabular-nums">
-            {formatZloty(paymentCoverage.payableTotal)} до оплати
+            {formatZloty(paymentCoverageEqualsTotal)} {paymentCoverageEqualsLabel}
           </span>
+          {hasOverPaymentCoverage && (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <span className="tabular-nums">
+                {formatZloty(paymentCoverage.payableTotal)} вартість
+              </span>
+            </>
+          )}
         </div>
         {paymentCoverageMismatchText && (
           <p className="mt-1 text-[11px] font-medium text-warning">
@@ -453,7 +486,7 @@ export function PaymentsPanel({
               }
             />
           </PaymentField>
-          <PaymentField label="До оплати">
+          <PaymentField label="Вартість">
             <ReadOnlyMoney value={calculatedPayableTotal(ticket)} />
           </PaymentField>
           <PaymentField label="Нетто">

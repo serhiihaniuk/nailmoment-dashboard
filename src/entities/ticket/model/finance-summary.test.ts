@@ -107,6 +107,8 @@ describe("ticket finance totals", () => {
     ]);
 
     expect(coverage).toEqual({
+      missingScheduledTotal: 1,
+      overScheduledTotal: 0,
       paidTotal: 200,
       payableTotal: 400,
       pendingScheduledTotal: 199,
@@ -129,6 +131,8 @@ describe("ticket finance totals", () => {
     ]);
 
     expect(coverage).toMatchObject({
+      missingScheduledTotal: 0,
+      overScheduledTotal: 50,
       pendingScheduledTotal: 200,
       scheduledDifference: 50,
       scheduledTotal: 450,
@@ -154,6 +158,8 @@ describe("ticket finance totals", () => {
       );
 
       expect(coverage).toMatchObject({
+        missingScheduledTotal: 0,
+        overScheduledTotal: 0,
         payableTotal: 400,
         pendingScheduledTotal: 200,
         scheduledDifference: 0,
@@ -172,6 +178,8 @@ describe("ticket finance totals", () => {
       );
 
       expect(coverage).toEqual({
+        missingScheduledTotal: 0,
+        overScheduledTotal: 0,
         paidTotal: 0,
         payableTotal: 0,
         pendingScheduledTotal: 0,
