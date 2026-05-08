@@ -192,12 +192,12 @@ Delivery rules:
 
 - use durable per-voter delivery rows;
 - process small batches, around 25 deliveries per run;
-- retry each delivery up to three times;
+- attempt each delivery at most once to avoid duplicate Telegram messages after ambiguous provider failures;
 - mark blocked/restricted voters inactive for future broadcasts;
 - allow dashboard-only interrupt;
 - interrupt must stop all future unsent deliveries;
 - already sent Telegram messages remain sent;
-- immediate dashboard kick and scheduled retry processor use the same safe
+- immediate dashboard kick and scheduled processor use the same safe
   processing path;
 - internal processor endpoints require `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`.
 

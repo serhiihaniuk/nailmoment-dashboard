@@ -147,6 +147,7 @@ export const audienceVoteBroadcastStatusEnum = pgEnum(
     "canary_operator_sent",
     "canary_voters_sent",
     "ready",
+    "completed",
     "interrupted",
     "failed",
   ]
@@ -669,6 +670,12 @@ export const audienceVoteBroadcastDeliveryTable = pgTable(
       withTimezone: true,
       mode: "date",
     }),
+    next_attempt_at: timestamp("next_attempt_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
     created_at: timestamp("created_at", {
       withTimezone: true,
       mode: "date",
@@ -693,6 +700,9 @@ export const audienceVoteBroadcastDeliveryTable = pgTable(
     audienceVoteBroadcastDeliveryBroadcastStageStatusIdx: index(
       "audience_vote_broadcast_delivery_broadcast_stage_status_idx"
     ).on(table.broadcast_id, table.stage, table.status),
+    audienceVoteBroadcastDeliveryDueIdx: index(
+      "audience_vote_broadcast_delivery_due_idx"
+    ).on(table.stage, table.status, table.next_attempt_at),
     audienceVoteBroadcastDeliveryUnique: unique(
       "audience_vote_broadcast_delivery_unique"
     ).on(table.broadcast_id, table.telegram_user_id, table.stage),

@@ -299,8 +299,8 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - An **Operator** may interrupt an **Audience Vote Broadcast** from the dashboard.
 - Interrupting an **Audience Vote Broadcast** must stop all future unsent deliveries.
 - An **Audience Vote Broadcast** is delivered through **Audience Vote Broadcast Deliveries**.
-- An **Audience Vote Broadcast Delivery** may be retried up to three times for a **Telegram Voter**.
-- **Audience Vote Broadcast Deliveries** are processed by an immediate dashboard-triggered kick and a scheduled retry processor.
+- An **Audience Vote Broadcast Delivery** is attempted at most once for a **Telegram Voter** to avoid duplicate Telegram messages after ambiguous provider failures.
+- **Audience Vote Broadcast Deliveries** are processed by an immediate dashboard-triggered kick and a scheduled processor for due unsent deliveries.
 - A **Telegram Voter** that blocks or restricts the bot should be excluded from future **Audience Vote Broadcasts**.
 - The **Production Dashboard** uses the **Production Database**.
 - The **Dev Environment** is separate from the **Production Dashboard** and **Production Database**.

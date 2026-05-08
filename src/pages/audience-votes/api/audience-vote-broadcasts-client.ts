@@ -64,15 +64,15 @@ export async function interruptAudienceVoteBroadcast(
   return postBroadcastAction(broadcastId, "interrupt");
 }
 
-export async function processAudienceVoteBroadcastCanary(
+export async function processAudienceVoteBroadcast(
   broadcastId: AudienceVoteBroadcastId
 ): Promise<AudienceVoteBroadcast> {
-  return postBroadcastAction(broadcastId, "process-canary");
+  return postBroadcastAction(broadcastId, "process");
 }
 
 async function postBroadcastAction(
   broadcastId: AudienceVoteBroadcastId,
-  action: "interrupt" | "process-canary"
+  action: "interrupt" | "process"
 ): Promise<AudienceVoteBroadcast> {
   const response = await fetch(
     `/api/audience-vote/broadcasts/${encodeURIComponent(broadcastId)}/${action}`,

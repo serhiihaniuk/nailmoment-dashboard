@@ -172,6 +172,49 @@ Telegram webhook and bot menu setup is manual. Do not configure production
 Telegram webhooks during development work. Use separate dev/prod bots and only
 point the dev bot at Preview deployments.
 
+## Audience Vote Broadcasts
+
+Audience Vote Broadcasts use durable per-voter delivery rows instead of a
+single long Telegram send loop.
+
+```txt
+Operator confirms broadcast
+  |
+  +- create audience_vote_broadcast
+  +- create audience_vote_broadcast_delivery rows
+  +- immediately kick safe processor
+       |
+       +- send Operator canary
+       +- wait two minutes
+       +- send 25-voter canary plus Operator
+       +- wait two minutes
+       +- send normal deliveries in batches of 25
+
+Vercel Cron
+  |
+  +- GET /api/audience-vote/broadcasts/process
+       |
+       +- require processor secret
+       +- process due unsent canary/normal rows through the same safe path
+```
+
+The processor checks the broadcast status from the database before each phase
+and before every recipient send. Setting a broadcast to `interrupted` is the
+DB-backed kill switch: future unsent deliveries are skipped, while already sent
+Telegram messages stay recorded as sent.
+
+Each delivery is attempted at most once. A processor claim marks the delivery
+failed unless a successful Telegram provider handoff is recorded afterward.
+This avoids duplicate Telegram messages when a provider response is ambiguous or
+a serverless invocation crashes between the Telegram call and the DB update.
+Telegram forbidden/block-style failures also mark that Telegram Voter inactive
+so future broadcasts do not target them.
+
+Internal scheduled processing requires `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`.
+Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`, so production should
+set `CRON_SECRET` to the same internal processor secret or another accepted
+equivalent.
+
 Manual webhook command shape:
 
 ```powershell

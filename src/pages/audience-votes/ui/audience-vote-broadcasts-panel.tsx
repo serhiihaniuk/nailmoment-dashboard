@@ -16,15 +16,15 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import {
   fetchAudienceVoteBroadcasts,
   interruptAudienceVoteBroadcast,
-  processAudienceVoteBroadcastCanary,
+  processAudienceVoteBroadcast,
   type AudienceVoteBroadcastApiError,
 } from "../api/audience-vote-broadcasts-client";
 import { formatAudienceVoteDate } from "../model/audience-vote-form";
 import {
   formatAudienceVoteBroadcastNextStep,
   formatAudienceVoteBroadcastStatus,
-  isAudienceVoteBroadcastCanaryActive,
   isAudienceVoteBroadcastDue,
+  isAudienceVoteBroadcastInterruptible,
 } from "../model/audience-vote-broadcast";
 import { audienceVoteBroadcastsQueryKey } from "../model/use-audience-vote-broadcast-dialog";
 
@@ -62,7 +62,7 @@ export function AudienceVoteBroadcastsPanel({
     AudienceVoteBroadcastApiError,
     AudienceVoteBroadcastId
   >({
-    mutationFn: processAudienceVoteBroadcastCanary,
+    mutationFn: processAudienceVoteBroadcast,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: audienceVoteBroadcastsQueryKey,
@@ -86,16 +86,16 @@ export function AudienceVoteBroadcastsPanel({
   const dueBroadcast = broadcasts?.find((broadcast) =>
     isAudienceVoteBroadcastDue(broadcast)
   );
-  const processCanary = processMutation.mutate;
-  const isProcessingCanary = processMutation.isPending;
+  const processBroadcast = processMutation.mutate;
+  const isProcessingBroadcast = processMutation.isPending;
 
   useEffect(() => {
-    if (!dueBroadcast || isProcessingCanary) {
+    if (!dueBroadcast || isProcessingBroadcast) {
       return;
     }
 
-    processCanary(dueBroadcast.id);
-  }, [dueBroadcast, isProcessingCanary, processCanary]);
+    processBroadcast(dueBroadcast.id);
+  }, [dueBroadcast, isProcessingBroadcast, processBroadcast]);
 
   const mutationError =
     processMutation.error?.message ?? interruptMutation.error?.message ?? null;
@@ -109,10 +109,10 @@ export function AudienceVoteBroadcastsPanel({
             Confirmation, canary status, and Operator interrupt.
           </p>
         </div>
-        {isProcessingCanary ? (
+        {isProcessingBroadcast ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 aria-hidden="true" className="animate-spin" size={14} />
-            Advancing canary
+            Processing broadcast
           </div>
         ) : null}
       </div>
@@ -207,12 +207,18 @@ function BroadcastRow({
           Canary sent {canarySent}
           {canaryFailed > 0 ? ` / failed ${canaryFailed}` : ""}
         </p>
-        <p>Normal pending {broadcast.delivery_counts.normal.pending}</p>
+        <p>
+          Normal sent {broadcast.delivery_counts.normal.sent} / pending{" "}
+          {broadcast.delivery_counts.normal.pending}
+          {broadcast.delivery_counts.normal.failed > 0
+            ? ` / failed ${broadcast.delivery_counts.normal.failed}`
+            : ""}
+        </p>
         <p>{formatAudienceVoteBroadcastNextStep(broadcast)}</p>
       </div>
 
       <div className="flex justify-start lg:justify-end">
-        {isAudienceVoteBroadcastCanaryActive(broadcast.status) ? (
+        {isAudienceVoteBroadcastInterruptible(broadcast.status) ? (
           <Button
             disabled={interruptDisabled}
             onClick={onInterrupt}
@@ -231,7 +237,7 @@ function BroadcastRow({
 function getBroadcastStatusBadgeVariant(
   status: AudienceVoteBroadcastStatus
 ): BadgeVariant {
-  if (status === "ready") {
+  if (status === "completed") {
     return "success";
   }
 
@@ -239,7 +245,11 @@ function getBroadcastStatusBadgeVariant(
     return "destructive";
   }
 
-  if (status === "canary_operator_sent" || status === "canary_voters_sent") {
+  if (
+    status === "canary_operator_sent" ||
+    status === "canary_voters_sent" ||
+    status === "ready"
+  ) {
     return "secondary";
   }
 

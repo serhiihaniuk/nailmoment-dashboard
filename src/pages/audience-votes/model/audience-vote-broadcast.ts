@@ -42,9 +42,10 @@ const broadcastStatusLabels: Record<AudienceVoteBroadcastStatus, string> = {
   canary_operator_pending: "Operator canary pending",
   canary_operator_sent: "Operator canary sent",
   canary_voters_sent: "Voter canary sent",
+  completed: "Completed",
   failed: "Failed",
   interrupted: "Interrupted",
-  ready: "Ready for delivery",
+  ready: "Delivering",
 };
 
 export function createAudienceVoteBroadcastDefaultDraft(
@@ -135,7 +136,13 @@ export function formatAudienceVoteBroadcastNextStep(
   }
 
   if (broadcast.status === "ready") {
-    return "Canary complete";
+    return broadcast.delivery_counts.normal.pending > 0
+      ? "Normal delivery in progress"
+      : "Normal delivery finishing";
+  }
+
+  if (broadcast.status === "completed") {
+    return "Delivery complete";
   }
 
   if (broadcast.status === "interrupted") {
@@ -155,13 +162,21 @@ export function isAudienceVoteBroadcastCanaryActive(
   );
 }
 
+export function isAudienceVoteBroadcastInterruptible(
+  status: AudienceVoteBroadcastStatus
+) {
+  return isAudienceVoteBroadcastCanaryActive(status) || status === "ready";
+}
+
 export function isAudienceVoteBroadcastDue(
   broadcast: AudienceVoteBroadcast,
   now = new Date()
 ) {
   return (
-    isAudienceVoteBroadcastCanaryActive(broadcast.status) &&
-    broadcast.next_stage_at <= now
+    (isAudienceVoteBroadcastCanaryActive(broadcast.status) &&
+      broadcast.next_stage_at <= now) ||
+    (broadcast.status === "ready" &&
+      broadcast.delivery_counts.normal.pending > 0)
   );
 }
 

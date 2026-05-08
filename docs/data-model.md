@@ -341,7 +341,21 @@ one Telegram Voter in one Audience Vote. It has a unique constraint on
 `audience_vote_id` and `telegram_user_id`, so later vote-save flows can update
 the current selection instead of preserving vote-change history. Operator
 results aggregate this table by `candidate_id` and do not expose a voter list.
-Broadcasts are handled by later Audience Vote slices.
+
+`audience_vote_broadcast` stores Operator-confirmed broadcast messages,
+canary/normal workflow status, the estimated active recipient count, the
+Operator Telegram id used for canaries, and the DB-backed interrupt status.
+
+`audience_vote_broadcast_delivery` stores one durable delivery row per
+recipient and stage. Important fields:
+
+- `stage`: `operator_canary`, `voter_canary`, or `normal`.
+- `status`: `pending`, `sent`, `failed`, or `skipped`.
+- `attempt_count`: incremented when a processor claims the one allowed send
+  attempt.
+- `next_attempt_at`: due timestamp used by the scheduled processor before a
+  delivery has been attempted.
+- `sent_at`: records successful Telegram provider handoff.
 
 ## Finance Formula
 
@@ -384,5 +398,9 @@ Relevant finance/Stripe migrations:
   allows only one non-deleted open Audience Vote.
 - `drizzle/0026_audience_vote_current_votes.sql`: adds the current vote rows
   used for aggregate Operator results and later Mini App vote changes.
+- `drizzle/0027_audience_vote_broadcast_canary.sql`: adds Audience Vote
+  Broadcast and delivery tables for confirmation and canary staging.
+- `drizzle/0028_audience_vote_broadcast_retry_processor.sql`: adds retry
+  scheduling metadata and the completed broadcast status.
 
 Production migration work must follow `AGENTS.md`.

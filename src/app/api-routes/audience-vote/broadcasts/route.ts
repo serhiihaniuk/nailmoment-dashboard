@@ -12,7 +12,7 @@ import { readTelegramAudienceVoteOperatorTelegramId } from "@/shared/config/env"
 import { db } from "@/shared/db";
 import { createAudienceVoteBroadcastClientSchema } from "@/shared/db/schema.zod";
 import { createAudienceVoteBroadcastService } from "@/shared/db/service/audience-vote-broadcast-service";
-import { processAudienceVoteBroadcastCanary } from "./canary-processor";
+import { processAudienceVoteBroadcast } from "./broadcast-processor";
 
 const audienceVoteBroadcastService = createAudienceVoteBroadcastService(db);
 
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const processedBroadcast = await processAudienceVoteBroadcastCanary({
+    const processedBroadcast = await processAudienceVoteBroadcast({
       broadcastId: broadcast.id,
       service: audienceVoteBroadcastService,
     });

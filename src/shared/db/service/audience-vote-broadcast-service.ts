@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, lt, lte, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
@@ -20,6 +20,8 @@ import {
 
 export const AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT = 25;
 export const AUDIENCE_VOTE_BROADCAST_CANARY_WAIT_MS = 2 * 60 * 1000;
+export const AUDIENCE_VOTE_BROADCAST_DELIVERY_BATCH_LIMIT = 25;
+export const AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS = 1;
 
 export type AudienceVoteBroadcastStatus = AudienceVoteBroadcast["status"];
 export type AudienceVoteBroadcastDeliveryStage =
@@ -47,10 +49,40 @@ export interface CreateAudienceVoteBroadcastInput
   now?: Date;
 }
 
-export interface GetPendingAudienceVoteBroadcastDeliveriesInput {
+export interface GetDueAudienceVoteBroadcastDeliveriesInput {
   broadcastId: string;
   limit: number;
+  maxAttempts?: number;
+  now?: Date;
   stage: AudienceVoteBroadcastDeliveryStage;
+}
+
+export interface HasAttemptableAudienceVoteBroadcastDeliveriesInput {
+  broadcastId: string;
+  maxAttempts?: number;
+  stage: AudienceVoteBroadcastDeliveryStage;
+}
+
+export interface GetProcessableAudienceVoteBroadcastsInput {
+  limit: number;
+  maxAttempts?: number;
+  now?: Date;
+}
+
+export interface ClaimAudienceVoteBroadcastDeliveryAttemptInput {
+  deliveryId: string;
+  expectedAttemptCount: number;
+  lockExpiresAt: Date;
+  maxAttempts?: number;
+  now?: Date;
+}
+
+export interface RecordAudienceVoteBroadcastDeliveryFailureInput {
+  deliveryId: string;
+  errorMessage: string;
+  failedAt?: Date;
+  final: boolean;
+  retryAt: Date;
 }
 
 export class AudienceVoteBroadcastInterruptError extends Error {
@@ -61,6 +93,12 @@ export class AudienceVoteBroadcastInterruptError extends Error {
     this.name = "AudienceVoteBroadcastInterruptError";
   }
 }
+
+const processableCanaryStatuses = [
+  "canary_operator_pending",
+  "canary_operator_sent",
+  "canary_voters_sent",
+] satisfies AudienceVoteBroadcastStatus[];
 
 export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   const getActiveBroadcastTargetVoterCount = async (
@@ -105,6 +143,59 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       .orderBy(desc(audienceVoteBroadcastTable.created_at));
 
     return attachDeliveryCounts(broadcasts);
+  };
+
+  const getProcessableAudienceVoteBroadcasts = async ({
+    limit,
+    maxAttempts = AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS,
+    now = new Date(),
+  }: GetProcessableAudienceVoteBroadcastsInput): Promise<
+    AudienceVoteBroadcast[]
+  > => {
+    const dueCanaryBroadcasts = await db
+      .select()
+      .from(audienceVoteBroadcastTable)
+      .where(
+        and(
+          inArray(audienceVoteBroadcastTable.status, processableCanaryStatuses),
+          lte(audienceVoteBroadcastTable.next_stage_at, now)
+        )
+      )
+      .orderBy(
+        asc(audienceVoteBroadcastTable.next_stage_at),
+        asc(audienceVoteBroadcastTable.created_at)
+      )
+      .limit(limit);
+
+    const remainingLimit = limit - dueCanaryBroadcasts.length;
+    if (remainingLimit <= 0) {
+      return dueCanaryBroadcasts;
+    }
+
+    const dueNormalBroadcasts = await db
+      .select()
+      .from(audienceVoteBroadcastTable)
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.status, "ready"),
+          sql`exists (
+            select 1
+            from ${audienceVoteBroadcastDeliveryTable}
+            where ${audienceVoteBroadcastDeliveryTable.broadcast_id} = ${audienceVoteBroadcastTable.id}
+              and ${audienceVoteBroadcastDeliveryTable.stage} = 'normal'
+              and ${audienceVoteBroadcastDeliveryTable.status} = 'pending'
+              and ${audienceVoteBroadcastDeliveryTable.attempt_count} < ${maxAttempts}
+              and ${audienceVoteBroadcastDeliveryTable.next_attempt_at} <= ${now}
+          )`
+        )
+      )
+      .orderBy(
+        asc(audienceVoteBroadcastTable.next_stage_at),
+        asc(audienceVoteBroadcastTable.created_at)
+      )
+      .limit(remainingLimit);
+
+    return [...dueCanaryBroadcasts, ...dueNormalBroadcasts];
   };
 
   const createAudienceVoteBroadcast = async ({
@@ -165,17 +256,20 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     await insertDeliveryRows([
       buildDeliveryRow({
         broadcastId,
+        nextAttemptAt: now,
         stage: "operator_canary",
         telegramUserId: operatorTelegramUserId,
       }),
       buildDeliveryRow({
         broadcastId,
+        nextAttemptAt: now,
         stage: "voter_canary",
         telegramUserId: operatorTelegramUserId,
       }),
       ...canaryVoters.map((voter) =>
         buildDeliveryRow({
           broadcastId,
+          nextAttemptAt: now,
           stage: "voter_canary",
           telegramUserId: voter.telegramUserId,
         })
@@ -183,6 +277,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       ...activeVoters.map((voter) =>
         buildDeliveryRow({
           broadcastId,
+          nextAttemptAt: now,
           stage: "normal",
           telegramUserId: voter.telegramUserId,
         })
@@ -197,11 +292,13 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return summary;
   };
 
-  const getPendingAudienceVoteBroadcastDeliveries = async ({
+  const getDueAudienceVoteBroadcastDeliveries = async ({
     broadcastId,
     limit,
+    maxAttempts = AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS,
+    now = new Date(),
     stage,
-  }: GetPendingAudienceVoteBroadcastDeliveriesInput): Promise<
+  }: GetDueAudienceVoteBroadcastDeliveriesInput): Promise<
     AudienceVoteBroadcastDelivery[]
   > => {
     return db
@@ -211,11 +308,72 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         and(
           eq(audienceVoteBroadcastDeliveryTable.broadcast_id, broadcastId),
           eq(audienceVoteBroadcastDeliveryTable.stage, stage),
-          eq(audienceVoteBroadcastDeliveryTable.status, "pending")
+          eq(audienceVoteBroadcastDeliveryTable.status, "pending"),
+          lt(audienceVoteBroadcastDeliveryTable.attempt_count, maxAttempts),
+          lte(audienceVoteBroadcastDeliveryTable.next_attempt_at, now)
         )
       )
-      .orderBy(asc(audienceVoteBroadcastDeliveryTable.created_at))
+      .orderBy(
+        asc(audienceVoteBroadcastDeliveryTable.next_attempt_at),
+        asc(audienceVoteBroadcastDeliveryTable.created_at)
+      )
       .limit(limit);
+  };
+
+  const hasAttemptableAudienceVoteBroadcastDeliveries = async ({
+    broadcastId,
+    maxAttempts = AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS,
+    stage,
+  }: HasAttemptableAudienceVoteBroadcastDeliveriesInput): Promise<boolean> => {
+    const [result] = await db
+      .select({ total: count(audienceVoteBroadcastDeliveryTable.id) })
+      .from(audienceVoteBroadcastDeliveryTable)
+      .where(
+        and(
+          eq(audienceVoteBroadcastDeliveryTable.broadcast_id, broadcastId),
+          eq(audienceVoteBroadcastDeliveryTable.stage, stage),
+          eq(audienceVoteBroadcastDeliveryTable.status, "pending"),
+          lt(audienceVoteBroadcastDeliveryTable.attempt_count, maxAttempts)
+        )
+      );
+
+    return (result?.total ?? 0) > 0;
+  };
+
+  const claimAudienceVoteBroadcastDeliveryAttempt = async ({
+    deliveryId,
+    expectedAttemptCount,
+    lockExpiresAt,
+    maxAttempts = AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS,
+    now = new Date(),
+  }: ClaimAudienceVoteBroadcastDeliveryAttemptInput): Promise<
+    AudienceVoteBroadcastDelivery | undefined
+  > => {
+    const [delivery] = await db
+      .update(audienceVoteBroadcastDeliveryTable)
+      .set({
+        attempt_count: sql`${audienceVoteBroadcastDeliveryTable.attempt_count} + 1`,
+        last_error:
+          "Delivery attempt was claimed but no successful Telegram handoff was recorded.",
+        next_attempt_at: lockExpiresAt,
+        status: "failed",
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(audienceVoteBroadcastDeliveryTable.id, deliveryId),
+          eq(audienceVoteBroadcastDeliveryTable.status, "pending"),
+          eq(
+            audienceVoteBroadcastDeliveryTable.attempt_count,
+            expectedAttemptCount
+          ),
+          lt(audienceVoteBroadcastDeliveryTable.attempt_count, maxAttempts),
+          lte(audienceVoteBroadcastDeliveryTable.next_attempt_at, now)
+        )
+      )
+      .returning();
+
+    return delivery;
   };
 
   const markAudienceVoteBroadcastDeliverySent = async (
@@ -225,8 +383,8 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     await db
       .update(audienceVoteBroadcastDeliveryTable)
       .set({
-        attempt_count: sql`${audienceVoteBroadcastDeliveryTable.attempt_count} + 1`,
         last_error: null,
+        next_attempt_at: sentAt,
         sent_at: sentAt,
         status: "sent",
         updated_at: sentAt,
@@ -234,21 +392,39 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       .where(eq(audienceVoteBroadcastDeliveryTable.id, id));
   };
 
-  const markAudienceVoteBroadcastDeliveryFailed = async ({
+  const recordAudienceVoteBroadcastDeliveryFailure = async ({
+    deliveryId,
     errorMessage,
+    failedAt = new Date(),
+    final,
+    retryAt,
+  }: RecordAudienceVoteBroadcastDeliveryFailureInput): Promise<void> => {
+    await db
+      .update(audienceVoteBroadcastDeliveryTable)
+      .set({
+        last_error: errorMessage.slice(0, 1000),
+        next_attempt_at: retryAt,
+        status: final ? "failed" : "pending",
+        updated_at: failedAt,
+      })
+      .where(eq(audienceVoteBroadcastDeliveryTable.id, deliveryId));
+  };
+
+  const markAudienceVoteBroadcastDeliverySkipped = async ({
     id,
     now = new Date(),
+    reason,
   }: {
-    errorMessage: string;
     id: string;
     now?: Date;
+    reason: string;
   }): Promise<void> => {
     await db
       .update(audienceVoteBroadcastDeliveryTable)
       .set({
-        attempt_count: sql`${audienceVoteBroadcastDeliveryTable.attempt_count} + 1`,
-        last_error: errorMessage.slice(0, 1000),
-        status: "failed",
+        last_error: reason.slice(0, 1000),
+        next_attempt_at: now,
+        status: "skipped",
         updated_at: now,
       })
       .where(eq(audienceVoteBroadcastDeliveryTable.id, id));
@@ -315,6 +491,25 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
 
+  const markAudienceVoteBroadcastCompleted = async ({
+    broadcastId,
+    now = new Date(),
+  }: {
+    broadcastId: string;
+    now?: Date;
+  }): Promise<AudienceVoteBroadcastSummary | undefined> => {
+    await db
+      .update(audienceVoteBroadcastTable)
+      .set({
+        next_stage_at: now,
+        status: "completed",
+        updated_at: now,
+      })
+      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+
+    return getAudienceVoteBroadcastSummary(broadcastId);
+  };
+
   const markAudienceVoteBroadcastFailed = async ({
     broadcastId,
     now = new Date(),
@@ -333,6 +528,15 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
 
+  const deactivateAudienceVoteBroadcastVoter = async (
+    telegramUserId: number
+  ): Promise<void> => {
+    await db
+      .update(telegramUsersTable)
+      .set({ isActive: false })
+      .where(eq(telegramUsersTable.telegramUserId, telegramUserId));
+  };
+
   const interruptAudienceVoteBroadcast = async ({
     broadcastId,
     now = new Date(),
@@ -343,9 +547,9 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     const broadcast = await getAudienceVoteBroadcast(broadcastId);
     if (!broadcast) return undefined;
 
-    if (!isAudienceVoteBroadcastCanaryInterruptible(broadcast.status)) {
+    if (!isAudienceVoteBroadcastInterruptible(broadcast.status)) {
       throw new AudienceVoteBroadcastInterruptError(
-        "Only an active Audience Vote Broadcast canary can be interrupted."
+        "Only an active Audience Vote Broadcast can be interrupted."
       );
     }
 
@@ -362,6 +566,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       .update(audienceVoteBroadcastDeliveryTable)
       .set({
         last_error: "Interrupted by Operator.",
+        next_attempt_at: now,
         status: "skipped",
         updated_at: now,
       })
@@ -457,29 +662,36 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   }
 
   return {
+    claimAudienceVoteBroadcastDeliveryAttempt,
     createAudienceVoteBroadcast,
+    deactivateAudienceVoteBroadcastVoter,
     getActiveBroadcastTargetVoterCount,
     getAudienceVoteBroadcast,
     getAudienceVoteBroadcastSummaries,
     getAudienceVoteBroadcastSummary,
-    getPendingAudienceVoteBroadcastDeliveries,
+    getDueAudienceVoteBroadcastDeliveries,
+    getProcessableAudienceVoteBroadcasts,
+    hasAttemptableAudienceVoteBroadcastDeliveries,
     interruptAudienceVoteBroadcast,
-    markAudienceVoteBroadcastDeliveryFailed,
+    markAudienceVoteBroadcastCompleted,
     markAudienceVoteBroadcastDeliverySent,
+    markAudienceVoteBroadcastDeliverySkipped,
     markAudienceVoteBroadcastFailed,
     markAudienceVoteBroadcastOperatorCanarySent,
     markAudienceVoteBroadcastReady,
     markAudienceVoteBroadcastVoterCanarySent,
+    recordAudienceVoteBroadcastDeliveryFailure,
   };
 }
 
-export function isAudienceVoteBroadcastCanaryInterruptible(
+export function isAudienceVoteBroadcastInterruptible(
   status: AudienceVoteBroadcastStatus
 ) {
   return (
     status === "canary_operator_pending" ||
     status === "canary_operator_sent" ||
-    status === "canary_voters_sent"
+    status === "canary_voters_sent" ||
+    status === "ready"
   );
 }
 
@@ -492,16 +704,19 @@ function activeBroadcastTargetWhere(operatorTelegramUserId: number) {
 
 function buildDeliveryRow({
   broadcastId,
+  nextAttemptAt,
   stage,
   telegramUserId,
 }: {
   broadcastId: string;
+  nextAttemptAt: Date;
   stage: AudienceVoteBroadcastDeliveryStage;
   telegramUserId: number;
 }): InsertAudienceVoteBroadcastDelivery {
   return insertAudienceVoteBroadcastDeliverySchema.parse({
     broadcast_id: broadcastId,
     id: nanoid(12),
+    next_attempt_at: nextAttemptAt,
     stage,
     status: "pending",
     telegram_user_id: telegramUserId,
