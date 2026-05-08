@@ -71,10 +71,8 @@ const devBypassSession = {
 
 export async function getDashboardSession(): Promise<DashboardSession> {
   const requestHeaders = await headers();
-  const hostname =
-    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
 
-  if (isBetterAuthDisabledForDev({ hostname })) {
+  if (isBetterAuthDisabledForDev()) {
     return devBypassSession;
   }
 
