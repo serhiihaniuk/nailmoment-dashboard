@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import { cn } from "@/shared/ui/utils";
+import { cn } from "@/shared/lib/cn";
 
 import type { AudienceVote, VoteCandidate } from "@/entities/audience-vote";
 import { VOTE_CANDIDATE_MEDIA_ACCEPT } from "@/entities/audience-vote";
@@ -106,19 +106,19 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 <form onSubmit={state.handleCreateSubmit} className="space-y-2">
                   <Input
                     placeholder="New candidate name..."
-                    value={state.draft.name}
-                    onChange={(e) => state.updateDraft("name", e.target.value)}
+                    value={state.draft.display_name}
+                    onChange={(e) => state.updateDraft("display_name", e.target.value)}
                     className="h-8 text-[13px]"
                     disabled={state.isCreating}
                   />
-                  {state.errors.name && (
-                    <p className="text-[11px] text-destructive">{state.errors.name}</p>
+                  {state.errors.display_name && (
+                    <p className="text-[11px] text-destructive">{state.errors.display_name}</p>
                   )}
                   <Button 
                     type="submit" 
                     size="sm" 
                     className="w-full h-7 text-[12px]"
-                    disabled={state.isCreating || !state.draft.name.trim()}
+                    disabled={state.isCreating || !state.draft.display_name.trim()}
                   >
                     {state.isCreating ? (
                       <Loader2 size={12} className="animate-spin mr-1" />
@@ -160,7 +160,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                         {index + 1}.
                       </span>
                       <span className="text-[13px] font-medium truncate flex-1">
-                        {candidate.name}
+                        {candidate.display_name}
                       </span>
                       {state.pendingCandidateId === candidate.id && (
                         <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
@@ -283,22 +283,22 @@ function CandidateDetailPanel({
         {isEditing ? (
           <form onSubmit={state.handleEditSubmit} className="space-y-3 p-4 rounded-lg border border-border/50 bg-muted/30">
             <div>
-              <Label className="text-[12px] text-muted-foreground">Name</Label>
+              <Label className="text-[12px] text-muted-foreground">Display Name</Label>
               <Input
-                value={state.editDraft.name}
-                onChange={(e) => state.updateEditDraft("name", e.target.value)}
+                value={state.editDraft.display_name}
+                onChange={(e) => state.updateEditDraft("display_name", e.target.value)}
                 className="mt-1 h-9"
                 disabled={state.isEditing}
               />
-              {state.editErrors.name && (
-                <p className="text-[11px] text-destructive mt-1">{state.editErrors.name}</p>
+              {state.editErrors.display_name && (
+                <p className="text-[11px] text-destructive mt-1">{state.editErrors.display_name}</p>
               )}
             </div>
             <div>
-              <Label className="text-[12px] text-muted-foreground">Description (optional)</Label>
+              <Label className="text-[12px] text-muted-foreground">Caption (optional)</Label>
               <Textarea
-                value={state.editDraft.description}
-                onChange={(e) => state.updateEditDraft("description", e.target.value)}
+                value={state.editDraft.caption}
+                onChange={(e) => state.updateEditDraft("caption", e.target.value)}
                 className="mt-1 min-h-[60px] text-[13px]"
                 disabled={state.isEditing}
                 rows={2}
@@ -317,11 +317,11 @@ function CandidateDetailPanel({
         ) : (
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold">{candidate.name}</h3>
-              {candidate.description ? (
-                <p className="text-[13px] text-muted-foreground mt-1">{candidate.description}</p>
+              <h3 className="text-lg font-semibold">{candidate.display_name}</h3>
+              {candidate.caption ? (
+                <p className="text-[13px] text-muted-foreground mt-1">{candidate.caption}</p>
               ) : (
-                <p className="text-[13px] text-muted-foreground/50 mt-1 italic">No description</p>
+                <p className="text-[13px] text-muted-foreground/50 mt-1 italic">No caption</p>
               )}
             </div>
             {!state.isLocked && (
@@ -360,16 +360,16 @@ function CandidateDetailPanel({
                 key={item.id} 
                 className="relative group aspect-square rounded-lg overflow-hidden bg-muted border border-border/50"
               >
-                {item.type === "video" ? (
+                {item.media_type === "video" ? (
                   <video 
-                    src={item.url} 
+                    src={item.blob_url} 
                     className="w-full h-full object-cover"
                     muted
                   />
                 ) : (
                   <Image
-                    src={item.url}
-                    alt={candidate.name}
+                    src={item.blob_url}
+                    alt={candidate.display_name}
                     fill
                     className="object-cover"
                   />
@@ -384,7 +384,7 @@ function CandidateDetailPanel({
                     <X size={12} />
                   </button>
                 )}
-                {item.type === "video" && (
+                {item.media_type === "video" && (
                   <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] bg-black/60 text-white">
                     Video
                   </div>
@@ -494,12 +494,12 @@ function CandidateDetailPanel({
                     key={item.id} 
                     className="relative aspect-square rounded-md overflow-hidden bg-muted border border-border/30 opacity-50"
                   >
-                    {item.type === "video" ? (
-                      <video src={item.url} className="w-full h-full object-cover" muted />
+                    {item.media_type === "video" ? (
+                      <video src={item.blob_url} className="w-full h-full object-cover" muted />
                     ) : (
                       <Image
-                        src={item.url}
-                        alt={candidate.name}
+                        src={item.blob_url}
+                        alt={candidate.display_name}
                         fill
                         className="object-cover"
                       />
