@@ -16,9 +16,11 @@ session cookies.
 | Signature/config/session verification | `src/app/stripe/verify-webhook.ts` |
 | Checkout fulfillment | `src/app/stripe/handlers/checkout-session-completed.ts` |
 | Stripe Ticket fulfillment adapter | `src/app/stripe/stripe-ticket-fulfillment.ts` |
+| Stripe Battle Ticket fulfillment adapter | `src/app/stripe/stripe-battle-ticket-fulfillment.ts` |
 | Checkout claim lifecycle | `src/app/stripe/checkout-fulfillment-claim.ts` |
 | Checkout claim DB adapter | `src/app/stripe/checkout-fulfillment-claim-store.ts` |
 | Ticket Delivery orchestration | `src/app/ticket-delivery/*` |
+| Battle Ticket Delivery orchestration | `src/app/battle-ticket-delivery/*` |
 | Customer mapper | `src/app/stripe/map-checkout-customer.ts` |
 | Logging | `src/app/stripe/log.ts` |
 | Shared result types | `src/app/stripe/types.ts` |
@@ -183,17 +185,26 @@ records exist. That prevents Stripe retries from duplicating fulfillment.
 ## Battle Branch
 
 ```txt
-processBattleCheckoutSession(session, event)
+fulfillStripeBattleTicketCheckoutSession({ session, event })
   |
   +- map customer fields
-  +- create local battle ticket id
+  +- find existing Battle Ticket by Stripe Checkout Session id
+  |    +- existing -> skip creation and delivery if already handed off
+  +- create local Battle Ticket id
   +- insert battle_ticket with stripe_event_id = session.id
+  +- parse the durable row through the Battle Ticket entity surface
   +- ask Battle Ticket Delivery to perform customer email handoff best-effort
   +- complete webhook as processed after durable Battle Ticket exists
 ```
 
 Battle checkouts do not create regular `ticket_finance` or
 `payment_installment` rows.
+
+Battle Ticket fulfillment runs through `stripe-battle-ticket-fulfillment.ts`,
+whose Battle Ticket store and Battle Ticket Delivery dependencies can be tested
+with fake adapters. Battle Ticket Delivery failure is logged but does not throw
+after the Battle Ticket exists; the delivery status remains pending for
+operator follow-up.
 
 ## Total Mapping
 
@@ -283,6 +294,7 @@ Focused tests:
 - `src/app/stripe/log.test.ts`
 - `src/app/stripe/map-checkout-customer.test.ts`
 - `src/app/stripe/handlers/checkout-session-completed.test.ts`
+- `src/app/stripe/stripe-battle-ticket-fulfillment.test.ts`
 
 Useful command:
 
