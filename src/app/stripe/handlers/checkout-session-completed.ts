@@ -1,14 +1,9 @@
-import { nanoid } from "nanoid";
 import type Stripe from "stripe";
-import { db } from "@/shared/db";
-import { battleTicketTable } from "@/shared/db/schema";
 import { TICKET_TYPE_LIST, type TicketGrade } from "@/entities/ticket";
-import { parseBattleTicket } from "@/entities/battle-ticket";
-import { deliverBattleTicket } from "@/app/battle-ticket-delivery";
 import { runStripeCheckoutFulfillmentClaimLifecycle } from "../checkout-fulfillment-claim";
 import { createStripeCheckoutFulfillmentClaimStore } from "../checkout-fulfillment-claim-store";
 import { logStripe, logStripeStep } from "../log";
-import { mapCheckoutCustomer } from "../map-checkout-customer";
+import { fulfillStripeBattleTicketCheckoutSession } from "../stripe-battle-ticket-fulfillment";
 import { fulfillStripeTicketCheckoutSession } from "../stripe-ticket-fulfillment";
 import type { StripeWebhookHandlerResult } from "../types";
 
@@ -53,15 +48,6 @@ type CheckoutResolution =
       reason: string;
       context?: Record<string, unknown>;
     };
-
-/**
- * Result of product-specific fulfillment after this worker owns the claim.
- *
- * `already_fulfilled` means the database uniqueness guards found an existing
- * Ticket or Battle Ticket for the same Stripe Checkout Session. The claim is
- * still marked processed because the customer-facing record already exists.
- */
-type FulfillmentResult = "created" | "already_fulfilled";
 
 /**
  * Builds the shared logging context used throughout the handler. Keeping these
@@ -152,91 +138,6 @@ export function resolveCheckoutSession(
     kind: "ticket",
     ticketGrade,
   };
-}
-
-/**
- * Fulfills a paid battle checkout.
- *
- * Battle checkouts create records in `battle_ticket`. They do not create the
- * regular finance/payment rows because they are a different product flow from
- * festival tickets. The Stripe session id is stored on the ticket row so a
- * duplicate webhook can be recognized by the database as already fulfilled.
- */
-async function processBattleCheckoutSession(
-  session: Stripe.Checkout.Session,
-  event: Stripe.Event,
-): Promise<FulfillmentResult> {
-  const stripeSessionId = session.id;
-  const customer = mapCheckoutCustomer(session);
-  const battleTicketId = nanoid(10);
-
-  logStripeStep("info", "PROCESS", "Starting battle ticket fulfillment", {
-    ...getEventContext(event, stripeSessionId),
-    customerEmail: customer.email,
-  });
-
-  const inserted = await db
-    .insert(battleTicketTable)
-    .values({
-      archived: false,
-      comment: "",
-      date: new Date(),
-      email: customer.email,
-      id: battleTicketId,
-      instagram: customer.instagram,
-      mail_sent: false,
-      name: customer.name,
-      nomination_quantity: 1,
-      phone: customer.phone,
-      stripe_event_id: stripeSessionId,
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  // A duplicate insert means this Stripe session already produced a battle
-  // ticket. Treat that as successful fulfillment, not as an error.
-  const createdBattleTicketRow = inserted[0];
-  if (!createdBattleTicketRow) {
-    logStripeStep("warn", "DB", "Battle ticket already exists for Stripe session", {
-      ...getEventContext(event, stripeSessionId),
-      battleTicketId,
-    });
-    return "already_fulfilled";
-  }
-
-  const createdBattleTicket = parseBattleTicket(createdBattleTicketRow);
-
-  logStripeStep("info", "DB", "Battle ticket created", {
-    ...getEventContext(event, stripeSessionId),
-    battleTicketId: createdBattleTicket.id,
-  });
-
-  logStripeStep("info", "EMAIL", "Performing Battle Ticket Delivery", {
-    ...getEventContext(event, stripeSessionId),
-    battleTicketId: createdBattleTicket.id,
-    customerEmail: createdBattleTicket.email,
-  });
-
-  const delivery = await deliverBattleTicket(createdBattleTicket);
-
-  if (delivery.mailSent) {
-    logStripeStep("info", "EMAIL", "Battle Ticket Delivery handed off", {
-      ...getEventContext(event, stripeSessionId),
-      battleTicketId: delivery.battleTicket.id,
-      customerEmail: delivery.battleTicket.email,
-    });
-  } else {
-    // Battle Ticket Delivery is intentionally best-effort after fulfillment.
-    // The Battle Ticket remains durable and its status stays pending so
-    // operations can follow up without making Stripe retry the whole purchase.
-    logStripe("error", "Battle Ticket Delivery failed", {
-      ...getEventContext(event, stripeSessionId),
-      battleTicketId: delivery.battleTicket.id,
-      error: delivery.mailError,
-    });
-  }
-
-  return "created";
 }
 
 const stripeCheckoutFulfillmentClaimStore =
@@ -330,14 +231,15 @@ export async function handleCheckoutSessionCompleted(
                 ...eventContext,
               }
             );
-            const fulfillmentResult = await processBattleCheckoutSession(
-              session,
-              event
-            );
+            const fulfillmentResult =
+              await fulfillStripeBattleTicketCheckoutSession({
+                event,
+                session,
+              });
             return {
               kind: "processed",
               reason:
-                fulfillmentResult === "created"
+                fulfillmentResult.kind === "created"
                   ? "battle_ticket_created"
                   : "battle_ticket_already_exists",
               stripeEventId: event.id,

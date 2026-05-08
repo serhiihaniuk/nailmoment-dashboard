@@ -293,7 +293,7 @@ export function FinanceTable() {
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Оплачено
                 </TableHead>
-                <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
+                <TableHead className="h-10 px-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
                   Платежі
                 </TableHead>
                 <TableHead className="h-10 px-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-32">
@@ -411,9 +411,9 @@ export function FinanceTable() {
                     <TableCell className="py-3.5 px-4 text-right font-medium tabular-nums text-[13px] text-success">
                       {formatZloty(paidTotal)}
                     </TableCell>
-                    <TableCell className="py-3.5 px-4">
+                    <TableCell className="py-3.5 px-4 text-center">
                       <div
-                        className="flex flex-col items-start gap-1"
+                        className="flex flex-col items-center gap-1"
                         title={paymentCoverageTitle}
                       >
                         <Badge
