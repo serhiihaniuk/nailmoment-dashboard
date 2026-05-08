@@ -145,6 +145,12 @@ This API is intentionally not Better Auth protected. It trusts only server-side
 Telegram `initData` validation and never returns Vote Candidate Internal Names
 or Operator-only media fields.
 
+The update screen fallback is Operator-managed from the protected dashboard at
+`/audience-votes`. It stores one current title/message in
+`audience_vote_update_screen`; if that row does not exist yet, the Mini App
+falls back to the built-in Ukrainian default without writing from the public
+route.
+
 ## Audience Vote Bot
 
 The new Audience Vote Telegram bot is only an entry point to the Mini App. It is

@@ -160,6 +160,14 @@ erDiagram
     timestamptz updated_at
   }
 
+  audience_vote_update_screen {
+    text id PK
+    text title
+    text message
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
   speaker_vote_tg {
     text id PK
     text voted_for_id
@@ -342,6 +350,11 @@ one Telegram Voter in one Audience Vote. It has a unique constraint on
 the current selection instead of preserving vote-change history. Operator
 results aggregate this table by `candidate_id` and do not expose a voter list.
 
+`audience_vote_update_screen` stores the single current Mini App fallback screen
+shown when no Audience Vote is open. Operators edit the current title/message
+from the dashboard; the table intentionally stores current state only, not a
+history of previous update screens.
+
 `audience_vote_broadcast` stores Operator-confirmed broadcast messages,
 canary/normal workflow status, the estimated active recipient count, the
 Operator Telegram id used for canaries, and the DB-backed interrupt status.
@@ -402,5 +415,7 @@ Relevant finance/Stripe migrations:
   Broadcast and delivery tables for confirmation and canary staging.
 - `drizzle/0028_audience_vote_broadcast_retry_processor.sql`: adds retry
   scheduling metadata and the completed broadcast status.
+- `drizzle/0029_audience_vote_update_screen.sql`: adds the Operator-managed
+  Mini App update screen shown when no Audience Vote is open.
 
 Production migration work must follow `AGENTS.md`.

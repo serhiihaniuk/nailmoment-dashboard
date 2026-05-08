@@ -27,6 +27,7 @@ import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
 import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
+import { AudienceVoteUpdateScreenPanel } from "./audience-vote-update-screen-panel";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 
 type BadgeVariant =
@@ -91,6 +92,8 @@ export default function AudienceVotesPage() {
       ) : null}
 
       {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
+
+      <AudienceVoteUpdateScreenPanel />
 
       <AudienceVoteBroadcastsPanel votes={votes ?? []} />
 

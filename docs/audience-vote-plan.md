@@ -192,6 +192,8 @@ Delivery rules:
 
 - use durable per-voter delivery rows;
 - process small batches, around 25 deliveries per run;
+- Operator receives both canary phases, but voter-canary recipients are excluded
+  from normal delivery so they do not receive the same broadcast twice;
 - attempt each delivery at most once to avoid duplicate Telegram messages after ambiguous provider failures;
 - mark blocked/restricted voters inactive for future broadcasts;
 - allow dashboard-only interrupt;

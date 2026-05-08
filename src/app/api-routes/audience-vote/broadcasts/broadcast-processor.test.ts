@@ -10,6 +10,7 @@ import type {
   AudienceVoteBroadcastStatus,
   AudienceVoteBroadcastSummary,
 } from "@/shared/db/service/audience-vote-broadcast-service";
+import { buildAudienceVoteBroadcastDeliveryRows } from "@/shared/db/service/audience-vote-broadcast-service";
 import {
   isTelegramBroadcastBlockedError,
   processAudienceVoteBroadcast,
@@ -21,6 +22,29 @@ import {
 const now = new Date("2026-05-08T16:00:00.000Z");
 
 describe("Audience Vote Broadcast processor", () => {
+  test("builds canary deliveries without sending canary voters again in normal delivery", () => {
+    const rows = buildAudienceVoteBroadcastDeliveryRows({
+      activeTelegramUserIds: [299445418, 111, 222, 333],
+      broadcastId: "broadcast_1",
+      canaryVoterLimit: 2,
+      nextAttemptAt: now,
+      operatorTelegramUserId: 299445418,
+    });
+
+    expect(
+      rows.map((row) => ({
+        stage: row.stage,
+        telegramUserId: row.telegram_user_id,
+      }))
+    ).toEqual([
+      { stage: "operator_canary", telegramUserId: 299445418 },
+      { stage: "voter_canary", telegramUserId: 299445418 },
+      { stage: "voter_canary", telegramUserId: 111 },
+      { stage: "voter_canary", telegramUserId: 222 },
+      { stage: "normal", telegramUserId: 333 },
+    ]);
+  });
+
   test("marks a failed Operator canary final after one ambiguous send attempt", async () => {
     const service = new FakeBroadcastService({
       broadcasts: [makeBroadcast({ status: "canary_operator_pending" })],
@@ -161,6 +185,26 @@ describe("Audience Vote Broadcast processor", () => {
     expect(service.getDelivery("second_delivery")?.status).toBe("pending");
   });
 
+  test("does not overwrite an interrupt that lands before completion", async () => {
+    const service = new FakeBroadcastService({
+      broadcasts: [makeBroadcast({ status: "ready" })],
+      deliveries: [makeDelivery({ stage: "normal", telegram_user_id: 111 })],
+    });
+    service.interruptAfterNextHasAttemptableCheck = true;
+    const telegramClient = createTelegramClient();
+
+    const result = await processAudienceVoteBroadcast({
+      broadcastId: "broadcast_1",
+      now,
+      service,
+      telegramClient,
+    });
+
+    expect(result?.status).toBe("interrupted");
+    expect(telegramClient.sentTo).toEqual([111]);
+    expect(service.getDelivery("delivery_1")?.status).toBe("sent");
+  });
+
   test("scheduled processing uses the same safe path for due broadcasts", async () => {
     const service = new FakeBroadcastService({
       broadcasts: [makeBroadcast({ status: "ready" })],
@@ -194,6 +238,7 @@ describe("Audience Vote Broadcast processor", () => {
 
 class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   readonly deactivatedTelegramUserIds: number[] = [];
+  interruptAfterNextHasAttemptableCheck = false;
   private readonly broadcasts = new Map<string, AudienceVoteBroadcast>();
   private readonly deliveries = new Map<string, AudienceVoteBroadcastDelivery>();
 
@@ -342,13 +387,20 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["hasAttemptableAudienceVoteBroadcastDeliveries"]
   >[0]) {
-    return [...this.deliveries.values()].some(
+    const hasAttemptable = [...this.deliveries.values()].some(
       (delivery) =>
         delivery.broadcast_id === broadcastId &&
         delivery.stage === stage &&
         delivery.status === "pending" &&
         delivery.attempt_count < maxAttempts
     );
+
+    if (this.interruptAfterNextHasAttemptableCheck) {
+      this.interruptAfterNextHasAttemptableCheck = false;
+      this.setBroadcastStatus(broadcastId, "interrupted");
+    }
+
+    return hasAttemptable;
   }
 
   async markAudienceVoteBroadcastCompleted({
@@ -357,7 +409,12 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["markAudienceVoteBroadcastCompleted"]
   >[0]) {
-    return this.updateBroadcastStatus(broadcastId, "completed", completedAt);
+    return this.updateBroadcastStatus({
+      expectedStatus: "ready",
+      id: broadcastId,
+      status: "completed",
+      updatedAt: completedAt,
+    });
   }
 
   async markAudienceVoteBroadcastDeliverySent(id: string, sentAt = now) {
@@ -399,7 +456,11 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["markAudienceVoteBroadcastFailed"]
   >[0]) {
-    return this.updateBroadcastStatus(broadcastId, "failed", failedAt);
+    return this.updateBroadcastStatus({
+      id: broadcastId,
+      status: "failed",
+      updatedAt: failedAt,
+    });
   }
 
   async markAudienceVoteBroadcastOperatorCanarySent({
@@ -409,12 +470,13 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["markAudienceVoteBroadcastOperatorCanarySent"]
   >[0]) {
-    return this.updateBroadcastStatus(
-      broadcastId,
-      "canary_operator_sent",
-      sentAt,
-      nextStageAt
-    );
+    return this.updateBroadcastStatus({
+      expectedStatus: "canary_operator_pending",
+      id: broadcastId,
+      nextStageAt,
+      status: "canary_operator_sent",
+      updatedAt: sentAt,
+    });
   }
 
   async markAudienceVoteBroadcastReady({
@@ -423,7 +485,12 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["markAudienceVoteBroadcastReady"]
   >[0]) {
-    return this.updateBroadcastStatus(broadcastId, "ready", readyAt);
+    return this.updateBroadcastStatus({
+      expectedStatus: "canary_voters_sent",
+      id: broadcastId,
+      status: "ready",
+      updatedAt: readyAt,
+    });
   }
 
   async markAudienceVoteBroadcastVoterCanarySent({
@@ -433,12 +500,13 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
   }: Parameters<
     AudienceVoteBroadcastProcessorService["markAudienceVoteBroadcastVoterCanarySent"]
   >[0]) {
-    return this.updateBroadcastStatus(
-      broadcastId,
-      "canary_voters_sent",
-      sentAt,
-      nextStageAt
-    );
+    return this.updateBroadcastStatus({
+      expectedStatus: "canary_operator_sent",
+      id: broadcastId,
+      nextStageAt,
+      status: "canary_voters_sent",
+      updatedAt: sentAt,
+    });
   }
 
   async recordAudienceVoteBroadcastDeliveryFailure({
@@ -462,20 +530,31 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
     });
   }
 
-  private async updateBroadcastStatus(
-    id: string,
-    status: AudienceVoteBroadcastStatus,
-    updatedAt: Date,
-    nextStageAt = updatedAt
-  ) {
+  private async updateBroadcastStatus({
+    expectedStatus,
+    id,
+    nextStageAt,
+    status,
+    updatedAt,
+  }: {
+    expectedStatus?: AudienceVoteBroadcastStatus;
+    id: string;
+    nextStageAt?: Date;
+    status: AudienceVoteBroadcastStatus;
+    updatedAt: Date;
+  }) {
     const broadcast = this.broadcasts.get(id);
     if (!broadcast) return undefined;
+
+    if (expectedStatus && broadcast.status !== expectedStatus) {
+      return this.buildSummary(id);
+    }
 
     const updated = {
       ...broadcast,
       interrupted_at:
         status === "interrupted" ? updatedAt : broadcast.interrupted_at,
-      next_stage_at: nextStageAt,
+      next_stage_at: nextStageAt ?? updatedAt,
       status,
       updated_at: updatedAt,
     } satisfies AudienceVoteBroadcast;

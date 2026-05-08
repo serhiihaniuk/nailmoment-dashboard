@@ -9,6 +9,10 @@ import {
   interruptAudienceVoteBroadcast,
   previewAudienceVoteBroadcast,
 } from "./audience-vote-broadcasts-client";
+import {
+  fetchAudienceVoteUpdateScreen,
+  updateAudienceVoteUpdateScreen,
+} from "./audience-vote-update-screen-client";
 import { fetchAudienceVoteResults } from "./audience-votes-client";
 
 describe("audience votes API client", () => {
@@ -126,6 +130,44 @@ describe("audience votes API client", () => {
     );
     expect(broadcast.status).toBe("interrupted");
   });
+
+  test("fetches the managed Mini App update screen", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(makeUpdateScreenResponse())
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const updateScreen = await fetchAudienceVoteUpdateScreen();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/update-screen"
+    );
+    expect(updateScreen.updated_at).toBeInstanceOf(Date);
+    expect(updateScreen.title).toBe("Voting soon");
+  });
+
+  test("updates the managed Mini App update screen", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        makeUpdateScreenResponse({
+          message: "Check back soon",
+          title: "Voting soon",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const updateScreen = await updateAudienceVoteUpdateScreen({
+      message: "Check back soon",
+      title: "Voting soon",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/update-screen",
+      expect.objectContaining({ method: "PATCH" })
+    );
+    expect(updateScreen.message).toBe("Check back soon");
+  });
 });
 
 function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
@@ -145,6 +187,17 @@ function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
     message_text: "Public voting starts now",
     next_stage_at: "2026-05-08T16:02:00.000Z",
     status: "canary_operator_sent",
+    updated_at: "2026-05-08T16:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeUpdateScreenResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    created_at: "2026-05-08T16:00:00.000Z",
+    id: "default",
+    message: "No active vote",
+    title: "Voting soon",
     updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };

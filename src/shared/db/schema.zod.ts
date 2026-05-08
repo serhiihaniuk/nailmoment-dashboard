@@ -12,6 +12,7 @@ import {
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
   audienceVoteTable,
+  audienceVoteUpdateScreenTable,
   battleTicketTable,
   cookieConsentActionEnum,
   cookieConsentEventTable,
@@ -167,6 +168,16 @@ const audienceVoteTitleSchema = z
   .trim()
   .min(1, "Title is required")
   .max(160, "Title must be 160 characters or fewer");
+const audienceVoteUpdateScreenTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Update screen title is required")
+  .max(120, "Update screen title must be 120 characters or fewer");
+const audienceVoteUpdateScreenMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Update screen message is required")
+  .max(1000, "Update screen message must be 1000 characters or fewer");
 const audienceVoteBroadcastMessageSchema = z
   .string()
   .trim()
@@ -241,6 +252,22 @@ export type CreateAudienceVoteClientInput = z.input<
 >;
 export type CreateAudienceVoteClientOutput = z.output<
   typeof createAudienceVoteClientSchema
+>;
+
+export const selectAudienceVoteUpdateScreenSchema = createSelectSchema(
+  audienceVoteUpdateScreenTable
+);
+
+export const updateAudienceVoteUpdateScreenClientSchema = z.object({
+  message: audienceVoteUpdateScreenMessageSchema,
+  title: audienceVoteUpdateScreenTitleSchema,
+});
+
+export type UpdateAudienceVoteUpdateScreenClientInput = z.input<
+  typeof updateAudienceVoteUpdateScreenClientSchema
+>;
+export type UpdateAudienceVoteUpdateScreenClientOutput = z.output<
+  typeof updateAudienceVoteUpdateScreenClientSchema
 >;
 
 export const selectAudienceVoteBroadcastSchema = createSelectSchema(

@@ -99,6 +99,12 @@ const processableCanaryStatuses = [
   "canary_operator_sent",
   "canary_voters_sent",
 ] satisfies AudienceVoteBroadcastStatus[];
+const interruptibleBroadcastStatuses: readonly AudienceVoteBroadcastStatus[] = [
+  "canary_operator_pending",
+  "canary_operator_sent",
+  "canary_voters_sent",
+  "ready",
+];
 
 export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   const getActiveBroadcastTargetVoterCount = async (
@@ -253,36 +259,15 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       );
     }
 
-    await insertDeliveryRows([
-      buildDeliveryRow({
+    await insertDeliveryRows(
+      buildAudienceVoteBroadcastDeliveryRows({
+        activeTelegramUserIds: activeVoters.map((voter) => voter.telegramUserId),
         broadcastId,
+        canaryVoterLimit: canaryVoters.length,
         nextAttemptAt: now,
-        stage: "operator_canary",
-        telegramUserId: operatorTelegramUserId,
-      }),
-      buildDeliveryRow({
-        broadcastId,
-        nextAttemptAt: now,
-        stage: "voter_canary",
-        telegramUserId: operatorTelegramUserId,
-      }),
-      ...canaryVoters.map((voter) =>
-        buildDeliveryRow({
-          broadcastId,
-          nextAttemptAt: now,
-          stage: "voter_canary",
-          telegramUserId: voter.telegramUserId,
-        })
-      ),
-      ...activeVoters.map((voter) =>
-        buildDeliveryRow({
-          broadcastId,
-          nextAttemptAt: now,
-          stage: "normal",
-          telegramUserId: voter.telegramUserId,
-        })
-      ),
-    ]);
+        operatorTelegramUserId,
+      })
+    );
 
     const summary = await getAudienceVoteBroadcastSummary(broadcast.id);
     if (!summary) {
@@ -446,7 +431,12 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         status: "canary_operator_sent",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          eq(audienceVoteBroadcastTable.status, "canary_operator_pending")
+        )
+      );
 
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
@@ -467,7 +457,12 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         status: "canary_voters_sent",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          eq(audienceVoteBroadcastTable.status, "canary_operator_sent")
+        )
+      );
 
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
@@ -486,7 +481,12 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         status: "ready",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          eq(audienceVoteBroadcastTable.status, "canary_voters_sent")
+        )
+      );
 
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
@@ -505,7 +505,12 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         status: "completed",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          eq(audienceVoteBroadcastTable.status, "ready")
+        )
+      );
 
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
@@ -523,7 +528,12 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         status: "failed",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          inArray(audienceVoteBroadcastTable.status, interruptibleBroadcastStatuses)
+        )
+      );
 
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
@@ -553,14 +563,31 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       );
     }
 
-    await db
+    const [interrupted] = await db
       .update(audienceVoteBroadcastTable)
       .set({
         interrupted_at: now,
         status: "interrupted",
         updated_at: now,
       })
-      .where(eq(audienceVoteBroadcastTable.id, broadcastId));
+      .where(
+        and(
+          eq(audienceVoteBroadcastTable.id, broadcastId),
+          inArray(audienceVoteBroadcastTable.status, interruptibleBroadcastStatuses)
+        )
+      )
+      .returning({ id: audienceVoteBroadcastTable.id });
+
+    if (!interrupted) {
+      const latestBroadcast = await getAudienceVoteBroadcast(broadcastId);
+      if (!latestBroadcast) return undefined;
+
+      if (!isAudienceVoteBroadcastInterruptible(latestBroadcast.status)) {
+        throw new AudienceVoteBroadcastInterruptError(
+          "Only an active Audience Vote Broadcast can be interrupted."
+        );
+      }
+    }
 
     await db
       .update(audienceVoteBroadcastDeliveryTable)
@@ -687,12 +714,64 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
 export function isAudienceVoteBroadcastInterruptible(
   status: AudienceVoteBroadcastStatus
 ) {
-  return (
-    status === "canary_operator_pending" ||
-    status === "canary_operator_sent" ||
-    status === "canary_voters_sent" ||
-    status === "ready"
+  return interruptibleBroadcastStatuses.includes(status);
+}
+
+export function buildAudienceVoteBroadcastDeliveryRows({
+  activeTelegramUserIds,
+  broadcastId,
+  canaryVoterLimit = AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT,
+  nextAttemptAt,
+  operatorTelegramUserId,
+}: {
+  activeTelegramUserIds: number[];
+  broadcastId: string;
+  canaryVoterLimit?: number;
+  nextAttemptAt: Date;
+  operatorTelegramUserId: number;
+}): InsertAudienceVoteBroadcastDelivery[] {
+  const targetTelegramUserIds = activeTelegramUserIds.filter(
+    (telegramUserId) => telegramUserId !== operatorTelegramUserId
   );
+  const canaryTelegramUserIds = targetTelegramUserIds.slice(
+    0,
+    canaryVoterLimit
+  );
+  const canaryTelegramUserIdSet = new Set(canaryTelegramUserIds);
+  const normalTelegramUserIds = targetTelegramUserIds.filter(
+    (telegramUserId) => !canaryTelegramUserIdSet.has(telegramUserId)
+  );
+
+  return [
+    buildDeliveryRow({
+      broadcastId,
+      nextAttemptAt,
+      stage: "operator_canary",
+      telegramUserId: operatorTelegramUserId,
+    }),
+    buildDeliveryRow({
+      broadcastId,
+      nextAttemptAt,
+      stage: "voter_canary",
+      telegramUserId: operatorTelegramUserId,
+    }),
+    ...canaryTelegramUserIds.map((telegramUserId) =>
+      buildDeliveryRow({
+        broadcastId,
+        nextAttemptAt,
+        stage: "voter_canary",
+        telegramUserId,
+      })
+    ),
+    ...normalTelegramUserIds.map((telegramUserId) =>
+      buildDeliveryRow({
+        broadcastId,
+        nextAttemptAt,
+        stage: "normal",
+        telegramUserId,
+      })
+    ),
+  ];
 }
 
 function activeBroadcastTargetWhere(operatorTelegramUserId: number) {

@@ -1,15 +1,17 @@
-import { and, asc, count, desc, eq, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
   audienceVoteCurrentVoteTable,
+  audienceVoteUpdateScreenTable,
   telegramUsersTable,
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
   type AudienceVoteCurrentVote,
+  type AudienceVoteUpdateScreen,
   type InsertAudienceVote,
   type TelegramUser,
   type InsertVoteCandidateMedia,
@@ -23,7 +25,11 @@ import {
   insertVoteCandidateSchema,
   patchVoteCandidateClientSchema,
   type PatchVoteCandidateClientInput,
+  updateAudienceVoteUpdateScreenClientSchema,
+  type UpdateAudienceVoteUpdateScreenClientOutput,
 } from "@/shared/db/schema.zod";
+
+export const AUDIENCE_VOTE_UPDATE_SCREEN_ID = "default";
 
 export interface GetAudienceVotesFilters {
   archived?: boolean;
@@ -139,6 +145,9 @@ export interface IAudienceVoteService {
   getAudienceVotes: (
     filters?: GetAudienceVotesFilters
   ) => Promise<AudienceVote[]>;
+  getAudienceVoteUpdateScreen: () => Promise<
+    AudienceVoteUpdateScreen | undefined
+  >;
   getOpenAudienceVote: (
     excludeId?: string
   ) => Promise<AudienceVote | undefined>;
@@ -172,6 +181,9 @@ export interface IAudienceVoteService {
     candidateData: PatchVoteCandidateClientInput
   ) => Promise<VoteCandidate | undefined>;
   openAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
+  upsertAudienceVoteUpdateScreen: (
+    input: UpdateAudienceVoteUpdateScreenClientOutput
+  ) => Promise<AudienceVoteUpdateScreen>;
   upsertTelegramVoter: (
     input: UpsertTelegramVoterInput
   ) => Promise<TelegramUser>;
@@ -202,6 +214,49 @@ export function createAudienceVoteService(
       .from(audienceVoteTable)
       .where(eq(audienceVoteTable.archived, showArchived))
       .orderBy(desc(audienceVoteTable.created_at));
+  };
+
+  const getAudienceVoteUpdateScreen = async (): Promise<
+    AudienceVoteUpdateScreen | undefined
+  > => {
+    const result = await db
+      .select()
+      .from(audienceVoteUpdateScreenTable)
+      .where(
+        eq(audienceVoteUpdateScreenTable.id, AUDIENCE_VOTE_UPDATE_SCREEN_ID)
+      )
+      .limit(1);
+
+    return result[0];
+  };
+
+  const upsertAudienceVoteUpdateScreen = async (
+    input: UpdateAudienceVoteUpdateScreenClientOutput
+  ): Promise<AudienceVoteUpdateScreen> => {
+    const validatedData =
+      updateAudienceVoteUpdateScreenClientSchema.parse(input);
+    const [updateScreen] = await db
+      .insert(audienceVoteUpdateScreenTable)
+      .values({
+        ...validatedData,
+        id: AUDIENCE_VOTE_UPDATE_SCREEN_ID,
+      })
+      .onConflictDoUpdate({
+        set: {
+          ...validatedData,
+          updated_at: new Date(),
+        },
+        target: audienceVoteUpdateScreenTable.id,
+      })
+      .returning();
+
+    if (!updateScreen) {
+      throw new Error(
+        "Audience Vote Update Screen upsert failed to return the record."
+      );
+    }
+
+    return updateScreen;
   };
 
   const getOpenAudienceVote = async (
@@ -624,6 +679,7 @@ export function createAudienceVoteService(
     if (existingVote) {
       return {
         currentVote: await updateExistingCurrentVote({
+          audienceVoteId,
           candidateId,
           currentVoteId: existingVote.id,
         }),
@@ -631,21 +687,11 @@ export function createAudienceVoteService(
       };
     }
 
-    const [insertedVote] = await db
-      .insert(audienceVoteCurrentVoteTable)
-      .values({
-        audience_vote_id: audienceVoteId,
-        candidate_id: candidateId,
-        id: nanoid(12),
-        telegram_user_id: telegramUserId,
-      })
-      .onConflictDoNothing({
-        target: [
-          audienceVoteCurrentVoteTable.audience_vote_id,
-          audienceVoteCurrentVoteTable.telegram_user_id,
-        ],
-      })
-      .returning();
+    const insertedVote = await insertCurrentVoteIfOpen({
+      audienceVoteId,
+      candidateId,
+      telegramUserId,
+    });
 
     if (insertedVote) {
       return { currentVote: insertedVote, outcome: "created" };
@@ -657,6 +703,8 @@ export function createAudienceVoteService(
     });
 
     if (!conflictedVote) {
+      await assertVoteIsOpenForWrite(audienceVoteId);
+
       throw new Error(
         "Audience Vote current vote insert conflicted, but no existing vote was found."
       );
@@ -668,6 +716,7 @@ export function createAudienceVoteService(
 
     return {
       currentVote: await updateExistingCurrentVote({
+        audienceVoteId,
         candidateId,
         currentVoteId: conflictedVote.id,
       }),
@@ -835,6 +884,32 @@ export function createAudienceVoteService(
     }
   }
 
+  async function assertVoteIsOpenForWrite(audienceVoteId: string) {
+    const requestedVote = await getAudienceVote(audienceVoteId);
+
+    if (
+      requestedVote &&
+      !requestedVote.archived &&
+      requestedVote.status === "open"
+    ) {
+      return;
+    }
+
+    if (requestedVote?.status === "closed") {
+      throw new AudienceVoteWriteError({
+        code: "vote_closed",
+        message: "This Audience Vote is closed.",
+        status: 409,
+      });
+    }
+
+    throw new AudienceVoteWriteError({
+      code: "vote_not_open",
+      message: "This Audience Vote is not open for voting.",
+      status: 409,
+    });
+  }
+
   async function assertCandidateCanReceiveVote({
     audienceVoteId,
     candidateId,
@@ -857,10 +932,53 @@ export function createAudienceVoteService(
     }
   }
 
+  async function insertCurrentVoteIfOpen({
+    audienceVoteId,
+    candidateId,
+    telegramUserId,
+  }: {
+    audienceVoteId: string;
+    candidateId: string;
+    telegramUserId: number;
+  }): Promise<AudienceVoteCurrentVote | undefined> {
+    const currentVoteId = nanoid(12);
+    const [insertedVote] = await db
+      .insert(audienceVoteCurrentVoteTable)
+      .select((qb) =>
+        qb
+          .select({
+            audience_vote_id: audienceVoteTable.id,
+            candidate_id: sql<string>`${candidateId}`.as("candidate_id"),
+            id: sql<string>`${currentVoteId}`.as("id"),
+            telegram_user_id:
+              sql<number>`${telegramUserId}`.as("telegram_user_id"),
+          })
+          .from(audienceVoteTable)
+          .where(
+            and(
+              eq(audienceVoteTable.id, audienceVoteId),
+              eq(audienceVoteTable.archived, false),
+              eq(audienceVoteTable.status, "open")
+            )
+          )
+      )
+      .onConflictDoNothing({
+        target: [
+          audienceVoteCurrentVoteTable.audience_vote_id,
+          audienceVoteCurrentVoteTable.telegram_user_id,
+        ],
+      })
+      .returning();
+
+    return insertedVote;
+  }
+
   async function updateExistingCurrentVote({
+    audienceVoteId,
     candidateId,
     currentVoteId,
   }: {
+    audienceVoteId: string;
     candidateId: string;
     currentVoteId: string;
   }): Promise<AudienceVoteCurrentVote> {
@@ -870,10 +988,24 @@ export function createAudienceVoteService(
         candidate_id: candidateId,
         updated_at: new Date(),
       })
-      .where(eq(audienceVoteCurrentVoteTable.id, currentVoteId))
+      .where(
+        and(
+          eq(audienceVoteCurrentVoteTable.id, currentVoteId),
+          eq(audienceVoteCurrentVoteTable.audience_vote_id, audienceVoteId),
+          sql`exists (
+            select 1
+            from ${audienceVoteTable}
+            where ${audienceVoteTable.id} = ${audienceVoteCurrentVoteTable.audience_vote_id}
+              and ${audienceVoteTable.status} = 'open'
+              and ${audienceVoteTable.archived} = false
+          )`
+        )
+      )
       .returning();
 
     if (!updatedVote) {
+      await assertVoteIsOpenForWrite(audienceVoteId);
+
       throw new Error("Audience Vote current vote update returned no record.");
     }
 
@@ -953,6 +1085,7 @@ export function createAudienceVoteService(
     getAudienceVote,
     getAudienceVoteCurrentVoteCounts,
     getAudienceVotes,
+    getAudienceVoteUpdateScreen,
     getCurrentVoteForTelegramVoter,
     getOpenAudienceVote,
     getVoteCandidate,
@@ -964,6 +1097,7 @@ export function createAudienceVoteService(
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateVoteCandidate,
+    upsertAudienceVoteUpdateScreen,
     upsertTelegramVoter,
   };
 }

@@ -37,6 +37,9 @@ type LoadState =
   | { data: AudienceVoteMiniAppResponse; initData: string; status: "loaded" }
   | { message: string; status: "error" };
 
+const miniAppHeaderLabel =
+  "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
+
 export default function AudienceVoteMiniAppPage() {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "booting",
@@ -115,7 +118,7 @@ function MiniAppHeader({ loadState }: { loadState: LoadState }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">
-            Audience Vote
+            {miniAppHeaderLabel}
           </p>
           <h1 className="mt-1 truncate text-lg font-semibold">
             {loadState.status === "loaded" &&

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 import {
+  defaultAudienceVoteUpdateScreen,
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
   saveAudienceVoteMiniAppVoteRequestSchema,
@@ -17,12 +18,6 @@ import { validateTelegramMiniAppInitData } from "@/shared/telegram/mini-app-init
 
 const audienceVoteService = createAudienceVoteService(db);
 
-const fallbackUpdateScreen = {
-  message:
-    "Наразі немає відкритого голосування. Ми покажемо нове голосування тут, щойно воно стартує.",
-  title: "Голосування скоро",
-};
-
 export async function GET(request: Request) {
   try {
     const authenticated = await authenticateMiniAppRequest(request);
@@ -31,10 +26,18 @@ export async function GET(request: Request) {
     const openVote = await audienceVoteService.getOpenAudienceVote();
 
     if (!openVote) {
+      const updateScreen =
+        await audienceVoteService.getAudienceVoteUpdateScreen();
+
       return NextResponse.json(
         parseAudienceVoteMiniAppResponse({
           status: "update_screen",
-          update_screen: fallbackUpdateScreen,
+          update_screen: updateScreen
+            ? {
+                message: updateScreen.message,
+                title: updateScreen.title,
+              }
+            : defaultAudienceVoteUpdateScreen,
         }),
         { status: 200 }
       );
