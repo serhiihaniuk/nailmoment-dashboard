@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEventHandler } from "react";
-import { FileUp, Loader2 } from "lucide-react";
+import { FileImage, FileUp, Loader2 } from "lucide-react";
 
 import {
   VOTE_CANDIDATE_MEDIA_ACCEPT,
@@ -53,21 +53,40 @@ export function VoteCandidateMediaUploadForm({
   replaceMediaSelectValue: VoteCandidateMediaId | typeof addNewMediaSelectValue;
   uploadProgress: number | null;
 }) {
+  const inputId = `media-file-${candidate.id}`;
+
   return (
     <FieldSet className="gap-3 rounded-md border border-border/70 bg-background p-3">
-      <FieldGroup className="gap-3 md:grid md:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_auto] md:items-end">
+      <FieldGroup className="gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_auto] lg:items-end">
         <Field>
-          <FieldLabel htmlFor={`media-file-${candidate.id}`}>
-            Media file
-          </FieldLabel>
-          <Input
-            accept={VOTE_CANDIDATE_MEDIA_ACCEPT}
-            disabled={isUploading}
-            id={`media-file-${candidate.id}`}
-            key={fileInputKey}
-            onChange={onFileChange}
-            type="file"
-          />
+          <FieldLabel htmlFor={inputId}>Media file</FieldLabel>
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-input bg-background p-2">
+            <Input
+              accept={VOTE_CANDIDATE_MEDIA_ACCEPT}
+              className="sr-only"
+              disabled={isUploading}
+              id={inputId}
+              key={fileInputKey}
+              onChange={onFileChange}
+              type="file"
+            />
+            <Button
+              asChild
+              className={isUploading ? "pointer-events-none opacity-50" : ""}
+              size="sm"
+              variant="outline"
+            >
+              <label aria-disabled={isUploading} htmlFor={inputId}>
+                <FileImage aria-hidden="true" data-icon="inline-start" />
+                Choose media
+              </label>
+            </Button>
+            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+              {file
+                ? `${file.name} / ${formatVoteCandidateMediaFileSize(file.size)}`
+                : "No file selected"}
+            </span>
+          </div>
           <FieldDescription>
             JPG, PNG, WebP, HEIC, MP4, MOV, or WebM.
           </FieldDescription>
@@ -113,11 +132,6 @@ export function VoteCandidateMediaUploadForm({
           Upload
         </Button>
       </FieldGroup>
-      {file ? (
-        <FieldDescription>
-          {file.name} / {formatVoteCandidateMediaFileSize(file.size)}
-        </FieldDescription>
-      ) : null}
       {uploadProgress !== null ? <Progress value={uploadProgress} /> : null}
     </FieldSet>
   );
