@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,7 +7,7 @@ import {
   voteCandidateIdSchema,
   voteCandidateMediaIdSchema,
 } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import type { AudienceVote, VoteCandidate } from "@/shared/db/schema";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
@@ -47,7 +46,7 @@ export async function DELETE(
   { params }: { params: Promise<{ candidateId: string; id: string; mediaId: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

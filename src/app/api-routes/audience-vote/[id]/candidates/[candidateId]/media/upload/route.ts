@@ -1,6 +1,5 @@
 import { head, type HeadBlobResult } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -18,7 +17,7 @@ import {
   voteCandidateMediaUploadPayloadSchema,
   type VoteCandidateMediaUploadPayload,
 } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import type { VoteCandidate } from "@/shared/db/schema";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
@@ -206,7 +205,7 @@ export async function POST(
   if (!parsedParams.ok) return parsedParams.response;
 
   if (body.type === "app.confirm-client-upload") {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -233,7 +232,7 @@ export async function POST(
   }
 
   if (body.type === "blob.generate-client-token") {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

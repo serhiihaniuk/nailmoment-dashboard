@@ -1,9 +1,8 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { parseRouteParams } from "@/app/api-routes/lib/request";
 import { parseAudienceVote } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
 import {
@@ -19,7 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

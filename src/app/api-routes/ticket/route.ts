@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import { createTicketService } from "@/shared/db/service/ticket-service";
 import {
@@ -57,7 +56,7 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
 
 export async function GET() {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json(
@@ -78,7 +77,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
     if (!session)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { isBetterAuthUiDisabledForDev } from "./dev-bypass";
+import { isBetterAuthDisabledForDev } from "./dev-bypass";
 
 describe("Better Auth UI dev bypass", () => {
   test("does not disable auth in Vercel production", () => {
     expect(
-      isBetterAuthUiDisabledForDev({
+      isBetterAuthDisabledForDev({
         NEXT_PUBLIC_DISABLE_BETTER_AUTH_UI: "true",
         NEXT_PUBLIC_VERCEL_ENV: "production",
         NODE_ENV: "production",
@@ -15,35 +15,25 @@ describe("Better Auth UI dev bypass", () => {
 
   test("disables auth in local development", () => {
     expect(
-      isBetterAuthUiDisabledForDev({
+      isBetterAuthDisabledForDev({
         NODE_ENV: "development",
       })
     ).toBe(true);
   });
 
-  test("disables auth for the develop preview branch", () => {
+  test("disables auth for Vercel preview branches", () => {
     expect(
-      isBetterAuthUiDisabledForDev({
+      isBetterAuthDisabledForDev({
         NEXT_PUBLIC_VERCEL_ENV: "preview",
-        NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "develop",
+        NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "v0/authless-editing",
         NODE_ENV: "production",
       })
     ).toBe(true);
   });
 
-  test("keeps auth enabled for other preview branches by default", () => {
-    expect(
-      isBetterAuthUiDisabledForDev({
-        NEXT_PUBLIC_VERCEL_ENV: "preview",
-        NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/auth-test",
-        NODE_ENV: "production",
-      })
-    ).toBe(false);
-  });
-
   test("allows an explicit non-production UI bypass flag", () => {
     expect(
-      isBetterAuthUiDisabledForDev({
+      isBetterAuthDisabledForDev({
         NEXT_PUBLIC_DISABLE_AUTH: "1",
         NEXT_PUBLIC_VERCEL_ENV: "preview",
         NODE_ENV: "production",

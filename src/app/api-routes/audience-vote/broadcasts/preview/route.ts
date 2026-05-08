@@ -1,10 +1,9 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 import { parseAudienceVoteBroadcastPreview } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { readTelegramAudienceVoteOperatorTelegramId } from "@/shared/config/env";
 import { db } from "@/shared/db";
 import { previewAudienceVoteBroadcastClientSchema } from "@/shared/db/schema.zod";
@@ -22,7 +21,7 @@ const operatorTelegramUserIdSchema = z.coerce
 
 export async function POST(request: Request) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

@@ -8,12 +8,10 @@ function readVercelEnv(env: NodeJS.ProcessEnv) {
   return env.NEXT_PUBLIC_VERCEL_ENV ?? env.VERCEL_ENV;
 }
 
-function readVercelBranch(env: NodeJS.ProcessEnv) {
-  return env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF ?? env.VERCEL_GIT_COMMIT_REF;
-}
+export function isBetterAuthDisabledForDev(env = process.env) {
+  const vercelEnv = readVercelEnv(env);
 
-export function isBetterAuthUiDisabledForDev(env = process.env) {
-  if (readVercelEnv(env) === "production") {
+  if (vercelEnv === "production") {
     return false;
   }
 
@@ -28,5 +26,7 @@ export function isBetterAuthUiDisabledForDev(env = process.env) {
     return true;
   }
 
-  return readVercelEnv(env) === "preview" && readVercelBranch(env) === "develop";
+  return vercelEnv === "preview";
 }
+
+export const isBetterAuthUiDisabledForDev = isBetterAuthDisabledForDev;

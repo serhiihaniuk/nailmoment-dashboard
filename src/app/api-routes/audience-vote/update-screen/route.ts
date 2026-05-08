@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { parseRequestJson } from "@/app/api-routes/lib/request";
@@ -6,7 +5,7 @@ import {
   defaultAudienceVoteUpdateScreen,
   parseAudienceVoteUpdateScreen,
 } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import { isPostgresUndefinedTableError } from "@/shared/db/postgres-errors";
 import { updateAudienceVoteUpdateScreenClientSchema } from "@/shared/db/schema.zod";
@@ -16,7 +15,7 @@ const audienceVoteService = createAudienceVoteService(db);
 
 export async function GET() {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -55,7 +54,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

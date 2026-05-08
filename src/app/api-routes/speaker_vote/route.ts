@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 
 import { db } from "@/shared/db";
 import { speakerVoteTGTable } from "@/shared/db/schema";
-import { headers } from "next/headers";
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }

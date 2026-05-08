@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -7,7 +6,7 @@ import {
   audienceVoteBroadcastIdSchema,
   parseAudienceVoteBroadcast,
 } from "@/entities/audience-vote";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import {
   AudienceVoteBroadcastInterruptError,
@@ -25,7 +24,7 @@ export async function POST(
   { params }: { params: Promise<{ broadcastId: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
 
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

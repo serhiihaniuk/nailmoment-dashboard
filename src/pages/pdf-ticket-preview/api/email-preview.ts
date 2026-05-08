@@ -4,11 +4,10 @@
 // That keeps lower FSD layers from importing upward from `@/app/*`.
 import { db } from "@/shared/db";
 import { createTicketService } from "@/shared/db/service/ticket-service";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { render, pretty } from "@react-email/render";
 import { EmailTemplate } from "@/shared/email/email-template";
 import { CustomEmailTemplate } from "@/shared/email/custom-email-template";
-import { headers } from "next/headers";
 import { Resend } from "resend";
 import { readResendApiKey } from "@/shared/config/env";
 import { buildTicketFinanceSummary } from "@/entities/ticket";
@@ -18,7 +17,7 @@ const ticketService = createTicketService(db, {
 });
 
 export async function getTicketHtml(id: string): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session) throw new Error("401");
 
   const ticket = await ticketService.getTicket(id);
@@ -37,7 +36,7 @@ export async function getTicketHtml(id: string): Promise<string | null> {
 }
 
 export async function getTicketText(id: string): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session) throw new Error("401");
 
   const ticket = await ticketService.getTicket(id);
@@ -71,7 +70,7 @@ export async function previewCustomEmail(
   subject: string,
   body: string
 ): Promise<string> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session) throw new Error("401");
 
   const ticket = await ticketService.getTicket(ticketId);
@@ -87,7 +86,7 @@ export async function sendCustomEmail(
   subject: string,
   body: string
 ): Promise<{ success: boolean; error?: string }> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session) throw new Error("401");
 
   const ticket = await ticketService.getTicket(ticketId);

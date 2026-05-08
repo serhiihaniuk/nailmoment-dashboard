@@ -1,9 +1,8 @@
-import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 import { NextRequest, NextResponse } from "next/server";
 
 import { readRequestJson } from "@/app/api-routes/lib/request";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import { createCookieConsentAnalyticsService } from "@/shared/db/service/cookie-consent-analytics-service";
 import { cookieConsentEventClientSchema } from "@/shared/db/schema.zod";
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
 
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
