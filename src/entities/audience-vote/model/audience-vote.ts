@@ -230,6 +230,23 @@ export const voteCandidateMediaListSchema = z.array(
   voteCandidateMediaSchema
 );
 
+export const audienceVoteResultItemSchema = z.object({
+  candidate_id: voteCandidateIdSchema,
+  display_name: nonEmptyStringSchema,
+  display_order: z.number().int().min(1),
+  internal_name: nullableTextSchema,
+  percentage: z.number().min(0).max(100),
+  rank: z.number().int().min(1),
+  total_votes: z.number().int().min(0),
+});
+
+export const audienceVoteResultsSchema = z.object({
+  audience_vote_id: audienceVoteIdSchema,
+  generated_at: dateSchema,
+  results: z.array(audienceVoteResultItemSchema),
+  total_votes: z.number().int().min(0),
+});
+
 export type VoteCandidate = z.infer<typeof voteCandidateSchema>;
 export type VoteCandidateList = z.infer<typeof voteCandidateListSchema>;
 export type PublicVoteCandidate = z.infer<typeof publicVoteCandidateSchema>;
@@ -240,6 +257,29 @@ export type VoteCandidateMedia = z.infer<typeof voteCandidateMediaSchema>;
 export type VoteCandidateMediaList = z.infer<
   typeof voteCandidateMediaListSchema
 >;
+export type AudienceVoteResultItem = z.infer<
+  typeof audienceVoteResultItemSchema
+>;
+export type AudienceVoteResults = z.infer<typeof audienceVoteResultsSchema>;
+
+export interface AudienceVoteResultCandidateInput {
+  display_name: string;
+  display_order: number;
+  id: string;
+  internal_name: string | null;
+}
+
+export interface AudienceVoteResultCountInput {
+  candidate_id: string;
+  total_votes: bigint | number | string;
+}
+
+export interface BuildAudienceVoteResultsInput {
+  audienceVoteId: string;
+  candidates: AudienceVoteResultCandidateInput[];
+  generatedAt?: Date;
+  voteCounts: AudienceVoteResultCountInput[];
+}
 
 export type AudienceVoteOpenValidationIssueCode =
   | "already_open"
@@ -300,6 +340,55 @@ export function buildVoteCandidateMediaPath({
     "media",
     `${mediaId}.${extension}`,
   ].join("/");
+}
+
+export function buildAudienceVoteResults({
+  audienceVoteId,
+  candidates,
+  generatedAt = new Date(),
+  voteCounts,
+}: BuildAudienceVoteResultsInput): AudienceVoteResults {
+  const totalVotesByCandidateId = new Map(
+    voteCounts.map((row) => [
+      row.candidate_id,
+      normalizeVoteCount(row.total_votes),
+    ])
+  );
+  const totalVotes = candidates.reduce(
+    (sum, candidate) => sum + (totalVotesByCandidateId.get(candidate.id) ?? 0),
+    0
+  );
+
+  const rankedResults = candidates
+    .map((candidate) => {
+      const candidateVotes = totalVotesByCandidateId.get(candidate.id) ?? 0;
+
+      return {
+        candidate_id: candidate.id,
+        display_name: candidate.display_name,
+        display_order: candidate.display_order,
+        internal_name: candidate.internal_name,
+        percentage: calculateVotePercentage(candidateVotes, totalVotes),
+        total_votes: candidateVotes,
+      };
+    })
+    .sort(
+      (first, second) =>
+        second.total_votes - first.total_votes ||
+        first.display_order - second.display_order ||
+        first.display_name.localeCompare(second.display_name)
+    )
+    .map((result, index) => ({
+      ...result,
+      rank: index + 1,
+    }));
+
+  return parseAudienceVoteResults({
+    audience_vote_id: audienceVoteId,
+    generated_at: generatedAt,
+    results: rankedResults,
+    total_votes: totalVotes,
+  });
 }
 
 export function validateAudienceVoteOpenReadiness({
@@ -409,4 +498,28 @@ export function parseVoteCandidateMediaList(
   value: unknown
 ): VoteCandidateMedia[] {
   return voteCandidateMediaListSchema.parse(value);
+}
+
+export function parseAudienceVoteResults(
+  value: unknown
+): AudienceVoteResults {
+  return audienceVoteResultsSchema.parse(value);
+}
+
+function normalizeVoteCount(value: bigint | number | string): number {
+  const count = Number(value);
+
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error("Vote totals must be non-negative safe integers.");
+  }
+
+  return count;
+}
+
+function calculateVotePercentage(votes: number, totalVotes: number): number {
+  if (totalVotes === 0) {
+    return 0;
+  }
+
+  return Number(((votes / totalVotes) * 100).toFixed(1));
 }

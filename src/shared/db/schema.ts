@@ -569,6 +569,40 @@ export const telegramUsersTable = pgTable("telegram_users", {
     .defaultNow(),
 });
 
+export const audienceVoteCurrentVoteTable = pgTable(
+  "audience_vote_current_vote",
+  {
+    id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    candidate_id: text("candidate_id")
+      .notNull()
+      .references(() => voteCandidateTable.id, { onDelete: "cascade" }),
+    telegram_user_id: bigint("telegram_user_id", { mode: "number" })
+      .notNull()
+      .references(() => telegramUsersTable.telegramUserId),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteCurrentVoteVoteVoterUnique: unique(
+      "audience_vote_current_vote_vote_voter_unique"
+    ).on(table.audience_vote_id, table.telegram_user_id),
+    audienceVoteCurrentVoteAudienceVoteIdx: index(
+      "audience_vote_current_vote_audience_vote_idx"
+    ).on(table.audience_vote_id),
+    audienceVoteCurrentVoteCandidateIdx: index(
+      "audience_vote_current_vote_candidate_idx"
+    ).on(table.candidate_id),
+  })
+);
+
 /**
  * Stores the votes for the "Battle of Masters" event.
  * Keeps this data separate from the previous "Speaker Vote" event.
@@ -602,6 +636,11 @@ export const battleVoteTGTable = pgTable(
 
 export type TelegramUser = typeof telegramUsersTable.$inferSelect;
 export type InsertTelegramUser = typeof telegramUsersTable.$inferInsert;
+
+export type AudienceVoteCurrentVote =
+  typeof audienceVoteCurrentVoteTable.$inferSelect;
+export type InsertAudienceVoteCurrentVote =
+  typeof audienceVoteCurrentVoteTable.$inferInsert;
 
 export type BattleVoteTG = typeof battleVoteTGTable.$inferSelect;
 export type InsertBattleVoteTG = typeof battleVoteTGTable.$inferInsert;

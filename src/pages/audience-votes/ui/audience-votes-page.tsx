@@ -24,6 +24,7 @@ import {
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
+import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 
 type BadgeVariant =
@@ -112,6 +113,7 @@ function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
             <TableHead>Created</TableHead>
             <TableHead>Updated</TableHead>
             <TableHead className="text-right">Candidates</TableHead>
+            <TableHead className="text-right">Results</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -146,6 +148,9 @@ function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
               </TableCell>
               <TableCell className="text-right">
                 <AudienceVoteCandidatesDialog vote={vote} />
+              </TableCell>
+              <TableCell className="text-right">
+                <AudienceVoteResultsDialog vote={vote} />
               </TableCell>
               <TableCell className="text-right">
                 <AudienceVoteLifecycleActions vote={vote} />

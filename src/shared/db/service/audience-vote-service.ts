@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, or } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
+  audienceVoteCurrentVoteTable,
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
@@ -32,6 +33,11 @@ export interface GetVoteCandidatesFilters {
 export interface GetVoteCandidateMediaFilters {
   archived?: boolean;
   candidateId: string;
+}
+
+export interface AudienceVoteCurrentVoteCount {
+  candidate_id: string;
+  total_votes: number;
 }
 
 export interface CompleteVoteCandidateMediaUploadInput {
@@ -83,6 +89,9 @@ export interface IAudienceVoteService {
   getOpenAudienceVote: (
     excludeId?: string
   ) => Promise<AudienceVote | undefined>;
+  getAudienceVoteCurrentVoteCounts: (
+    audienceVoteId: string
+  ) => Promise<AudienceVoteCurrentVoteCount[]>;
   getVoteCandidate: (id: string) => Promise<VoteCandidate | undefined>;
   getVoteCandidateMedia: (
     id: string
@@ -154,6 +163,21 @@ export function createAudienceVoteService(
       .limit(1);
 
     return result[0];
+  };
+
+  const getAudienceVoteCurrentVoteCounts = async (
+    audienceVoteId: string
+  ): Promise<AudienceVoteCurrentVoteCount[]> => {
+    return db
+      .select({
+        candidate_id: audienceVoteCurrentVoteTable.candidate_id,
+        total_votes: count(audienceVoteCurrentVoteTable.id),
+      })
+      .from(audienceVoteCurrentVoteTable)
+      .where(
+        eq(audienceVoteCurrentVoteTable.audience_vote_id, audienceVoteId)
+      )
+      .groupBy(audienceVoteCurrentVoteTable.candidate_id);
   };
 
   const getVoteCandidate = async (
@@ -664,6 +688,7 @@ export function createAudienceVoteService(
     closeAudienceVote,
     completeVoteCandidateMediaUpload,
     getAudienceVote,
+    getAudienceVoteCurrentVoteCounts,
     getAudienceVotes,
     getOpenAudienceVote,
     getVoteCandidate,

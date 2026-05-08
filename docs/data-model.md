@@ -19,8 +19,11 @@ erDiagram
   stripe_webhook_event ||--o| battle_ticket : correlates
 
   telegram_users ||--o{ battle_vote_tg : casts
+  telegram_users ||--o{ audience_vote_current_vote : casts
   audience_vote ||--o{ vote_candidate : has
+  audience_vote ||--o{ audience_vote_current_vote : has
   vote_candidate ||--o{ vote_candidate_media : has
+  vote_candidate ||--o{ audience_vote_current_vote : receives
 
   ticket {
     text id PK
@@ -144,6 +147,15 @@ erDiagram
     text blob_download_url
     text blob_pathname UK
     boolean archived
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  audience_vote_current_vote {
+    text id PK
+    text audience_vote_id FK
+    text candidate_id FK
+    bigint telegram_user_id FK
     timestamptz created_at
     timestamptz updated_at
   }
@@ -324,7 +336,12 @@ Important fields:
   media only.
 
 Opening and closing are handled by the Audience Vote lifecycle routes. Voter
-rows and broadcasts are handled by later Audience Vote slices.
+rows use `audience_vote_current_vote`, which stores the latest selection for
+one Telegram Voter in one Audience Vote. It has a unique constraint on
+`audience_vote_id` and `telegram_user_id`, so later vote-save flows can update
+the current selection instead of preserving vote-change history. Operator
+results aggregate this table by `candidate_id` and do not expose a voter list.
+Broadcasts are handled by later Audience Vote slices.
 
 ## Finance Formula
 
@@ -365,5 +382,7 @@ Relevant finance/Stripe migrations:
   for public Vercel Blob uploads.
 - `drizzle/0025_audience_vote_one_open.sql`: adds the partial unique index that
   allows only one non-deleted open Audience Vote.
+- `drizzle/0026_audience_vote_current_votes.sql`: adds the current vote rows
+  used for aggregate Operator results and later Mini App vote changes.
 
 Production migration work must follow `AGENTS.md`.

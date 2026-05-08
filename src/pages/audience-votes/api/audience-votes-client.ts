@@ -1,8 +1,10 @@
 import {
   parseAudienceVote,
   parseAudienceVoteList,
+  parseAudienceVoteResults,
   type AudienceVote,
   type AudienceVoteId,
+  type AudienceVoteResults,
 } from "@/entities/audience-vote";
 import {
   parseCreateAudienceVoteApiError,
@@ -22,6 +24,20 @@ export async function fetchAudienceVotes(): Promise<AudienceVote[]> {
   }
 
   return parseAudienceVoteList(await response.json());
+}
+
+export async function fetchAudienceVoteResults(
+  voteId: AudienceVoteId
+): Promise<AudienceVoteResults> {
+  const response = await fetch(
+    `/api/audience-vote/${encodeURIComponent(voteId)}/results`
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not load Audience Vote results.");
+  }
+
+  return parseAudienceVoteResults(await response.json());
 }
 
 export async function createAudienceVote(

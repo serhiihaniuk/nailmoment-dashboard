@@ -5,6 +5,7 @@ import {
   parsePublicVoteCandidate,
   parseAudienceVote,
   parseAudienceVoteList,
+  buildAudienceVoteResults,
   parseVoteCandidate,
   parseVoteCandidateMedia,
   validateAudienceVoteOpenReadiness,
@@ -207,6 +208,73 @@ describe("audience vote parsing", () => {
     });
 
     expect(issues.map((issue) => issue.code)).toContain("closed_final");
+  });
+
+  test("builds Operator aggregate results without exposing voters", () => {
+    const results = buildAudienceVoteResults({
+      audienceVoteId: "vote_1",
+      candidates: [
+        {
+          display_name: "Speaker A",
+          display_order: 1,
+          id: "candidate_1",
+          internal_name: "Real speaker A",
+        },
+        {
+          display_name: "Speaker B",
+          display_order: 2,
+          id: "candidate_2",
+          internal_name: null,
+        },
+        {
+          display_name: "Speaker C",
+          display_order: 3,
+          id: "candidate_3",
+          internal_name: "Real speaker C",
+        },
+      ],
+      generatedAt: new Date("2026-05-08T15:00:00.000Z"),
+      voteCounts: [
+        { candidate_id: "candidate_1", total_votes: 2 },
+        { candidate_id: "candidate_2", total_votes: 4 },
+      ],
+    });
+
+    expect(results).toMatchObject({
+      audience_vote_id: "vote_1",
+      total_votes: 6,
+    });
+    expect(results.results).toEqual([
+      {
+        candidate_id: "candidate_2",
+        display_name: "Speaker B",
+        display_order: 2,
+        internal_name: null,
+        percentage: 66.7,
+        rank: 1,
+        total_votes: 4,
+      },
+      {
+        candidate_id: "candidate_1",
+        display_name: "Speaker A",
+        display_order: 1,
+        internal_name: "Real speaker A",
+        percentage: 33.3,
+        rank: 2,
+        total_votes: 2,
+      },
+      {
+        candidate_id: "candidate_3",
+        display_name: "Speaker C",
+        display_order: 3,
+        internal_name: "Real speaker C",
+        percentage: 0,
+        rank: 3,
+        total_votes: 0,
+      },
+    ]);
+    expect(JSON.stringify(results)).not.toContain("telegram");
+    expect(JSON.stringify(results)).not.toContain("voter");
   });
 });
 

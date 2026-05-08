@@ -183,6 +183,13 @@
       "when": 1778253000000,
       "tag": "0025_audience_vote_one_open",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778256000000,
+      "tag": "0026_audience_vote_current_votes",
+      "breakpoints": true
     }
   ]
 }
