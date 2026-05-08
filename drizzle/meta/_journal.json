@@ -169,6 +169,13 @@
       "when": 1778247177386,
       "tag": "0023_vote_candidates",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1778250000000,
+      "tag": "0024_vote_candidate_media",
+      "breakpoints": true
     }
   ]
 }

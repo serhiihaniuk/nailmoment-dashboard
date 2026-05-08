@@ -14,6 +14,7 @@ import {
   paymentInstallmentTable,
   ticketFinanceTable,
   ticketTable,
+  voteCandidateMediaTable,
   voteCandidateTable,
 } from "./schema";
 import { TICKET_TYPE_LIST } from "./ticket-grade";
@@ -292,6 +293,32 @@ export type PatchVoteCandidateClientInput = z.input<
 >;
 export type PatchVoteCandidateClientOutput = z.output<
   typeof patchVoteCandidateClientSchema
+>;
+
+export const selectVoteCandidateMediaSchema = createSelectSchema(
+  voteCandidateMediaTable
+);
+
+export const insertVoteCandidateMediaSchema = createInsertSchema(
+  voteCandidateMediaTable,
+  {
+    blob_download_url: z.string().url(),
+    blob_pathname: z.string().trim().min(1, "Blob pathname is required"),
+    blob_url: z.string().url(),
+    candidate_id: z.string().trim().min(1, "Vote Candidate ID is required"),
+    content_type: z.string().trim().min(1, "Content type is required"),
+    file_name: z
+      .string()
+      .trim()
+      .min(1, "File name is required")
+      .max(255, "File name must be 255 characters or fewer"),
+    file_size_bytes: z.coerce.number().int().min(1).max(104_857_600),
+    id: z.string().trim().min(1, "ID is required"),
+  }
+);
+
+export type InsertVoteCandidateMediaInput = z.input<
+  typeof insertVoteCandidateMediaSchema
 >;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);

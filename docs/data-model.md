@@ -20,6 +20,7 @@ erDiagram
 
   telegram_users ||--o{ battle_vote_tg : casts
   audience_vote ||--o{ vote_candidate : has
+  vote_candidate ||--o{ vote_candidate_media : has
 
   ticket {
     text id PK
@@ -126,6 +127,22 @@ erDiagram
     text display_name
     text internal_name
     text caption
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  vote_candidate_media {
+    text id PK
+    text candidate_id FK
+    integer display_order
+    enum media_type
+    text content_type
+    text file_name
+    integer file_size_bytes
+    text blob_url
+    text blob_download_url
+    text blob_pathname UK
     boolean archived
     timestamptz created_at
     timestamptz updated_at
@@ -289,8 +306,21 @@ Important fields:
 - `archived`: soft-delete flag; normal Operator lists, voter-facing views, and
   future opening validation exclude archived rows.
 
-Opening, closing, media, voter rows, and broadcasts are handled by later
-Audience Vote slices.
+`vote_candidate_media` stores public Vercel Blob assets for Vote Candidates.
+
+Important fields:
+
+- `display_order`: upload order for active media.
+- `media_type`: `photo` or `video`, derived from the allowed content type.
+- `blob_url`: public Vercel Blob URL shown in Operator and future voter views.
+- `blob_pathname`: deterministic app-controlled Blob pathname; unique so the
+  app never overwrites existing media.
+- `archived`: soft-delete flag. Archived/replaced media remains preserved for
+  Operators and later cleanup, but normal voter-facing reads should use active
+  media only.
+
+Opening, closing, voter rows, and broadcasts are handled by later Audience Vote
+slices.
 
 ## Finance Formula
 
@@ -327,5 +357,7 @@ Relevant finance/Stripe migrations:
 - `drizzle/0022_audience_vote_core.sql`: adds core Audience Vote enums and
   table.
 - `drizzle/0023_vote_candidates.sql`: adds Vote Candidates for Audience Votes.
+- `drizzle/0024_vote_candidate_media.sql`: adds Vote Candidate Media records
+  for public Vercel Blob uploads.
 
 Production migration work must follow `AGENTS.md`.

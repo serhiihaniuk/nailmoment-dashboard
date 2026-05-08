@@ -133,6 +133,11 @@ export const audienceVoteStatusEnum = pgEnum("audience_vote_status_enum", [
   "closed",
 ]);
 
+export const voteCandidateMediaTypeEnum = pgEnum(
+  "vote_candidate_media_type_enum",
+  ["photo", "video"]
+);
+
 export const battleTicketTable = pgTable(
   "battle_ticket",
   {
@@ -436,6 +441,54 @@ export const voteCandidateTable = pgTable(
 
 export type VoteCandidate = typeof voteCandidateTable.$inferSelect;
 export type InsertVoteCandidate = typeof voteCandidateTable.$inferInsert;
+
+export const voteCandidateMediaTable = pgTable(
+  "vote_candidate_media",
+  {
+    id: text("id").primaryKey(),
+    candidate_id: text("candidate_id")
+      .notNull()
+      .references(() => voteCandidateTable.id, { onDelete: "cascade" }),
+    display_order: integer("display_order").notNull().default(1),
+    media_type: voteCandidateMediaTypeEnum("media_type").notNull(),
+    content_type: text("content_type").notNull(),
+    file_name: text("file_name").notNull(),
+    file_size_bytes: integer("file_size_bytes").notNull(),
+    blob_url: text("blob_url").notNull(),
+    blob_download_url: text("blob_download_url").notNull(),
+    blob_pathname: text("blob_pathname").notNull(),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    voteCandidateMediaCandidateIdx: index(
+      "vote_candidate_media_candidate_idx"
+    ).on(table.candidate_id),
+    voteCandidateMediaCandidateOrderIdx: index(
+      "vote_candidate_media_candidate_order_idx"
+    ).on(table.candidate_id, table.display_order),
+    voteCandidateMediaBlobPathnameUnique: unique(
+      "vote_candidate_media_blob_pathname_unique"
+    ).on(table.blob_pathname),
+  })
+);
+
+export type VoteCandidateMedia =
+  typeof voteCandidateMediaTable.$inferSelect;
+export type InsertVoteCandidateMedia =
+  typeof voteCandidateMediaTable.$inferInsert;
 
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;

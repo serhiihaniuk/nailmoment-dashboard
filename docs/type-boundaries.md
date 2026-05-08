@@ -33,6 +33,9 @@ state without parsing.
 | Vote Candidate route params | raw strings | `audienceVoteIdSchema`, `voteCandidateIdSchema` | branded Audience Vote and Vote Candidate ids | `src/entities/audience-vote/model/audience-vote.ts` |
 | Browser API response for Vote Candidates | `response.json()` | `parseVoteCandidateList()` / `parseVoteCandidate()` | `VoteCandidate[]` / `VoteCandidate` | `src/entities/audience-vote/model/audience-vote.ts` |
 | Mini App Vote Candidate contract | server candidate rows | `parsePublicVoteCandidateList()` / `parsePublicVoteCandidate()` | candidate data without `internal_name` | `src/entities/audience-vote/model/audience-vote.ts` |
+| Vote Candidate Media upload payload | Vercel Blob client payload | `voteCandidateMediaUploadPayloadSchema` plus app path check | constrained public Blob upload token | `src/app/api-routes/audience-vote/[id]/candidates/[candidateId]/media/upload/route.ts` |
+| Vote Candidate Media completion | Vercel Blob callback payload | `handleUpload` body schema, token payload parser, deterministic pathname check | stored Vote Candidate Media row | `src/app/api-routes/audience-vote/[id]/candidates/[candidateId]/media/upload/route.ts` |
+| Browser API response for Vote Candidate Media | `response.json()` | `parseVoteCandidateMediaList()` / `parseVoteCandidateMedia()` | `VoteCandidateMedia[]` / `VoteCandidateMedia` | `src/entities/audience-vote/model/audience-vote.ts` |
 | Stripe webhook body | raw HTTP body string | `stripe.webhooks.constructEvent()` | `Stripe.Event` | `src/app/stripe/verify-webhook.ts` |
 | Stripe checkout session | authentic Stripe event payload | `validateCheckoutSessionCompletedEvent()`, `resolveCheckoutSession()` | accepted checkout branch | `src/app/stripe/*` |
 | Env vars | `process.env` | scoped readers in `env.ts` | trimmed string config or controlled error | `src/shared/config/env.ts` |
@@ -133,6 +136,8 @@ pages/widgets:
 - `AudienceVoteStatus`
 - `VoteCandidate`
 - `VoteCandidateId`
+- `VoteCandidateMedia`
+- `VoteCandidateMediaId`
 - `PublicVoteCandidate`
 
 Use `@/shared/db/schema.zod` types for route request bodies and DB write input:

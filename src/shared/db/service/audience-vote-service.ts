@@ -3,14 +3,18 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
+  voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
   type InsertAudienceVote,
+  type InsertVoteCandidateMedia,
   type InsertVoteCandidate,
   type VoteCandidate,
+  type VoteCandidateMedia,
 } from "@/shared/db/schema";
 import {
   insertAudienceVoteSchema,
+  insertVoteCandidateMediaSchema,
   insertVoteCandidateSchema,
   patchVoteCandidateClientSchema,
   type PatchVoteCandidateClientInput,
@@ -25,19 +29,44 @@ export interface GetVoteCandidatesFilters {
   audienceVoteId: string;
 }
 
+export interface GetVoteCandidateMediaFilters {
+  archived?: boolean;
+  candidateId: string;
+}
+
+export interface CompleteVoteCandidateMediaUploadInput {
+  mediaData: Omit<
+    InsertVoteCandidateMedia,
+    "archived" | "created_at" | "display_order" | "updated_at"
+  >;
+  replacesMediaId?: string | null;
+}
+
 export interface IAudienceVoteService {
   addAudienceVote: (voteData: InsertAudienceVote) => Promise<AudienceVote>;
   addVoteCandidate: (
     candidateData: InsertVoteCandidate
   ) => Promise<VoteCandidate>;
+  completeVoteCandidateMediaUpload: (
+    input: CompleteVoteCandidateMediaUploadInput
+  ) => Promise<VoteCandidateMedia>;
   getAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
   getAudienceVotes: (
     filters?: GetAudienceVotesFilters
   ) => Promise<AudienceVote[]>;
   getVoteCandidate: (id: string) => Promise<VoteCandidate | undefined>;
+  getVoteCandidateMedia: (
+    id: string
+  ) => Promise<VoteCandidateMedia | undefined>;
+  getVoteCandidateMediaList: (
+    filters: GetVoteCandidateMediaFilters
+  ) => Promise<VoteCandidateMedia[]>;
   getVoteCandidates: (
     filters: GetVoteCandidatesFilters
   ) => Promise<VoteCandidate[]>;
+  softDeleteVoteCandidateMedia: (
+    id: string
+  ) => Promise<{ id: string } | undefined>;
   softDeleteVoteCandidate: (
     id: string
   ) => Promise<{ id: string } | undefined>;
@@ -86,6 +115,18 @@ export function createAudienceVoteService(
     return result[0];
   };
 
+  const getVoteCandidateMedia = async (
+    id: string
+  ): Promise<VoteCandidateMedia | undefined> => {
+    const result = await db
+      .select()
+      .from(voteCandidateMediaTable)
+      .where(eq(voteCandidateMediaTable.id, id))
+      .limit(1);
+
+    return result[0];
+  };
+
   const getVoteCandidates = async ({
     archived,
     audienceVoteId,
@@ -104,6 +145,37 @@ export function createAudienceVoteService(
       .orderBy(
         asc(voteCandidateTable.display_order),
         asc(voteCandidateTable.created_at)
+      );
+  };
+
+  const getVoteCandidateMediaList = async ({
+    archived,
+    candidateId,
+  }: GetVoteCandidateMediaFilters): Promise<VoteCandidateMedia[]> => {
+    if (archived === undefined) {
+      return db
+        .select()
+        .from(voteCandidateMediaTable)
+        .where(eq(voteCandidateMediaTable.candidate_id, candidateId))
+        .orderBy(
+          asc(voteCandidateMediaTable.archived),
+          asc(voteCandidateMediaTable.display_order),
+          asc(voteCandidateMediaTable.created_at)
+        );
+    }
+
+    return db
+      .select()
+      .from(voteCandidateMediaTable)
+      .where(
+        and(
+          eq(voteCandidateMediaTable.candidate_id, candidateId),
+          eq(voteCandidateMediaTable.archived, archived)
+        )
+      )
+      .orderBy(
+        asc(voteCandidateMediaTable.display_order),
+        asc(voteCandidateMediaTable.created_at)
       );
   };
 
@@ -154,6 +226,59 @@ export function createAudienceVoteService(
     }
 
     return candidate;
+  };
+
+  const completeVoteCandidateMediaUpload = async ({
+    mediaData,
+    replacesMediaId,
+  }: CompleteVoteCandidateMediaUploadInput): Promise<VoteCandidateMedia> => {
+    const existingMedia = await getVoteCandidateMedia(mediaData.id);
+
+    if (existingMedia) {
+      await archiveReplacementMediaIfNeeded(
+        existingMedia.candidate_id,
+        replacesMediaId
+      );
+      return existingMedia;
+    }
+
+    if (replacesMediaId) {
+      await assertReplaceableMedia(mediaData.candidate_id, replacesMediaId);
+    }
+
+    const activeMedia = await getVoteCandidateMediaList({
+      archived: false,
+      candidateId: mediaData.candidate_id,
+    });
+    const validatedData = insertVoteCandidateMediaSchema.parse({
+      ...mediaData,
+      archived: false,
+      display_order: activeMedia.length + 1,
+    });
+
+    const [newMedia] = await db
+      .insert(voteCandidateMediaTable)
+      .values(validatedData)
+      .returning();
+
+    if (!newMedia) {
+      throw new Error(
+        "Vote Candidate Media insertion failed to return the new record."
+      );
+    }
+
+    if (replacesMediaId) {
+      await softDeleteVoteCandidateMedia(replacesMediaId);
+    }
+
+    const media = await getVoteCandidateMedia(newMedia.id);
+    if (!media) {
+      throw new Error(
+        "Vote Candidate Media insertion failed to reload the record."
+      );
+    }
+
+    return media;
   };
 
   const updateVoteCandidate = async (
@@ -207,6 +332,50 @@ export function createAudienceVoteService(
     return deletedCandidate;
   };
 
+  const softDeleteVoteCandidateMedia = async (
+    id: string
+  ): Promise<{ id: string } | undefined> => {
+    const currentMedia = await getVoteCandidateMedia(id);
+    if (!currentMedia || currentMedia.archived) {
+      return undefined;
+    }
+
+    const [deletedMedia] = await db
+      .update(voteCandidateMediaTable)
+      .set({ archived: true })
+      .where(eq(voteCandidateMediaTable.id, id))
+      .returning({ id: voteCandidateMediaTable.id });
+
+    await reorderActiveCandidateMedia(currentMedia.candidate_id);
+
+    return deletedMedia;
+  };
+
+  async function assertReplaceableMedia(
+    candidateId: string,
+    mediaId: string
+  ) {
+    const media = await getVoteCandidateMedia(mediaId);
+
+    if (!media || media.archived || media.candidate_id !== candidateId) {
+      throw new Error("Replacement media was not found.");
+    }
+  }
+
+  async function archiveReplacementMediaIfNeeded(
+    candidateId: string,
+    mediaId: string | null | undefined
+  ) {
+    if (!mediaId) {
+      return;
+    }
+
+    const media = await getVoteCandidateMedia(mediaId);
+    if (media && !media.archived && media.candidate_id === candidateId) {
+      await softDeleteVoteCandidateMedia(media.id);
+    }
+  }
+
   async function reorderActiveCandidates(
     audienceVoteId: string,
     movedCandidateId?: string,
@@ -252,13 +421,37 @@ export function createAudienceVoteService(
     }
   }
 
+  async function reorderActiveCandidateMedia(candidateId: string) {
+    const mediaList = await getVoteCandidateMediaList({
+      archived: false,
+      candidateId,
+    });
+
+    for (const [index, media] of mediaList.entries()) {
+      const nextOrder = index + 1;
+
+      if (media.display_order === nextOrder) {
+        continue;
+      }
+
+      await db
+        .update(voteCandidateMediaTable)
+        .set({ display_order: nextOrder })
+        .where(eq(voteCandidateMediaTable.id, media.id));
+    }
+  }
+
   return {
     addAudienceVote,
     addVoteCandidate,
+    completeVoteCandidateMediaUpload,
     getAudienceVote,
     getAudienceVotes,
     getVoteCandidate,
+    getVoteCandidateMedia,
+    getVoteCandidateMediaList,
     getVoteCandidates,
+    softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateVoteCandidate,
   };
