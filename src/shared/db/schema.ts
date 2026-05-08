@@ -120,6 +120,19 @@ export const cookieConsentSurfaceEnum = pgEnum("cookie_consent_surface_enum", [
   "settings",
 ]);
 
+export const audienceVoteKindEnum = pgEnum("audience_vote_kind_enum", [
+  "speaker",
+  "battle",
+  "final_battle",
+]);
+
+export const audienceVoteStatusEnum = pgEnum("audience_vote_status_enum", [
+  "draft",
+  "scheduled",
+  "open",
+  "closed",
+]);
+
 export const battleTicketTable = pgTable(
   "battle_ticket",
   {
@@ -343,6 +356,47 @@ export type CookieConsentEvent =
   typeof cookieConsentEventTable.$inferSelect;
 export type InsertCookieConsentEvent =
   typeof cookieConsentEventTable.$inferInsert;
+
+export const audienceVoteTable = pgTable(
+  "audience_vote",
+  {
+    id: text("id").primaryKey(),
+    kind: audienceVoteKindEnum("kind").notNull(),
+    title: text("title").notNull(),
+    status: audienceVoteStatusEnum("status").notNull().default("draft"),
+    window_start: timestamp("window_start", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    window_end: timestamp("window_end", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteStatusIdx: index("audience_vote_status_idx").on(table.status),
+    audienceVoteCreatedAtIdx: index("audience_vote_created_at_idx").on(
+      table.created_at
+    ),
+  })
+);
+
+export type AudienceVote = typeof audienceVoteTable.$inferSelect;
+export type InsertAudienceVote = typeof audienceVoteTable.$inferInsert;
 
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;

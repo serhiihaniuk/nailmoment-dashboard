@@ -26,6 +26,8 @@ state without parsing.
 | Browser API response for one Battle Ticket | `response.json()` | `parseBattleTicket()` | `BattleTicket` | `src/entities/battle-ticket/model/battle-ticket.ts` |
 | Browser API response for finance row | `response.json()` | `ticketFinanceSchema.parse()` | `TicketFinance` | `src/entities/ticket/model/ticket.ts` |
 | Browser API response for payment row | `response.json()` | `paymentInstallmentSchema.parse()` | `PaymentInstallment` | `src/entities/ticket/model/ticket.ts` |
+| Audience Vote create body | JSON from Operator UI | `createAudienceVoteClientSchema` | normalized draft/scheduled create input | `src/shared/db/schema.zod.ts` |
+| Browser API response for Audience Votes | `response.json()` | `parseAudienceVoteList()` / `parseAudienceVote()` | `AudienceVote[]` / `AudienceVote` | `src/entities/audience-vote/model/audience-vote.ts` |
 | Stripe webhook body | raw HTTP body string | `stripe.webhooks.constructEvent()` | `Stripe.Event` | `src/app/stripe/verify-webhook.ts` |
 | Stripe checkout session | authentic Stripe event payload | `validateCheckoutSessionCompletedEvent()`, `resolveCheckoutSession()` | accepted checkout branch | `src/app/stripe/*` |
 | Env vars | `process.env` | scoped readers in `env.ts` | trimmed string config or controlled error | `src/shared/config/env.ts` |
@@ -117,6 +119,14 @@ pages/widgets:
 - `BattleTicketDeliveryStatus`
 - `BattleTicketPaymentType`
 
+Use `@/entities/audience-vote` for Audience Vote data rendered or edited by
+pages/widgets:
+
+- `AudienceVote`
+- `AudienceVoteId`
+- `AudienceVoteKind`
+- `AudienceVoteStatus`
+
 Use `@/shared/db/schema.zod` types for route request bodies and DB write input:
 
 - `InsertTicketInput`
@@ -126,6 +136,9 @@ Use `@/shared/db/schema.zod` types for route request bodies and DB write input:
 - `PatchPaymentInstallmentInput`
 - `InsertBattleTicketInput`
 - `UpdateBattleTicketInput`
+- `CreateAudienceVoteClientInput`
+- `CreateAudienceVoteClientOutput`
+- `InsertAudienceVoteInput`
 
 ## Money Rules
 

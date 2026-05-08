@@ -4,6 +4,9 @@ import {
   createSelectSchema,
 } from "drizzle-zod";
 import {
+  audienceVoteKindEnum,
+  audienceVoteStatusEnum,
+  audienceVoteTable,
   battleTicketTable,
   cookieConsentActionEnum,
   cookieConsentEventTable,
@@ -57,6 +60,23 @@ const optionalDateInputSchema = z.preprocess(
   (value) => (value === "" || value === null || value === undefined ? null : value),
   z.coerce.date().nullable()
 );
+
+function validateAudienceVoteWindow(
+  value: { window_end?: Date | null; window_start?: Date | null },
+  ctx: z.RefinementCtx
+) {
+  if (
+    value.window_start &&
+    value.window_end &&
+    value.window_end <= value.window_start
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Window end must be after window start",
+      path: ["window_end"],
+    });
+  }
+}
 
 export const selectTicketFinanceSchema = createSelectSchema(ticketFinanceTable);
 
@@ -133,6 +153,46 @@ export const cookieConsentEventClientSchema = z.object({
 
 export type CookieConsentEventClientInput = z.infer<
   typeof cookieConsentEventClientSchema
+>;
+
+const audienceVoteTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Title is required")
+  .max(160, "Title must be 160 characters or fewer");
+
+export const selectAudienceVoteSchema = createSelectSchema(audienceVoteTable);
+
+export const insertAudienceVoteSchema = createInsertSchema(
+  audienceVoteTable,
+  {
+    id: z.string().trim().min(1, "ID is required"),
+    kind: z.enum(audienceVoteKindEnum.enumValues),
+    status: z.enum(audienceVoteStatusEnum.enumValues),
+    title: audienceVoteTitleSchema,
+    window_start: optionalDateInputSchema,
+    window_end: optionalDateInputSchema,
+  }
+).superRefine(validateAudienceVoteWindow);
+
+export const createAudienceVoteClientSchema = z
+  .object({
+    kind: z.enum(audienceVoteKindEnum.enumValues),
+    status: z.enum(["draft", "scheduled"]).default("draft"),
+    title: audienceVoteTitleSchema,
+    window_start: optionalDateInputSchema,
+    window_end: optionalDateInputSchema,
+  })
+  .superRefine(validateAudienceVoteWindow);
+
+export type InsertAudienceVoteInput = z.input<
+  typeof insertAudienceVoteSchema
+>;
+export type CreateAudienceVoteClientInput = z.input<
+  typeof createAudienceVoteClientSchema
+>;
+export type CreateAudienceVoteClientOutput = z.output<
+  typeof createAudienceVoteClientSchema
 >;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);

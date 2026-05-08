@@ -130,6 +130,7 @@ src/
     pdf-demo/                           Email/PDF demo UI
     pdf-ticket-preview/                 Email preview page and server actions
     speaker-vote/                       Speaker vote results UI
+    audience-votes/                     Audience Vote list/create UI
     home/                               Root route UI
 
   widgets/
@@ -139,6 +140,7 @@ src/
 
   entities/
     battle-ticket/                      Battle Ticket browser-facing domain and parsers
+    audience-vote/                      Audience Vote browser-facing domain and parsers
     ticket/                             Ticket, finance, payment, money, grade domain
     voting/                             Static voting categories/broadcast domain
 
@@ -329,6 +331,9 @@ src/app/api-routes/pdf/[id]/route.tsx
 Change Telegram voting:
 
 ```txt
+src/pages/audience-votes/*
+src/entities/audience-vote/*
+src/app/api-routes/audience-vote/route.ts
 src/app/api-routes/tg/festival-bot/*
 src/app/api-routes/tg/speaker-bot/route.ts
 src/entities/voting/model/voting.ts

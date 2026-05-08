@@ -106,6 +106,18 @@ erDiagram
     text voted_for_contestant_id
   }
 
+  audience_vote {
+    text id PK
+    enum kind
+    text title
+    enum status
+    timestamptz window_start
+    timestamptz window_end
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
   speaker_vote_tg {
     text id PK
     text voted_for_id
@@ -239,6 +251,22 @@ Why event id, not session id:
 `speaker_vote_tg` stores speaker vote rows and is aggregated by
 `GET /api/speaker_vote`.
 
+### Audience Vote
+
+`audience_vote` stores the core Mini App voting stages for the new Audience
+Vote system.
+
+Important fields:
+
+- `kind`: `speaker`, `battle`, or `final_battle`.
+- `title`: public title shown to voters later in the Mini App flow.
+- `status`: `draft`, `scheduled`, `open`, or `closed`.
+- `window_start` / `window_end`: optional planning/display window.
+- `archived`: soft-delete flag; normal Operator lists exclude archived rows.
+
+Opening, closing, candidates, media, voter rows, and broadcasts are handled by
+later Audience Vote slices.
+
 ## Finance Formula
 
 ```txt
@@ -271,5 +299,7 @@ Relevant finance/Stripe migrations:
 - `drizzle/0019_payment_installment_is_paid.sql`: adds `is_paid`.
 - `drizzle/0020_finance_discount_storage_backfill.sql`: discount storage
   backfill.
+- `drizzle/0022_audience_vote_core.sql`: adds core Audience Vote enums and
+  table.
 
 Production migration work must follow `AGENTS.md`.
