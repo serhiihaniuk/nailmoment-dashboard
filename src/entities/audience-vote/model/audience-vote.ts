@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 import {
+  audienceVoteBroadcastDeliveryStageEnum,
+  audienceVoteBroadcastDeliveryStatusEnum,
+  audienceVoteBroadcastStatusEnum,
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
   voteCandidateMediaTypeEnum,
@@ -27,6 +30,12 @@ export type VoteCandidateMediaId = z.infer<
   typeof voteCandidateMediaIdSchema
 >;
 
+export const audienceVoteBroadcastIdSchema =
+  nonEmptyStringSchema.brand<"AudienceVoteBroadcastId">();
+export type AudienceVoteBroadcastId = z.infer<
+  typeof audienceVoteBroadcastIdSchema
+>;
+
 export const audienceVoteKindSchema = z.enum(
   audienceVoteKindEnum.enumValues
 );
@@ -47,6 +56,27 @@ export const voteCandidateMediaTypeSchema = z.enum(
 );
 export type VoteCandidateMediaType = z.infer<
   typeof voteCandidateMediaTypeSchema
+>;
+
+export const audienceVoteBroadcastStatusSchema = z.enum(
+  audienceVoteBroadcastStatusEnum.enumValues
+);
+export type AudienceVoteBroadcastStatus = z.infer<
+  typeof audienceVoteBroadcastStatusSchema
+>;
+
+export const audienceVoteBroadcastDeliveryStageSchema = z.enum(
+  audienceVoteBroadcastDeliveryStageEnum.enumValues
+);
+export type AudienceVoteBroadcastDeliveryStage = z.infer<
+  typeof audienceVoteBroadcastDeliveryStageSchema
+>;
+
+export const audienceVoteBroadcastDeliveryStatusSchema = z.enum(
+  audienceVoteBroadcastDeliveryStatusEnum.enumValues
+);
+export type AudienceVoteBroadcastDeliveryStatus = z.infer<
+  typeof audienceVoteBroadcastDeliveryStatusSchema
 >;
 
 export const VOTE_CANDIDATE_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
@@ -153,6 +183,61 @@ export const audienceVoteListSchema = z.array(audienceVoteSchema);
 
 export type AudienceVote = z.infer<typeof audienceVoteSchema>;
 export type AudienceVoteList = z.infer<typeof audienceVoteListSchema>;
+
+const audienceVoteBroadcastDeliveryCountSchema = z.object({
+  failed: z.number().int().min(0),
+  pending: z.number().int().min(0),
+  sent: z.number().int().min(0),
+  skipped: z.number().int().min(0),
+});
+
+export const audienceVoteBroadcastDeliveryCountsByStageSchema = z.object({
+  normal: audienceVoteBroadcastDeliveryCountSchema,
+  operator_canary: audienceVoteBroadcastDeliveryCountSchema,
+  voter_canary: audienceVoteBroadcastDeliveryCountSchema,
+});
+
+export const audienceVoteBroadcastSchema = z.object({
+  audience_vote_id: audienceVoteIdSchema,
+  canary_voter_limit: z.number().int().min(0),
+  created_at: dateSchema,
+  delivery_counts: audienceVoteBroadcastDeliveryCountsByStageSchema,
+  estimated_recipient_count: z.number().int().min(0),
+  id: audienceVoteBroadcastIdSchema,
+  include_open_button: z.boolean(),
+  interrupted_at: nullableDateSchema,
+  message_text: nonEmptyStringSchema,
+  next_stage_at: dateSchema,
+  status: audienceVoteBroadcastStatusSchema,
+  updated_at: dateSchema,
+});
+
+export const audienceVoteBroadcastListSchema = z.array(
+  audienceVoteBroadcastSchema
+);
+
+export const audienceVoteBroadcastPreviewSchema = z.object({
+  audience_vote_id: audienceVoteIdSchema,
+  estimated_recipient_count: z.number().int().min(0),
+  include_open_button: z.boolean(),
+  message_text: nonEmptyStringSchema,
+});
+
+export type AudienceVoteBroadcastDeliveryCounts = z.infer<
+  typeof audienceVoteBroadcastDeliveryCountSchema
+>;
+export type AudienceVoteBroadcastDeliveryCountsByStage = z.infer<
+  typeof audienceVoteBroadcastDeliveryCountsByStageSchema
+>;
+export type AudienceVoteBroadcast = z.infer<
+  typeof audienceVoteBroadcastSchema
+>;
+export type AudienceVoteBroadcastList = z.infer<
+  typeof audienceVoteBroadcastListSchema
+>;
+export type AudienceVoteBroadcastPreview = z.infer<
+  typeof audienceVoteBroadcastPreviewSchema
+>;
 
 const nullableTextSchema = z.string().nullable();
 
@@ -534,6 +619,24 @@ export function parseAudienceVote(value: unknown): AudienceVote {
 
 export function parseAudienceVoteList(value: unknown): AudienceVote[] {
   return audienceVoteListSchema.parse(value);
+}
+
+export function parseAudienceVoteBroadcast(
+  value: unknown
+): AudienceVoteBroadcast {
+  return audienceVoteBroadcastSchema.parse(value);
+}
+
+export function parseAudienceVoteBroadcastList(
+  value: unknown
+): AudienceVoteBroadcast[] {
+  return audienceVoteBroadcastListSchema.parse(value);
+}
+
+export function parseAudienceVoteBroadcastPreview(
+  value: unknown
+): AudienceVoteBroadcastPreview {
+  return audienceVoteBroadcastPreviewSchema.parse(value);
 }
 
 export function parseVoteCandidate(value: unknown): VoteCandidate {

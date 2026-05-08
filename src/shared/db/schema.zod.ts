@@ -4,6 +4,11 @@ import {
   createSelectSchema,
 } from "drizzle-zod";
 import {
+  audienceVoteBroadcastDeliveryStageEnum,
+  audienceVoteBroadcastDeliveryStatusEnum,
+  audienceVoteBroadcastDeliveryTable,
+  audienceVoteBroadcastStatusEnum,
+  audienceVoteBroadcastTable,
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
   audienceVoteTable,
@@ -162,6 +167,11 @@ const audienceVoteTitleSchema = z
   .trim()
   .min(1, "Title is required")
   .max(160, "Title must be 160 characters or fewer");
+const audienceVoteBroadcastMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Message text is required")
+  .max(4096, "Message text must be 4096 characters or fewer");
 const voteCandidateDisplayNameSchema = z
   .string()
   .trim()
@@ -231,6 +241,64 @@ export type CreateAudienceVoteClientInput = z.input<
 >;
 export type CreateAudienceVoteClientOutput = z.output<
   typeof createAudienceVoteClientSchema
+>;
+
+export const selectAudienceVoteBroadcastSchema = createSelectSchema(
+  audienceVoteBroadcastTable
+);
+
+export const insertAudienceVoteBroadcastSchema = createInsertSchema(
+  audienceVoteBroadcastTable,
+  {
+    audience_vote_id: z.string().trim().min(1, "Audience Vote ID is required"),
+    canary_voter_limit: z.number().int().min(0).max(25),
+    estimated_recipient_count: z.number().int().min(0),
+    id: z.string().trim().min(1, "ID is required"),
+    message_text: audienceVoteBroadcastMessageSchema,
+    operator_telegram_user_id: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER),
+    status: z.enum(audienceVoteBroadcastStatusEnum.enumValues),
+  }
+);
+
+export const insertAudienceVoteBroadcastDeliverySchema = createInsertSchema(
+  audienceVoteBroadcastDeliveryTable,
+  {
+    broadcast_id: z.string().trim().min(1, "Broadcast ID is required"),
+    id: z.string().trim().min(1, "ID is required"),
+    stage: z.enum(audienceVoteBroadcastDeliveryStageEnum.enumValues),
+    status: z.enum(audienceVoteBroadcastDeliveryStatusEnum.enumValues),
+    telegram_user_id: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER),
+  }
+);
+
+export const createAudienceVoteBroadcastClientSchema = z.object({
+  audience_vote_id: z.string().trim().min(1, "Audience Vote is required"),
+  include_open_button: z.coerce.boolean().default(false),
+  message_text: audienceVoteBroadcastMessageSchema,
+});
+
+export const previewAudienceVoteBroadcastClientSchema =
+  createAudienceVoteBroadcastClientSchema;
+
+export type InsertAudienceVoteBroadcastInput = z.input<
+  typeof insertAudienceVoteBroadcastSchema
+>;
+export type InsertAudienceVoteBroadcastDeliveryInput = z.input<
+  typeof insertAudienceVoteBroadcastDeliverySchema
+>;
+export type CreateAudienceVoteBroadcastClientInput = z.input<
+  typeof createAudienceVoteBroadcastClientSchema
+>;
+export type CreateAudienceVoteBroadcastClientOutput = z.output<
+  typeof createAudienceVoteBroadcastClientSchema
 >;
 
 export const selectVoteCandidateSchema = createSelectSchema(voteCandidateTable);

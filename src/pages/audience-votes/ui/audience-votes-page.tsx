@@ -22,6 +22,8 @@ import {
   formatAudienceVoteWindow,
 } from "../model/audience-vote-form";
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
+import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
+import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
 import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
@@ -58,7 +60,10 @@ export default function AudienceVotesPage() {
             Core setup for Mini App voting stages.
           </p>
         </div>
-        <CreateAudienceVoteDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          <AudienceVoteBroadcastDialog votes={votes ?? []} />
+          <CreateAudienceVoteDialog />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -86,6 +91,8 @@ export default function AudienceVotesPage() {
       ) : null}
 
       {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
+
+      <AudienceVoteBroadcastsPanel votes={votes ?? []} />
 
       {!isLoading && votes ? <AudienceVotesTable votes={votes} /> : null}
     </div>

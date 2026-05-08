@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import {
   buildVoteCandidateMediaPath,
+  parseAudienceVoteBroadcast,
+  parseAudienceVoteBroadcastPreview,
   parsePublicVoteCandidate,
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
@@ -61,6 +63,31 @@ function makeVoteCandidateMediaResponse(
     id: "media_1",
     media_type: "photo",
     updated_at: "2026-05-08T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeAudienceVoteBroadcastResponse(
+  overrides: Record<string, unknown> = {}
+) {
+  return {
+    audience_vote_id: "vote_1",
+    canary_voter_limit: 25,
+    created_at: "2026-05-08T16:00:00.000Z",
+    delivery_counts: {
+      normal: { failed: 0, pending: 30, sent: 0, skipped: 0 },
+      operator_canary: { failed: 0, pending: 0, sent: 1, skipped: 0 },
+      voter_canary: { failed: 0, pending: 26, sent: 0, skipped: 0 },
+    },
+    estimated_recipient_count: 30,
+    id: "broadcast_1",
+    include_open_button: true,
+    interrupted_at: null,
+    message_text: "Public voting starts now",
+    next_stage_at: "2026-05-08T16:02:00.000Z",
+    operator_telegram_user_id: 299445418,
+    status: "canary_operator_sent",
+    updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };
 }
@@ -277,6 +304,29 @@ describe("audience vote parsing", () => {
     ]);
     expect(JSON.stringify(results)).not.toContain("telegram");
     expect(JSON.stringify(results)).not.toContain("voter");
+  });
+
+  test("parses Operator broadcast summaries without exposing operator ids", () => {
+    const broadcast = parseAudienceVoteBroadcast(
+      makeAudienceVoteBroadcastResponse()
+    );
+
+    expect(broadcast.created_at).toBeInstanceOf(Date);
+    expect(broadcast.next_stage_at).toBeInstanceOf(Date);
+    expect(broadcast.delivery_counts.operator_canary.sent).toBe(1);
+    expect(JSON.stringify(broadcast)).not.toContain("operator_telegram");
+  });
+
+  test("parses broadcast preview recipient estimates", () => {
+    const preview = parseAudienceVoteBroadcastPreview({
+      audience_vote_id: "vote_1",
+      estimated_recipient_count: 42,
+      include_open_button: true,
+      message_text: "Public voting starts now",
+    });
+
+    expect(preview.estimated_recipient_count).toBe(42);
+    expect(preview.include_open_button).toBe(true);
   });
 
   test("parses Mini App feed responses without private candidate fields", () => {

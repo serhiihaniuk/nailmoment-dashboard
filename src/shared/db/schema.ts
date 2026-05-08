@@ -140,6 +140,28 @@ export const voteCandidateMediaTypeEnum = pgEnum(
   ["photo", "video"]
 );
 
+export const audienceVoteBroadcastStatusEnum = pgEnum(
+  "audience_vote_broadcast_status_enum",
+  [
+    "canary_operator_pending",
+    "canary_operator_sent",
+    "canary_voters_sent",
+    "ready",
+    "interrupted",
+    "failed",
+  ]
+);
+
+export const audienceVoteBroadcastDeliveryStageEnum = pgEnum(
+  "audience_vote_broadcast_delivery_stage_enum",
+  ["operator_canary", "voter_canary", "normal"]
+);
+
+export const audienceVoteBroadcastDeliveryStatusEnum = pgEnum(
+  "audience_vote_broadcast_delivery_status_enum",
+  ["pending", "sent", "failed", "skipped"]
+);
+
 export const battleTicketTable = pgTable(
   "battle_ticket",
   {
@@ -569,6 +591,114 @@ export const telegramUsersTable = pgTable("telegram_users", {
     .defaultNow(),
 });
 
+export const audienceVoteBroadcastTable = pgTable(
+  "audience_vote_broadcast",
+  {
+    id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    message_text: text("message_text").notNull(),
+    include_open_button: boolean("include_open_button")
+      .notNull()
+      .default(false),
+    status: audienceVoteBroadcastStatusEnum("status")
+      .notNull()
+      .default("canary_operator_pending"),
+    estimated_recipient_count: integer("estimated_recipient_count")
+      .notNull()
+      .default(0),
+    canary_voter_limit: integer("canary_voter_limit").notNull().default(25),
+    operator_telegram_user_id: bigint("operator_telegram_user_id", {
+      mode: "number",
+    }).notNull(),
+    next_stage_at: timestamp("next_stage_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    interrupted_at: timestamp("interrupted_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteBroadcastVoteIdx: index(
+      "audience_vote_broadcast_vote_idx"
+    ).on(table.audience_vote_id),
+    audienceVoteBroadcastStatusIdx: index(
+      "audience_vote_broadcast_status_idx"
+    ).on(table.status),
+    audienceVoteBroadcastCreatedAtIdx: index(
+      "audience_vote_broadcast_created_at_idx"
+    ).on(table.created_at),
+  })
+);
+
+export const audienceVoteBroadcastDeliveryTable = pgTable(
+  "audience_vote_broadcast_delivery",
+  {
+    id: text("id").primaryKey(),
+    broadcast_id: text("broadcast_id")
+      .notNull()
+      .references(() => audienceVoteBroadcastTable.id, { onDelete: "cascade" }),
+    telegram_user_id: bigint("telegram_user_id", {
+      mode: "number",
+    }).notNull(),
+    stage: audienceVoteBroadcastDeliveryStageEnum("stage").notNull(),
+    status: audienceVoteBroadcastDeliveryStatusEnum("status")
+      .notNull()
+      .default("pending"),
+    attempt_count: integer("attempt_count").notNull().default(0),
+    last_error: text("last_error"),
+    sent_at: timestamp("sent_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteBroadcastDeliveryBroadcastIdx: index(
+      "audience_vote_broadcast_delivery_broadcast_idx"
+    ).on(table.broadcast_id),
+    audienceVoteBroadcastDeliveryStatusIdx: index(
+      "audience_vote_broadcast_delivery_status_idx"
+    ).on(table.status),
+    audienceVoteBroadcastDeliveryBroadcastStageStatusIdx: index(
+      "audience_vote_broadcast_delivery_broadcast_stage_status_idx"
+    ).on(table.broadcast_id, table.stage, table.status),
+    audienceVoteBroadcastDeliveryUnique: unique(
+      "audience_vote_broadcast_delivery_unique"
+    ).on(table.broadcast_id, table.telegram_user_id, table.stage),
+  })
+);
+
 export const audienceVoteCurrentVoteTable = pgTable(
   "audience_vote_current_vote",
   {
@@ -636,6 +766,16 @@ export const battleVoteTGTable = pgTable(
 
 export type TelegramUser = typeof telegramUsersTable.$inferSelect;
 export type InsertTelegramUser = typeof telegramUsersTable.$inferInsert;
+
+export type AudienceVoteBroadcast =
+  typeof audienceVoteBroadcastTable.$inferSelect;
+export type InsertAudienceVoteBroadcast =
+  typeof audienceVoteBroadcastTable.$inferInsert;
+
+export type AudienceVoteBroadcastDelivery =
+  typeof audienceVoteBroadcastDeliveryTable.$inferSelect;
+export type InsertAudienceVoteBroadcastDelivery =
+  typeof audienceVoteBroadcastDeliveryTable.$inferInsert;
 
 export type AudienceVoteCurrentVote =
   typeof audienceVoteCurrentVoteTable.$inferSelect;
