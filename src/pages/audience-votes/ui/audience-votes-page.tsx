@@ -1,16 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Archive,
-  CalendarClock,
-  CheckCircle2,
-  CircleDot,
-  FileText,
-  Loader2,
-  Vote,
-} from "lucide-react";
+import { FileText, Loader2, Vote } from "lucide-react";
 
 import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
 import {
@@ -18,14 +10,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/shared/ui/alert";
-import { Badge } from "@/shared/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -34,38 +18,26 @@ import {
   EmptyTitle,
 } from "@/shared/ui/empty";
 import { Skeleton } from "@/shared/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/table";
+import { cn } from "@/shared/lib/cn";
 import { fetchAudienceVotes } from "../api/audience-votes-client";
-import {
-  formatAudienceVoteDate,
-  formatAudienceVoteKind,
-  formatAudienceVoteStatus,
-  formatAudienceVoteWindow,
-} from "../model/audience-vote-form";
 import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog";
-import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
-import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
-import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
-import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
-import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
-import { AudienceVoteUpdateScreenPanel } from "./audience-vote-update-screen-panel";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
+import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
+import { VoteCard } from "./vote-card";
 
-type BadgeVariant =
-  | "default"
-  | "destructive"
-  | "outline"
-  | "secondary"
-  | "success";
+type StatusFilter = "all" | AudienceVoteStatus;
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "draft", label: "Draft" },
+  { value: "closed", label: "Closed" },
+];
 
 export default function AudienceVotesPage() {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
   const {
     data: votes,
     error,
@@ -80,8 +52,28 @@ export default function AudienceVotesPage() {
 
   const stats = useMemo(() => buildVoteStats(votes ?? []), [votes]);
 
+  const filteredVotes = useMemo(() => {
+    if (!votes) return [];
+    if (statusFilter === "all") return votes;
+    return votes.filter((v) => v.status === statusFilter);
+  }, [votes, statusFilter]);
+
+  // Sort: open first, then scheduled, then draft, then closed
+  const sortedVotes = useMemo(() => {
+    const statusOrder: Record<AudienceVoteStatus, number> = {
+      open: 0,
+      scheduled: 1,
+      draft: 2,
+      closed: 3,
+    };
+    return [...filteredVotes].sort(
+      (a, b) => statusOrder[a.status] - statusOrder[b.status]
+    );
+  }, [filteredVotes]);
+
   return (
     <div className="page-container flex flex-col gap-5 py-6">
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-heading-1">Audience Votes</h1>
@@ -89,17 +81,13 @@ export default function AudienceVotesPage() {
             Mini App voting stages, broadcasts, and voter-facing fallback text.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <AudienceVoteBroadcastDialog votes={votes ?? []} />
-          <CreateAudienceVoteDialog />
-        </div>
+        <CreateAudienceVoteDialog />
       </div>
 
-      <AudienceVoteStatsCards
-        isRefreshing={isFetching && !isLoading}
-        stats={stats}
-      />
+      {/* Stats bar */}
+      <StatsBar stats={stats} isRefreshing={isFetching && !isLoading} />
 
+      {/* Error state */}
       {isError ? (
         <Alert variant="destructive">
           <FileText aria-hidden="true" />
@@ -108,103 +96,147 @@ export default function AudienceVotesPage() {
         </Alert>
       ) : null}
 
-      {isLoading ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
+      {/* Loading state */}
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
+      ) : null}
 
-      <AudienceVoteUpdateScreenPanel />
+      {/* Main content */}
+      {!isLoading && votes ? (
+        <>
+          {/* Status filter tabs */}
+          <StatusFilterSegment value={statusFilter} onChange={setStatusFilter} stats={stats} />
 
-      <AudienceVoteBroadcastsPanel votes={votes ?? []} />
+          {/* Vote cards */}
+          {sortedVotes.length === 0 ? (
+            <Empty className="rounded-xl border border-border/60 bg-white shadow-surface">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Vote aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {statusFilter === "all"
+                    ? "No voting stages yet"
+                    : `No ${statusFilter} votes`}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {statusFilter === "all"
+                    ? "Create the first speaker or battle vote before the event starts."
+                    : "Try selecting a different filter."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="space-y-4">
+              {sortedVotes.map((vote) => (
+                <VoteCard key={vote.id} vote={vote} />
+              ))}
+            </div>
+          )}
 
-      {!isLoading && votes ? <AudienceVotesTable votes={votes} /> : null}
+          {/* Broadcasts panel */}
+          <AudienceVoteBroadcastsPanel votes={votes} />
+        </>
+      ) : null}
     </div>
   );
 }
 
-function AudienceVotesTable({ votes }: { votes: AudienceVote[] }) {
+/* ── Stats Bar ── */
+
+interface StatsBarProps {
+  stats: ReturnType<typeof buildVoteStats>;
+  isRefreshing: boolean;
+}
+
+function StatsBar({ stats, isRefreshing }: StatsBarProps) {
   return (
-    <Card className="gap-0 overflow-hidden shadow-surface">
-      <CardHeader className="border-b border-border/60">
-        <CardTitle>Voting stages</CardTitle>
-        <CardDescription>
-          Draft, schedule, open, close, and review vote results.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4">
-        {votes.length === 0 ? (
-          <Empty className="border border-border/70 bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Vote aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>No voting stages yet</EmptyTitle>
-              <EmptyDescription>
-                Create the first speaker or battle vote before the event starts.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="**:data-[slot=table-container]:rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Title</TableHead>
-                  <TableHead>Kind</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Planning window</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Candidates</TableHead>
-                  <TableHead className="text-right">Results</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {votes.map((vote) => (
-                  <TableRow key={vote.id}>
-                    <TableCell>
-                      <div className="min-w-48">
-                        <div className="font-medium">{vote.title}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {vote.id}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatAudienceVoteKind(vote.kind)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className="rounded-md"
-                        variant={getStatusBadgeVariant(vote.status)}
-                      >
-                        {formatAudienceVoteStatus(vote.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatAudienceVoteWindow(vote)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {formatAudienceVoteDate(vote.created_at)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {formatAudienceVoteDate(vote.updated_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <AudienceVoteCandidatesDialog vote={vote} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <AudienceVoteResultsDialog vote={vote} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <AudienceVoteLifecycleActions vote={vote} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-1.5 flex-wrap text-[12px] text-muted-foreground">
+      <span>{stats.total} total</span>
+      {stats.open > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span className="text-success font-medium">{stats.open} open</span>
+        </>
+      )}
+      {stats.scheduled > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.scheduled} scheduled</span>
+        </>
+      )}
+      {stats.draft > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.draft} draft</span>
+        </>
+      )}
+      {stats.closed > 0 && (
+        <>
+          <span className="text-border">·</span>
+          <span>{stats.closed} closed</span>
+        </>
+      )}
+      {isRefreshing && (
+        <>
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1">
+            <Loader2 size={11} className="animate-spin" />
+            Refreshing
+          </span>
+        </>
+      )}
+    </div>
   );
 }
+
+/* ── Status Filter Segment ── */
+
+function StatusFilterSegment({
+  value,
+  onChange,
+  stats,
+}: {
+  value: StatusFilter;
+  onChange: (v: StatusFilter) => void;
+  stats: ReturnType<typeof buildVoteStats>;
+}) {
+  return (
+    <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center h-9 rounded-lg border border-border/60 overflow-hidden bg-white w-fit min-w-max">
+        {STATUS_FILTERS.map((opt) => {
+          const count = opt.value === "all" ? stats.total : stats[opt.value];
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              className={cn(
+                "h-full px-3 sm:px-4 text-[12px] font-medium transition-colors whitespace-nowrap",
+                "border-r border-border/40 last:border-r-0",
+                value === opt.value
+                  ? "bg-muted/60 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              )}
+            >
+              {opt.label}
+              {count > 0 && (
+                <span className="ml-1 sm:ml-1.5 text-[10px] tabular-nums opacity-60">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Helpers ── */
 
 function buildVoteStats(votes: AudienceVote[]) {
   return votes.reduce(
@@ -221,89 +253,4 @@ function buildVoteStats(votes: AudienceVote[]) {
       total: 0,
     } satisfies Record<AudienceVoteStatus, number> & { total: number }
   );
-}
-
-function AudienceVoteStatsCards({
-  isRefreshing,
-  stats,
-}: {
-  isRefreshing: boolean;
-  stats: ReturnType<typeof buildVoteStats>;
-}) {
-  const items = [
-    {
-      icon: Vote,
-      label: "Total",
-      value: stats.total,
-    },
-    {
-      icon: FileText,
-      label: "Draft",
-      value: stats.draft,
-    },
-    {
-      icon: CalendarClock,
-      label: "Scheduled",
-      value: stats.scheduled,
-    },
-    {
-      icon: CircleDot,
-      label: "Open",
-      value: stats.open,
-    },
-    {
-      icon: Archive,
-      label: "Closed",
-      value: stats.closed,
-    },
-  ] as const;
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      {items.map(({ icon: Icon, label, value }) => (
-        <Card className="gap-0 py-0 shadow-none" key={label}>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                {label}
-              </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">
-                {value}
-              </p>
-            </div>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <Icon aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-      {isRefreshing ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground xl:col-span-5">
-          <Loader2 aria-hidden="true" className="animate-spin" />
-          <span>Refreshing dashboard data</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground xl:col-span-5">
-          <CheckCircle2 aria-hidden="true" />
-          <span>Dashboard data is current</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function getStatusBadgeVariant(status: AudienceVoteStatus): BadgeVariant {
-  if (status === "open") {
-    return "success";
-  }
-
-  if (status === "closed") {
-    return "destructive";
-  }
-
-  if (status === "scheduled") {
-    return "secondary";
-  }
-
-  return "outline";
 }
