@@ -16,6 +16,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ export function CreateAudienceVoteDialog({
     updateKind,
     updateStatus,
   } = useCreateAudienceVoteDialog(votes);
+  const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({ votes });
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -61,6 +63,11 @@ export function CreateAudienceVoteDialog({
           <DialogDescription>
             Підготуйте чернетку або запланований етап голосування для Mini App.
           </DialogDescription>
+          {openEndedVoteNotice ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              {openEndedVoteNotice}
+            </p>
+          ) : null}
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>

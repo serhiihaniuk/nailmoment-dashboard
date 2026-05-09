@@ -25,9 +25,34 @@ export type AudienceVoteScheduleApiError = {
   message: string;
 };
 
+export type AudienceVoteScheduleConflictReason =
+  | "open_ended_vote"
+  | "overlap";
+
 export interface AudienceVoteScheduleConflict {
   conflictingVote: AudienceVote;
   message: string;
+  reason: AudienceVoteScheduleConflictReason;
+}
+
+export function getOpenEndedVoteScheduleNotice({
+  currentVoteId,
+  votes,
+}: {
+  currentVoteId?: string | undefined;
+  votes: AudienceVote[];
+}): string | null {
+  const openEndedVote = votes.find(isOpenEndedVote);
+
+  if (!openEndedVote) {
+    return null;
+  }
+
+  if (openEndedVote.id === currentVoteId) {
+    return "Це голосування відкрите без часу завершення. Додайте завершення, щоб наступні голосування можна було планувати без перетину.";
+  }
+
+  return `Відкрите голосування "${openEndedVote.title}" не має часу завершення, тому нові старти зараз недоступні. Закрийте його або додайте час завершення.`;
 }
 
 type ParseAudienceVoteScheduleDraftResult =
@@ -128,17 +153,31 @@ export function findAudienceVoteScheduleConflict({
       : false;
   });
 
-  return conflictingVote
-    ? {
-        conflictingVote,
-        message: `Розклад перетинається з голосуванням "${conflictingVote.title}".`,
-      }
-    : null;
+  if (!conflictingVote) {
+    return null;
+  }
+
+  const reason = getAudienceVoteScheduleConflictReason(conflictingVote);
+
+  return {
+    conflictingVote,
+    message: formatAudienceVoteScheduleConflictMessage(
+      conflictingVote,
+      reason
+    ),
+    reason,
+  };
 }
 
 export function mapAudienceVoteScheduleConflictToFieldErrors(
   conflict: AudienceVoteScheduleConflict
 ): AudienceVoteScheduleFieldErrors {
+  if (conflict.reason === "open_ended_vote") {
+    return {
+      window_start: conflict.message,
+    };
+  }
+
   return {
     window_end: conflict.message,
     window_start: conflict.message,
@@ -209,4 +248,25 @@ function getReservedWindow(
   }
 
   return null;
+}
+
+function formatAudienceVoteScheduleConflictMessage(
+  vote: AudienceVote,
+  reason: AudienceVoteScheduleConflictReason
+): string {
+  if (reason === "open_ended_vote") {
+    return `Голосування "${vote.title}" не має часу завершення, тому його вікно вважається безстроковим. Новий старт не можна запланувати, доки його не закриють або не додадуть час завершення.`;
+  }
+
+  return `Обраний час перетинається з голосуванням "${vote.title}". Виберіть інший час.`;
+}
+
+function getAudienceVoteScheduleConflictReason(
+  vote: AudienceVote
+): AudienceVoteScheduleConflictReason {
+  return vote.window_end ? "overlap" : "open_ended_vote";
+}
+
+function isOpenEndedVote(vote: AudienceVote): boolean {
+  return !vote.archived && vote.status === "open" && !vote.window_end;
 }

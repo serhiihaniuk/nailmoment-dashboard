@@ -4,7 +4,10 @@ import {
   audienceVoteIdSchema,
   type AudienceVote,
 } from "@/entities/audience-vote";
-import { findAudienceVoteScheduleConflict } from "./audience-vote-schedule";
+import {
+  findAudienceVoteScheduleConflict,
+  mapAudienceVoteScheduleConflictToFieldErrors,
+} from "./audience-vote-schedule";
 
 const now = new Date("2026-05-09T12:00:00.000Z");
 
@@ -28,6 +31,7 @@ describe("audience vote schedule", () => {
     });
 
     expect(conflict?.conflictingVote.id).toBe("vote_2");
+    expect(conflict?.reason).toBe("overlap");
   });
 
   test("allows adjacent scheduled vote windows", () => {
@@ -66,6 +70,34 @@ describe("audience vote schedule", () => {
     });
 
     expect(conflict).toBeNull();
+  });
+
+  test("explains when an open-ended vote blocks a scheduled start", () => {
+    const conflict = findAudienceVoteScheduleConflict({
+      now,
+      schedule: {
+        status: "scheduled",
+        window_end: new Date("2026-05-10T13:00:00.000Z"),
+        window_start: new Date("2026-05-10T12:00:00.000Z"),
+      },
+      votes: [
+        makeVote({
+          status: "open",
+          title: "Live vote",
+          window_end: null,
+          window_start: null,
+        }),
+      ],
+    });
+
+    expect(conflict?.reason).toBe("open_ended_vote");
+    expect(conflict?.message).toContain("не має часу завершення");
+
+    expect(
+      conflict ? mapAudienceVoteScheduleConflictToFieldErrors(conflict) : {}
+    ).toEqual({
+      window_start: conflict?.message,
+    });
   });
 });
 

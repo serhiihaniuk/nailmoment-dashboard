@@ -16,6 +16,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedule-dialog";
 
 export function AudienceVoteScheduleDialog({
@@ -29,6 +30,10 @@ export function AudienceVoteScheduleDialog({
   const isOpenVote = vote.status === "open";
   const isEditable =
     vote.status === "draft" || vote.status === "scheduled" || isOpenVote;
+  const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({
+    currentVoteId: vote.id,
+    votes,
+  });
 
   if (!isEditable) {
     return null;
@@ -52,6 +57,11 @@ export function AudienceVoteScheduleDialog({
           {isOpenVote ? (
             <p className="text-sm text-muted-foreground">
               Голосування вже відкрите. Можна змінити лише час завершення.
+            </p>
+          ) : null}
+          {openEndedVoteNotice ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              {openEndedVoteNotice}
             </p>
           ) : null}
         </DialogHeader>

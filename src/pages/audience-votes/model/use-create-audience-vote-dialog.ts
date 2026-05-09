@@ -20,7 +20,10 @@ import {
   type CreateAudienceVoteFormDraft,
   type CreateAudienceVoteFormValues,
 } from "./audience-vote-form";
-import { findAudienceVoteScheduleConflict } from "./audience-vote-schedule";
+import {
+  findAudienceVoteScheduleConflict,
+  mapAudienceVoteScheduleConflictToFieldErrors,
+} from "./audience-vote-schedule";
 
 export const audienceVotesQueryKey = ["audienceVotes"] as const;
 
@@ -112,10 +115,7 @@ export function useCreateAudienceVoteDialog(votes: AudienceVote[]) {
     });
 
     if (conflict) {
-      setErrors({
-        window_end: conflict.message,
-        window_start: conflict.message,
-      });
+      setErrors(mapAudienceVoteScheduleConflictToFieldErrors(conflict));
       setFormError(conflict.message);
       return;
     }

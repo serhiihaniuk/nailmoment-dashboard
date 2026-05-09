@@ -1265,14 +1265,17 @@ export function createAudienceVoteService(
     });
 
     if (conflictingVote) {
+      const conflictMessage =
+        formatAudienceVoteScheduleConflictMessage(conflictingVote);
+
       throw new AudienceVoteTransitionError({
         issues: [
           {
             code: "schedule_overlap",
-            message: `Schedule overlaps with another Audience Vote: ${conflictingVote.title}.`,
+            message: conflictMessage,
           },
         ],
-        message: "Audience Vote schedule overlaps with another Audience Vote.",
+        message: conflictMessage,
         status: 409,
       });
     }
@@ -1513,5 +1516,13 @@ function getReservedAudienceVoteWindow(
   }
 
   return null;
+}
+
+function formatAudienceVoteScheduleConflictMessage(vote: AudienceVote) {
+  if (!vote.window_end) {
+    return `Audience Vote has no end time: ${vote.title}. Its schedule is treated as open-ended, so another start cannot be scheduled until it is closed or given an end time.`;
+  }
+
+  return `Selected time overlaps with another Audience Vote: ${vote.title}. Choose another time.`;
 }
 
