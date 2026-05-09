@@ -217,6 +217,57 @@ describe("audience votes API client", () => {
     expect(vote.status).toBe("scheduled");
     expect(vote.window_start).toBeInstanceOf(Date);
   });
+
+  test("updates scheduled opening broadcast settings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        makeVoteResponse({
+          opening_broadcast_include_open_button: false,
+          opening_broadcast_message_text: "Voting starts in Telegram",
+          status: "scheduled",
+          window_end: "2026-05-09T13:00:00.000Z",
+          window_start: "2026-05-09T12:00:00.000Z",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const vote = await updateAudienceVoteSchedule(
+      audienceVoteIdSchema.parse("vote_1"),
+      {
+        opening_broadcast: {
+          include_open_button: false,
+          message_text: "Voting starts in Telegram",
+        },
+        status: "scheduled",
+        window_end: new Date("2026-05-09T13:00:00.000Z"),
+        window_start: new Date("2026-05-09T12:00:00.000Z"),
+      }
+    );
+
+    const firstCall = fetchMock.mock.calls[0];
+    if (!firstCall) {
+      throw new Error("Expected schedule update request to be sent.");
+    }
+    const requestInit = firstCall[1];
+    if (
+      !requestInit ||
+      typeof requestInit !== "object" ||
+      !("body" in requestInit)
+    ) {
+      throw new Error("Expected schedule update request body.");
+    }
+    expect(JSON.parse(String(requestInit.body))).toMatchObject({
+      opening_broadcast: {
+        include_open_button: false,
+        message_text: "Voting starts in Telegram",
+      },
+    });
+    expect(vote.opening_broadcast_include_open_button).toBe(false);
+    expect(vote.opening_broadcast_message_text).toBe(
+      "Voting starts in Telegram"
+    );
+  });
 });
 
 function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
@@ -258,6 +309,8 @@ function makeVoteResponse(overrides: Record<string, unknown> = {}) {
     created_at: "2026-05-08T16:00:00.000Z",
     id: "vote_1",
     kind: "speaker",
+    opening_broadcast_include_open_button: true,
+    opening_broadcast_message_text: null,
     status: "draft",
     title: "Dev smoke vote",
     updated_at: "2026-05-08T16:00:00.000Z",

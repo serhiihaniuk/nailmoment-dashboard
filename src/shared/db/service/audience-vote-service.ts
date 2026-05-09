@@ -832,7 +832,20 @@ export function createAudienceVoteService(
             window_end: validatedData.window_end,
             window_start: currentVote.window_start,
           }
-        : validatedData;
+        : {
+            status: validatedData.status,
+            window_end: validatedData.window_end,
+            window_start: validatedData.window_start,
+            ...("opening_broadcast" in validatedData
+              ? {
+                  opening_broadcast_include_open_button:
+                    validatedData.opening_broadcast?.include_open_button ??
+                    true,
+                  opening_broadcast_message_text:
+                    validatedData.opening_broadcast?.message_text ?? null,
+                }
+              : {}),
+          };
 
     await assertAudienceVoteScheduleDoesNotOverlap({
       excludeId: id,

@@ -402,6 +402,12 @@ export const audienceVoteTable = pgTable(
       withTimezone: true,
       mode: "date",
     }),
+    opening_broadcast_message_text: text("opening_broadcast_message_text"),
+    opening_broadcast_include_open_button: boolean(
+      "opening_broadcast_include_open_button"
+    )
+      .notNull()
+      .default(true),
     archived: boolean("archived").notNull().default(false),
     created_at: timestamp("created_at", {
       withTimezone: true,

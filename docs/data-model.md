@@ -111,6 +111,8 @@ erDiagram
     enum status
     timestamptz window_start
     timestamptz window_end
+    text opening_broadcast_message_text
+    boolean opening_broadcast_include_open_button
     boolean archived
     timestamptz created_at
     timestamptz updated_at
@@ -302,11 +304,20 @@ Important fields:
 - `title`: public title shown to voters later in the Mini App flow.
 - `status`: `draft`, `scheduled`, `open`, or `closed`.
 - `window_start` / `window_end`: optional planning/display window.
+- `opening_broadcast_message_text`: optional Telegram broadcast text to send
+  when the vote opens.
+- `opening_broadcast_include_open_button`: whether the generated opening
+  broadcast includes the Mini App button.
 - `archived`: soft-delete flag; normal Operator lists exclude archived rows.
 
 Only one non-archived `audience_vote` row may have `status = 'open'` at a
 time. The app validates that rule before opening, and
 `audience_vote_one_open_active_idx` enforces it in Postgres.
+
+Opening broadcasts are stored on `audience_vote` while the vote is still draft
+or scheduled. When the vote opens, the app creates a normal
+`audience_vote_broadcast` with deterministic id `opening_<audience_vote_id>` and
+then uses the same broadcast delivery processor as manual broadcasts.
 
 `vote_candidate` stores Operator-managed options for an Audience Vote.
 
@@ -420,5 +431,7 @@ Relevant finance/Stripe migrations:
   `speaker_vote_tg`) from environments where the cleanup migration is applied.
 - `drizzle/0031_audience_vote_bot_settings.sql`: adds the Operator-managed
   Telegram `/start` and `/vote` entry message/button settings.
+- `drizzle/0032_audience_vote_opening_broadcast.sql`: adds optional scheduled
+  opening broadcast fields to `audience_vote`.
 
 Production migration work must follow `AGENTS.md`.

@@ -4,7 +4,9 @@ import { parseRouteParams } from "@/app/api-routes/lib/request";
 import { parseAudienceVote } from "@/entities/audience-vote";
 import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
+import { createAudienceVoteBroadcastService } from "@/shared/db/service/audience-vote-broadcast-service";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
+import { ensureAudienceVoteOpeningBroadcast } from "../../opening-broadcast";
 import {
   audienceVoteRouteParamsSchema,
   audienceVoteTransitionErrorResponse,
@@ -12,6 +14,7 @@ import {
 } from "../transition-response";
 
 const audienceVoteService = createAudienceVoteService(db);
+const audienceVoteBroadcastService = createAudienceVoteBroadcastService(db);
 
 export async function POST(
   _request: Request,
@@ -40,9 +43,20 @@ export async function POST(
       parsedParams.data.id
     );
 
-    return vote
-      ? NextResponse.json(parseAudienceVote(vote), { status: 200 })
-      : NextResponse.json({ message: "Not found" }, { status: 404 });
+    if (!vote) {
+      return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
+
+    try {
+      await ensureAudienceVoteOpeningBroadcast({
+        broadcastService: audienceVoteBroadcastService,
+        vote,
+      });
+    } catch (error) {
+      console.error("API Error creating opening audience vote broadcast:", error);
+    }
+
+    return NextResponse.json(parseAudienceVote(vote), { status: 200 });
   } catch (error) {
     console.error("API Error opening audience vote:", error);
     return audienceVoteTransitionErrorResponse({

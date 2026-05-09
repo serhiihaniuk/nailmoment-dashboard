@@ -131,12 +131,21 @@ Vercel Cron
   |    +- require processor secret
   |    +- close expired open Audience Votes
   |    +- open the first valid scheduled Audience Vote whose start time is due
+  |    +- create that vote's scheduled opening broadcast, if configured
   |
   +- GET /api/audience-vote/broadcasts/process
        |
        +- require processor secret
        +- process due unsent canary/normal rows through the same safe path
 ```
+
+Operators can also attach an opening broadcast while scheduling an Audience
+Vote. The message is stored on `audience_vote` and converted into a normal
+`audience_vote_broadcast` only after the vote opens, either through the manual
+open button or the lifecycle processor. The generated broadcast id is
+`opening_<audience_vote_id>`, so retries and cron recovery are idempotent while
+still using the same canary, interrupt, delivery-row, and Telegram send path as
+manual broadcasts.
 
 The processor checks the broadcast status from the database before each phase
 and before every recipient send. Setting a broadcast to `interrupted` is the

@@ -104,6 +104,23 @@ describe("vote candidate route schemas", () => {
     expect(parsed.window_end).toBeInstanceOf(Date);
   });
 
+  test("parses scheduled opening broadcast updates", () => {
+    const parsed = patchAudienceVoteScheduleClientSchema.parse({
+      opening_broadcast: {
+        include_open_button: false,
+        message_text: "  Voting starts now  ",
+      },
+      status: "scheduled",
+      window_end: "2026-05-09T20:00:00.000Z",
+      window_start: "2026-05-09T19:00:00.000Z",
+    });
+
+    expect(parsed.opening_broadcast).toEqual({
+      include_open_button: false,
+      message_text: "Voting starts now",
+    });
+  });
+
   test("parses media reorder and restore patches", () => {
     expect(
       patchVoteCandidateMediaClientSchema.parse({

@@ -23,6 +23,8 @@ function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
     created_at: "2026-05-08T10:00:00.000Z",
     id: "vote_1",
     kind: "speaker",
+    opening_broadcast_include_open_button: true,
+    opening_broadcast_message_text: null,
     status: "draft",
     title: "Speaker vote",
     updated_at: "2026-05-08T10:00:00.000Z",
@@ -97,11 +99,14 @@ describe("audience vote parsing", () => {
   test("parses browser responses and preserves nullable windows", () => {
     const vote = parseAudienceVote(
       makeAudienceVoteResponse({
+        opening_broadcast_message_text: "Voting starts now",
         window_start: "2026-05-08T12:00:00.000Z",
       })
     );
 
     expect(vote.created_at).toBeInstanceOf(Date);
+    expect(vote.opening_broadcast_include_open_button).toBe(true);
+    expect(vote.opening_broadcast_message_text).toBe("Voting starts now");
     expect(vote.window_start).toBeInstanceOf(Date);
     expect(vote.window_end).toBeNull();
   });

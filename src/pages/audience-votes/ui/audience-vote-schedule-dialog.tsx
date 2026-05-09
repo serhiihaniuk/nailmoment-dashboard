@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CalendarClock, Loader2, Save } from "lucide-react";
+import { CalendarClock, Loader2, MessageSquare, Save } from "lucide-react";
 
 import type { AudienceVote } from "@/entities/audience-vote";
 import { Button } from "@/shared/ui/button";
@@ -16,6 +16,8 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Switch } from "@/shared/ui/switch";
+import { Textarea } from "@/shared/ui/textarea";
 import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedule-dialog";
 
@@ -47,7 +49,7 @@ export function AudienceVoteScheduleDialog({
           Розклад
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Розклад голосування</DialogTitle>
           <DialogDescription>
@@ -106,6 +108,85 @@ export function AudienceVoteScheduleDialog({
               </div>
             </Field>
           </div>
+
+          {!isOpenVote ? (
+            <div className="grid gap-3 rounded-md border border-border/60 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Label
+                    className="flex items-center gap-2"
+                    htmlFor="opening-broadcast-enabled"
+                  >
+                    <MessageSquare aria-hidden="true" size={14} />
+                    Повідомлення при старті
+                  </Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Telegram-розсилка буде створена, коли голосування відкриється.
+                  </p>
+                </div>
+                <Switch
+                  checked={state.draft.opening_broadcast_enabled}
+                  disabled={state.isPending}
+                  id="opening-broadcast-enabled"
+                  onCheckedChange={(checked) =>
+                    state.updateDraft("opening_broadcast_enabled", checked)
+                  }
+                />
+              </div>
+
+              {state.draft.opening_broadcast_enabled ? (
+                <>
+                  <Field
+                    label="Текст повідомлення"
+                    message={state.errors.opening_broadcast_message_text}
+                  >
+                    <Textarea
+                      aria-invalid={
+                        state.errors.opening_broadcast_message_text
+                          ? true
+                          : undefined
+                      }
+                      className="min-h-32 resize-y"
+                      disabled={state.isPending}
+                      maxRows={8}
+                      onChange={(event) =>
+                        state.updateDraft(
+                          "opening_broadcast_message_text",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Повідомлення українською для Telegram"
+                      value={state.draft.opening_broadcast_message_text}
+                    />
+                  </Field>
+
+                  <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+                    <div>
+                      <Label htmlFor="opening-broadcast-open-button">
+                        Кнопка відкриття голосування
+                      </Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Додає кнопку Mini App до повідомлення в Telegram.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={
+                        state.draft.opening_broadcast_include_open_button
+                      }
+                      disabled={state.isPending}
+                      id="opening-broadcast-open-button"
+                      onCheckedChange={(checked) =>
+                        state.updateDraft(
+                          "opening_broadcast_include_open_button",
+                          checked
+                        )
+                      }
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
 
           <p className="hidden">
             Розклад можна редагувати лише до відкриття голосування.

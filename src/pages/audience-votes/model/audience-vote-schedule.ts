@@ -8,6 +8,9 @@ import {
 } from "@/shared/db/schema.zod";
 
 export type AudienceVoteScheduleDraft = {
+  opening_broadcast_enabled: boolean;
+  opening_broadcast_include_open_button: boolean;
+  opening_broadcast_message_text: string;
   status: AudienceVoteStatus;
   window_end: string;
   window_start: string;
@@ -68,6 +71,10 @@ export function createAudienceVoteScheduleDraft(
   vote: AudienceVote
 ): AudienceVoteScheduleDraft {
   return {
+    opening_broadcast_enabled: vote.opening_broadcast_message_text !== null,
+    opening_broadcast_include_open_button:
+      vote.opening_broadcast_include_open_button,
+    opening_broadcast_message_text: vote.opening_broadcast_message_text ?? "",
     status: vote.status,
     window_end: formatDateTimeLocalInput(vote.window_end),
     window_start: formatDateTimeLocalInput(vote.window_start),
@@ -77,7 +84,17 @@ export function createAudienceVoteScheduleDraft(
 export function parseAudienceVoteScheduleDraft(
   draft: AudienceVoteScheduleDraft
 ): ParseAudienceVoteScheduleDraftResult {
-  const parsed = patchAudienceVoteScheduleClientSchema.safeParse(draft);
+  const parsed = patchAudienceVoteScheduleClientSchema.safeParse({
+    opening_broadcast: draft.opening_broadcast_enabled
+      ? {
+          include_open_button: draft.opening_broadcast_include_open_button,
+          message_text: draft.opening_broadcast_message_text,
+        }
+      : null,
+    status: draft.status,
+    window_end: draft.window_end,
+    window_start: draft.window_start,
+  });
 
   if (parsed.success) {
     return { data: parsed.data, ok: true };
@@ -109,9 +126,10 @@ export function mapAudienceVoteScheduleApiErrors(
   return Object.entries(error.errors).reduce<AudienceVoteScheduleFieldErrors>(
     (acc, [fieldName, messages]) => {
       const message = messages?.[0];
+      const scheduleField = mapAudienceVoteScheduleFieldName(fieldName);
 
-      if (message && isAudienceVoteScheduleField(fieldName)) {
-        acc[fieldName] = message;
+      if (message && scheduleField) {
+        acc[scheduleField] = message;
       }
 
       return acc;
@@ -206,12 +224,9 @@ function mapAudienceVoteScheduleIssues(
   issues: z.ZodIssue[]
 ): AudienceVoteScheduleFieldErrors {
   return issues.reduce<AudienceVoteScheduleFieldErrors>((acc, issue) => {
-    const fieldName = issue.path[0];
+    const fieldName = mapAudienceVoteScheduleIssuePath(issue.path);
 
-    if (
-      typeof fieldName === "string" &&
-      isAudienceVoteScheduleField(fieldName)
-    ) {
+    if (fieldName) {
       acc[fieldName] = issue.message;
     }
 
@@ -219,10 +234,50 @@ function mapAudienceVoteScheduleIssues(
   }, {});
 }
 
+function mapAudienceVoteScheduleIssuePath(
+  path: (string | number)[]
+): keyof AudienceVoteScheduleDraft | null {
+  const fieldName = path[0];
+
+  if (fieldName === "opening_broadcast") {
+    return path[1] === "include_open_button"
+      ? "opening_broadcast_include_open_button"
+      : "opening_broadcast_message_text";
+  }
+
+  return typeof fieldName === "string"
+    ? mapAudienceVoteScheduleFieldName(fieldName)
+    : null;
+}
+
+function mapAudienceVoteScheduleFieldName(
+  value: string
+): keyof AudienceVoteScheduleDraft | null {
+  if (isAudienceVoteScheduleField(value)) {
+    return value;
+  }
+
+  if (
+    value === "opening_broadcast" ||
+    value === "opening_broadcast.message_text"
+  ) {
+    return "opening_broadcast_message_text";
+  }
+
+  if (value === "opening_broadcast.include_open_button") {
+    return "opening_broadcast_include_open_button";
+  }
+
+  return null;
+}
+
 function isAudienceVoteScheduleField(
   value: string
 ): value is keyof AudienceVoteScheduleDraft {
   return (
+    value === "opening_broadcast_enabled" ||
+    value === "opening_broadcast_include_open_button" ||
+    value === "opening_broadcast_message_text" ||
     value === "status" ||
     value === "window_end" ||
     value === "window_start"

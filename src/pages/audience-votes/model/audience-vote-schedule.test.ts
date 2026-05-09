@@ -5,8 +5,10 @@ import {
   type AudienceVote,
 } from "@/entities/audience-vote";
 import {
+  createAudienceVoteScheduleDraft,
   findAudienceVoteScheduleConflict,
   mapAudienceVoteScheduleConflictToFieldErrors,
+  parseAudienceVoteScheduleDraft,
 } from "./audience-vote-schedule";
 
 const now = new Date("2026-05-09T12:00:00.000Z");
@@ -99,6 +101,56 @@ describe("audience vote schedule", () => {
       window_start: conflict?.message,
     });
   });
+
+  test("creates a schedule draft with saved opening broadcast settings", () => {
+    const draft = createAudienceVoteScheduleDraft(
+      makeVote({
+        opening_broadcast_include_open_button: false,
+        opening_broadcast_message_text: "Voting starts now",
+      })
+    );
+
+    expect(draft.opening_broadcast_enabled).toBe(true);
+    expect(draft.opening_broadcast_include_open_button).toBe(false);
+    expect(draft.opening_broadcast_message_text).toBe("Voting starts now");
+  });
+
+  test("parses an enabled opening broadcast into the schedule payload", () => {
+    const parsed = parseAudienceVoteScheduleDraft({
+      opening_broadcast_enabled: true,
+      opening_broadcast_include_open_button: false,
+      opening_broadcast_message_text: "  Voting starts now  ",
+      status: "scheduled",
+      window_end: "2026-05-09T13:00:00.000Z",
+      window_start: "2026-05-09T12:00:00.000Z",
+    });
+
+    expect(parsed.ok).toBe(true);
+
+    if (parsed.ok) {
+      expect(parsed.data.opening_broadcast).toEqual({
+        include_open_button: false,
+        message_text: "Voting starts now",
+      });
+    }
+  });
+
+  test("maps opening broadcast validation to the message field", () => {
+    const parsed = parseAudienceVoteScheduleDraft({
+      opening_broadcast_enabled: true,
+      opening_broadcast_include_open_button: true,
+      opening_broadcast_message_text: "",
+      status: "scheduled",
+      window_end: "",
+      window_start: "2026-05-09T12:00:00.000Z",
+    });
+
+    expect(parsed.ok).toBe(false);
+
+    if (!parsed.ok) {
+      expect(parsed.errors.opening_broadcast_message_text).toBeDefined();
+    }
+  });
 });
 
 function makeVote(overrides: Partial<AudienceVote> = {}): AudienceVote {
@@ -107,6 +159,8 @@ function makeVote(overrides: Partial<AudienceVote> = {}): AudienceVote {
     created_at: new Date("2026-05-09T10:00:00.000Z"),
     id: audienceVoteIdSchema.parse("vote_1"),
     kind: "speaker",
+    opening_broadcast_include_open_button: true,
+    opening_broadcast_message_text: null,
     status: "scheduled",
     title: "Speaker vote",
     updated_at: new Date("2026-05-09T10:00:00.000Z"),

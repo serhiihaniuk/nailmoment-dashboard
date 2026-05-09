@@ -75,6 +75,11 @@ export function useAudienceVoteScheduleDialog({
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
+
+      if (field === "opening_broadcast_enabled") {
+        delete next.opening_broadcast_message_text;
+      }
+
       return next;
     });
     setFormError(null);
