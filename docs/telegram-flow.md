@@ -16,6 +16,7 @@ Better Auth protected dashboard routes.
 | Audience Vote Mini App API | `src/app/api-routes/audience-vote/mini-app/route.ts` |
 | Audience Vote dashboard | `src/pages/audience-votes/*` |
 | Audience Vote domain model | `src/entities/audience-vote/*` |
+| Audience Vote bot settings API | `src/app/api-routes/audience-vote/bot-settings/route.ts` |
 | Telegram helpers | `src/shared/telegram/*` |
 | DB schema | `src/shared/db/schema.ts` |
 | Env readers | `src/shared/config/env.ts` |
@@ -75,8 +76,21 @@ POST /api/audience-vote/bot
   -> validates x-telegram-bot-api-secret-token with TG_AUDIENCE_VOTE_WEBHOOK_SECRET
   -> handles /start and /vote through Grammy
   -> upserts/reactivates the Telegram Voter
-  -> sends a Ukrainian Mini App entry message with a web_app button
+  -> sends the Operator-managed Mini App entry message with a web_app button
 ```
+
+Operators configure the `/start` and `/vote` reply from the protected
+dashboard through:
+
+```txt
+GET/PATCH /api/audience-vote/bot-settings
+  -> src/app/api-routes/audience-vote/bot-settings/route.ts
+  -> stores one current row in audience_vote_bot_settings
+```
+
+The bot route falls back to the built-in Ukrainian entry message and button if
+`audience_vote_bot_settings` is not migrated yet. That keeps the production bot
+working during deploy/migration ordering.
 
 Required scoped env names:
 

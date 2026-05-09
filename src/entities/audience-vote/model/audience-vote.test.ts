@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildVoteCandidateMediaPath,
   parseAudienceVoteBroadcast,
+  parseAudienceVoteBotSettings,
   parseAudienceVoteBroadcastPreview,
   parsePublicVoteCandidate,
   parseAudienceVoteMiniAppResponse,
@@ -327,6 +328,20 @@ describe("audience vote parsing", () => {
 
     expect(preview.estimated_recipient_count).toBe(42);
     expect(preview.include_open_button).toBe(true);
+  });
+
+  test("parses Operator-managed bot start settings", () => {
+    const settings = parseAudienceVoteBotSettings({
+      created_at: "2026-05-09T10:00:00.000Z",
+      id: "default",
+      start_button_text: "Відкрити голосування",
+      start_message: "Привіт! Відкрийте голосування в Mini App.",
+      updated_at: "2026-05-09T10:00:00.000Z",
+    });
+
+    expect(settings.created_at).toBeInstanceOf(Date);
+    expect(settings.start_message).toContain("Mini App");
+    expect(settings.start_button_text).toBe("Відкрити голосування");
   });
 
   test("parses Mini App feed responses without private candidate fields", () => {

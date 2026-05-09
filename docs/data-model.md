@@ -161,6 +161,14 @@ erDiagram
     timestamptz updated_at
   }
 
+  audience_vote_bot_settings {
+    text id PK
+    text start_message
+    text start_button_text
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
 ```
 
 The Stripe correlations above are operational correlations, not declared
@@ -337,6 +345,12 @@ shown when no Audience Vote is open. Operators edit the current title/message
 from the dashboard; the table intentionally stores current state only, not a
 history of previous update screens.
 
+`audience_vote_bot_settings` stores the single current Telegram bot entry
+message used when a voter sends `/start` or `/vote`. Operators edit the
+message and Mini App button text from the dashboard. The bot route falls back
+to the built-in Ukrainian defaults if this table is not migrated yet, so deploy
+and migration order does not break the production bot.
+
 `audience_vote_broadcast` stores Operator-confirmed broadcast messages,
 canary/normal workflow status, the estimated active recipient count, the
 primary Operator Telegram id for audit/backward compatibility, and the
@@ -404,5 +418,7 @@ Relevant finance/Stripe migrations:
 - `drizzle/0030_drop_legacy_telegram_votes.sql`: removes the old
   message-based Telegram voting tables (`battle_vote_tg` and
   `speaker_vote_tg`) from environments where the cleanup migration is applied.
+- `drizzle/0031_audience_vote_bot_settings.sql`: adds the Operator-managed
+  Telegram `/start` and `/vote` entry message/button settings.
 
 Production migration work must follow `AGENTS.md`.
