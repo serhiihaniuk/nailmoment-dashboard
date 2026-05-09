@@ -27,9 +27,13 @@ type ParseAudienceVoteOpeningMessageDraftResult =
 export function createAudienceVoteOpeningMessageDraft(
   vote: AudienceVote
 ): AudienceVoteOpeningMessageDraft {
+  const hasSavedMessage = vote.opening_broadcast_message_text !== null;
+
   return {
-    enabled: vote.opening_broadcast_message_text !== null,
-    include_open_button: vote.opening_broadcast_include_open_button,
+    enabled: hasSavedMessage,
+    include_open_button: hasSavedMessage
+      ? vote.opening_broadcast_include_open_button
+      : false,
     message_text: vote.opening_broadcast_message_text ?? "",
   };
 }

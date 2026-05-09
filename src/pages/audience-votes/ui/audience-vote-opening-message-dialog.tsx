@@ -1,10 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2, MessageSquare, Save } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleMinus,
+  Loader2,
+  MessageSquare,
+  Save,
+} from "lucide-react";
 
 import type { AudienceVote } from "@/entities/audience-vote";
-import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -41,12 +46,7 @@ export function AudienceVoteOpeningMessageDialog({
         <Button size="sm" variant="outline">
           <MessageSquare aria-hidden="true" data-icon="inline-start" />
           Стартове повідомлення
-          <Badge
-            className="ml-0.5 rounded-md px-1.5 py-0 text-[10px]"
-            variant={isConfigured ? "success" : "outline"}
-          >
-            {isConfigured ? "Є" : "Немає"}
-          </Badge>
+          <OpeningMessageIndicator isConfigured={isConfigured} />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
@@ -140,6 +140,32 @@ export function AudienceVoteOpeningMessageDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function OpeningMessageIndicator({
+  isConfigured,
+}: {
+  isConfigured: boolean;
+}) {
+  const Icon = isConfigured ? CheckCircle2 : CircleMinus;
+
+  return (
+    <span
+      aria-label={
+        isConfigured
+          ? "Стартове повідомлення налаштовано"
+          : "Стартове повідомлення не налаштовано"
+      }
+      className={
+        isConfigured
+          ? "ml-0.5 inline-flex size-5 items-center justify-center rounded-full bg-success text-success-foreground"
+          : "ml-0.5 inline-flex size-5 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground"
+      }
+      role="img"
+    >
+      <Icon aria-hidden="true" className="size-3.5" />
+    </span>
   );
 }
 

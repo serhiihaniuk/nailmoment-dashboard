@@ -12,12 +12,7 @@ import {
 
 describe("audience vote opening message", () => {
   test("creates a disabled draft when no start message is saved", () => {
-    const draft = createAudienceVoteOpeningMessageDraft(
-      makeVote({
-        opening_broadcast_include_open_button: false,
-        opening_broadcast_message_text: null,
-      })
-    );
+    const draft = createAudienceVoteOpeningMessageDraft(makeVote());
 
     expect(draft).toEqual({
       enabled: false,
