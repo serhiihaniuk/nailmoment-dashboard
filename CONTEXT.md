@@ -233,6 +233,7 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - An **Operator** manages **Tickets**, **Battle Tickets**, finance, delivery, and previews through the dashboard.
 - A **Telegram Voter** is separate from a **Customer** and from an **Operator**.
 - A **Telegram Voter** is identified by Telegram user id and may have a Telegram username.
+- A **Telegram Voter** has a first-seen timestamp from `telegram_users.created_at`; this is not a last-seen timestamp.
 - A **Telegram Voter** does not need to be linked to a **Ticket** or **Battle Ticket** to vote in an **Audience Vote**.
 - A **Telegram Voter** may cast at most one vote in an **Audience Vote**.
 - A **Telegram Voter** who can open the **Audience Vote Mini App** with valid Telegram identity can vote, even if they were previously unreachable for broadcasts.

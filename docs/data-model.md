@@ -101,6 +101,7 @@ erDiagram
     text username
     boolean isActive
     timestamptz lastBroadcastSentAt
+    timestamptz createdAt
   }
 
   audience_vote {
