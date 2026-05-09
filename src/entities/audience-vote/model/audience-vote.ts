@@ -297,6 +297,13 @@ export const defaultAudienceVoteUpdateScreen = {
     "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f \u0441\u043a\u043e\u0440\u043e",
 } as const;
 
+export const defaultAudienceVoteBotSettings = {
+  start_button_text:
+    "\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u0433\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f",
+  start_message:
+    "\u041f\u0440\u0438\u0432\u0456\u0442! \u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f Nail Moment \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442\u044c \u0443 Mini App. \u041d\u0430\u0442\u0438\u0441\u043d\u0456\u0442\u044c \u043a\u043d\u043e\u043f\u043a\u0443 \u043d\u0438\u0436\u0447\u0435, \u0449\u043e\u0431 \u0432\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u0433\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f.",
+} as const;
+
 export const publicAudienceVoteUpdateScreenSchema = z.object({
   message: nonEmptyStringSchema,
   title: nonEmptyStringSchema,
@@ -304,6 +311,18 @@ export const publicAudienceVoteUpdateScreenSchema = z.object({
 
 export const audienceVoteUpdateScreenSchema =
   publicAudienceVoteUpdateScreenSchema.extend({
+    created_at: dateSchema,
+    id: nonEmptyStringSchema,
+    updated_at: dateSchema,
+  });
+
+export const publicAudienceVoteBotSettingsSchema = z.object({
+  start_button_text: nonEmptyStringSchema,
+  start_message: nonEmptyStringSchema,
+});
+
+export const audienceVoteBotSettingsSchema =
+  publicAudienceVoteBotSettingsSchema.extend({
     created_at: dateSchema,
     id: nonEmptyStringSchema,
     updated_at: dateSchema,
@@ -415,6 +434,12 @@ export type PublicAudienceVoteUpdateScreen = z.infer<
 >;
 export type AudienceVoteUpdateScreen = z.infer<
   typeof audienceVoteUpdateScreenSchema
+>;
+export type PublicAudienceVoteBotSettings = z.infer<
+  typeof publicAudienceVoteBotSettingsSchema
+>;
+export type AudienceVoteBotSettings = z.infer<
+  typeof audienceVoteBotSettingsSchema
 >;
 export type AudienceVoteMiniAppResponse = z.infer<
   typeof audienceVoteMiniAppResponseSchema
@@ -665,6 +690,12 @@ export function parseAudienceVoteUpdateScreen(
   value: unknown
 ): AudienceVoteUpdateScreen {
   return audienceVoteUpdateScreenSchema.parse(value);
+}
+
+export function parseAudienceVoteBotSettings(
+  value: unknown
+): AudienceVoteBotSettings {
+  return audienceVoteBotSettingsSchema.parse(value);
 }
 
 export function parseVoteCandidate(value: unknown): VoteCandidate {

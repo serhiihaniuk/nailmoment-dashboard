@@ -462,6 +462,33 @@ export type AudienceVoteUpdateScreen =
 export type InsertAudienceVoteUpdateScreen =
   typeof audienceVoteUpdateScreenTable.$inferInsert;
 
+export const audienceVoteBotSettingsTable = pgTable(
+  "audience_vote_bot_settings",
+  {
+    id: text("id").primaryKey(),
+    start_message: text("start_message").notNull(),
+    start_button_text: text("start_button_text").notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  }
+);
+
+export type AudienceVoteBotSettings =
+  typeof audienceVoteBotSettingsTable.$inferSelect;
+export type InsertAudienceVoteBotSettings =
+  typeof audienceVoteBotSettingsTable.$inferInsert;
+
 export const voteCandidateTable = pgTable(
   "vote_candidate",
   {

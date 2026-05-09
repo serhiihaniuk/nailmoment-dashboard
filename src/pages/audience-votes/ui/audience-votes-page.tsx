@@ -26,6 +26,7 @@ import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog"
 import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
+import { AudienceVoteBotSettingsDialog } from "./audience-vote-bot-settings-panel";
 import { AudienceVoteUpdateScreenDialog } from "./audience-vote-update-screen-panel";
 import { VoteCard } from "./vote-card";
 
@@ -93,6 +94,7 @@ export default function AudienceVotesPage() {
               Перегляд Mini App
             </Link>
           </Button>
+          <AudienceVoteBotSettingsDialog />
           <AudienceVoteUpdateScreenDialog />
           <AudienceVoteBroadcastDialog votes={votes ?? []} />
           <CreateAudienceVoteDialog />

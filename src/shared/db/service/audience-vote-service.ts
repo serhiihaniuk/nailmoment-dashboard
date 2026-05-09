@@ -17,12 +17,14 @@ import { nanoid } from "nanoid";
 import type { DrizzleDB } from "@/shared/db";
 import {
   audienceVoteTable,
+  audienceVoteBotSettingsTable,
   audienceVoteCurrentVoteTable,
   audienceVoteUpdateScreenTable,
   telegramUsersTable,
   voteCandidateMediaTable,
   voteCandidateTable,
   type AudienceVote,
+  type AudienceVoteBotSettings,
   type AudienceVoteCurrentVote,
   type AudienceVoteUpdateScreen,
   type InsertAudienceVote,
@@ -42,10 +44,13 @@ import {
   type PatchAudienceVoteScheduleClientOutput,
   type PatchVoteCandidateMediaClientInput,
   type PatchVoteCandidateClientInput,
+  updateAudienceVoteBotSettingsClientSchema,
+  type UpdateAudienceVoteBotSettingsClientOutput,
   updateAudienceVoteUpdateScreenClientSchema,
   type UpdateAudienceVoteUpdateScreenClientOutput,
 } from "@/shared/db/schema.zod";
 
+export const AUDIENCE_VOTE_BOT_SETTINGS_ID = "default";
 export const AUDIENCE_VOTE_UPDATE_SCREEN_ID = "default";
 
 export function buildAudienceVoteCurrentVoteInsertSelectFields({
@@ -185,6 +190,9 @@ export interface IAudienceVoteService {
   getAudienceVoteUpdateScreen: () => Promise<
     AudienceVoteUpdateScreen | undefined
   >;
+  getAudienceVoteBotSettings: () => Promise<
+    AudienceVoteBotSettings | undefined
+  >;
   getDueScheduledAudienceVotes: (now?: Date) => Promise<AudienceVote[]>;
   getOpenAudienceVote: (
     excludeId?: string
@@ -230,6 +238,9 @@ export interface IAudienceVoteService {
   upsertAudienceVoteUpdateScreen: (
     input: UpdateAudienceVoteUpdateScreenClientOutput
   ) => Promise<AudienceVoteUpdateScreen>;
+  upsertAudienceVoteBotSettings: (
+    input: UpdateAudienceVoteBotSettingsClientOutput
+  ) => Promise<AudienceVoteBotSettings>;
   upsertTelegramVoter: (
     input: UpsertTelegramVoterInput
   ) => Promise<TelegramUser>;
@@ -305,6 +316,47 @@ export function createAudienceVoteService(
     }
 
     return updateScreen;
+  };
+
+  const getAudienceVoteBotSettings = async (): Promise<
+    AudienceVoteBotSettings | undefined
+  > => {
+    const result = await db
+      .select()
+      .from(audienceVoteBotSettingsTable)
+      .where(eq(audienceVoteBotSettingsTable.id, AUDIENCE_VOTE_BOT_SETTINGS_ID))
+      .limit(1);
+
+    return result[0];
+  };
+
+  const upsertAudienceVoteBotSettings = async (
+    input: UpdateAudienceVoteBotSettingsClientOutput
+  ): Promise<AudienceVoteBotSettings> => {
+    const validatedData =
+      updateAudienceVoteBotSettingsClientSchema.parse(input);
+    const [botSettings] = await db
+      .insert(audienceVoteBotSettingsTable)
+      .values({
+        ...validatedData,
+        id: AUDIENCE_VOTE_BOT_SETTINGS_ID,
+      })
+      .onConflictDoUpdate({
+        set: {
+          ...validatedData,
+          updated_at: new Date(),
+        },
+        target: audienceVoteBotSettingsTable.id,
+      })
+      .returning();
+
+    if (!botSettings) {
+      throw new Error(
+        "Audience Vote Bot Settings upsert failed to return the record."
+      );
+    }
+
+    return botSettings;
   };
 
   const getOpenAudienceVote = async (
@@ -1325,6 +1377,7 @@ export function createAudienceVoteService(
     closeExpiredOpenAudienceVotes,
     completeVoteCandidateMediaUpload,
     getAudienceVote,
+    getAudienceVoteBotSettings,
     getAudienceVoteCurrentVoteCounts,
     getAudienceVotes,
     getAudienceVoteUpdateScreen,
@@ -1343,6 +1396,7 @@ export function createAudienceVoteService(
     updateVoteCandidate,
     updateVoteCandidateMedia,
     upsertAudienceVoteUpdateScreen,
+    upsertAudienceVoteBotSettings,
     upsertTelegramVoter,
   };
 }

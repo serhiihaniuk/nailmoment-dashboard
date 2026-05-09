@@ -49,7 +49,7 @@ event decisions.
 
 3. Approve the production database migration window.
    - Confirm whether the old 2025 Telegram voting data can be dropped now.
-   - If not, apply only migrations `0022` through `0029` before deploy and hold
+   - If not, apply only migrations `0022` through `0029` and `0031` before deploy and hold
      `0030_drop_legacy_telegram_votes.sql` until after cutover.
 
 4. Confirm production media readiness.
@@ -109,6 +109,7 @@ These are the engineering and deployment steps.
      - `drizzle/0027_audience_vote_broadcast_canary.sql`
      - `drizzle/0028_audience_vote_broadcast_retry_processor.sql`
      - `drizzle/0029_audience_vote_update_screen.sql`
+     - `drizzle/0031_audience_vote_bot_settings.sql`
    - Treat `drizzle/0030_drop_legacy_telegram_votes.sql` as a separate cleanup
      step because it drops old Telegram voting tables:
      - `battle_vote_tg`
@@ -190,7 +191,7 @@ If something goes wrong after real votes are collected:
 - [ ] PR from `develop` to `main` is open and reviewed.
 - [ ] Production env variables are set.
 - [ ] Neon backup/restore point exists.
-- [ ] Migrations `0022` through `0029` are applied.
+- [ ] Migrations `0022` through `0029` and `0031` are applied.
 - [ ] Legacy cleanup migration `0030` is explicitly approved or intentionally
       held.
 - [ ] Production deploy is live on `dashboard.nailmoment.pl`.

@@ -11,6 +11,7 @@ import {
   audienceVoteBroadcastTable,
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
+  audienceVoteBotSettingsTable,
   audienceVoteTable,
   audienceVoteUpdateScreenTable,
   battleTicketTable,
@@ -183,6 +184,16 @@ const audienceVoteBroadcastMessageSchema = z
   .trim()
   .min(1, "Текст повідомлення обов’язковий")
   .max(4096, "Текст повідомлення має бути не довшим за 4096 символів");
+const audienceVoteBotStartMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Повідомлення /start обовʼязкове")
+  .max(4096, "Повідомлення /start має бути не довшим за 4096 символів");
+const audienceVoteBotStartButtonTextSchema = z
+  .string()
+  .trim()
+  .min(1, "Текст кнопки обовʼязковий")
+  .max(64, "Текст кнопки має бути не довшим за 64 символи");
 const voteCandidateDisplayNameSchema = z
   .string()
   .trim()
@@ -282,6 +293,22 @@ export type UpdateAudienceVoteUpdateScreenClientInput = z.input<
 >;
 export type UpdateAudienceVoteUpdateScreenClientOutput = z.output<
   typeof updateAudienceVoteUpdateScreenClientSchema
+>;
+
+export const selectAudienceVoteBotSettingsSchema = createSelectSchema(
+  audienceVoteBotSettingsTable
+);
+
+export const updateAudienceVoteBotSettingsClientSchema = z.object({
+  start_button_text: audienceVoteBotStartButtonTextSchema,
+  start_message: audienceVoteBotStartMessageSchema,
+});
+
+export type UpdateAudienceVoteBotSettingsClientInput = z.input<
+  typeof updateAudienceVoteBotSettingsClientSchema
+>;
+export type UpdateAudienceVoteBotSettingsClientOutput = z.output<
+  typeof updateAudienceVoteBotSettingsClientSchema
 >;
 
 export const selectAudienceVoteBroadcastSchema = createSelectSchema(
