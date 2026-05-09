@@ -32,6 +32,9 @@ export function AudienceVoteScheduleDialog({
   const isOpenVote = vote.status === "open";
   const isEditable =
     vote.status === "draft" || vote.status === "scheduled" || isOpenVote;
+  const triggerLabel = isOpenVote
+    ? "Розклад"
+    : "Розклад і повідомлення";
   const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({
     currentVoteId: vote.id,
     votes,
@@ -46,7 +49,7 @@ export function AudienceVoteScheduleDialog({
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <CalendarClock aria-hidden="true" data-icon="inline-start" />
-          Розклад
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">

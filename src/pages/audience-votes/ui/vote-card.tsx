@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type {
@@ -60,6 +60,12 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
               <span>Створено {formatAudienceVoteDate(vote.created_at)}</span>
               <span className="text-border">·</span>
               <span>{formatAudienceVoteWindow(vote)}</span>
+              {vote.status === "draft" || vote.status === "scheduled" ? (
+                <>
+                  <span className="text-border">·</span>
+                  <OpeningBroadcastStatus vote={vote} />
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -77,6 +83,24 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
         </div>
       </div>
     </article>
+  );
+}
+
+function OpeningBroadcastStatus({ vote }: { vote: AudienceVote }) {
+  const isConfigured = Boolean(vote.opening_broadcast_message_text);
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 font-medium",
+        isConfigured ? "text-foreground" : "text-muted-foreground"
+      )}
+    >
+      <MessageSquare aria-hidden="true" className="size-3.5" />
+      {isConfigured
+        ? "Повідомлення при старті налаштовано"
+        : "Повідомлення при старті не налаштовано"}
+    </span>
   );
 }
 
