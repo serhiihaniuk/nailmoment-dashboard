@@ -25,8 +25,8 @@ export function AudienceVoteLifecycleActions({
   const state = useAudienceVoteLifecycleActions(vote);
 
   return (
-    <div className="flex min-w-32 flex-col items-end gap-1.5">
-      <div className="flex justify-end gap-1.5">
+    <div className="flex min-w-0 flex-col items-start gap-1.5 lg:min-w-32 lg:items-end">
+      <div className="flex justify-start gap-1.5 lg:justify-end">
         {vote.status === "draft" || vote.status === "scheduled" ? (
           <OpenVoteAction
             disabled={state.isPending}
@@ -53,7 +53,7 @@ export function AudienceVoteLifecycleActions({
       </div>
 
       {state.errorMessage ? (
-        <p className="max-w-72 text-right text-xs font-medium text-destructive">
+        <p className="max-w-72 text-left text-xs font-medium text-destructive lg:text-right">
           {state.errorMessage}
         </p>
       ) : null}
