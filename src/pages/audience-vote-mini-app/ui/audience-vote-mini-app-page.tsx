@@ -508,10 +508,15 @@ function CandidateMedia({
       onPlay={(event) => onVideoPlay(event.currentTarget)}
       playsInline
       preload="metadata"
-    >
-      <source src={media.blob_url} type={media.content_type} />
-    </video>
+      src={getVideoPreviewUrl(media.blob_url)}
+    />
   );
+}
+
+function getVideoPreviewUrl(url: string) {
+  const [urlWithoutHash] = url.split("#");
+
+  return `${urlWithoutHash}#t=0.001`;
 }
 
 function CenteredPanel({
