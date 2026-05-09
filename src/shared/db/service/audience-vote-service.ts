@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, lte, ne, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
@@ -161,6 +161,7 @@ export interface IAudienceVoteService {
     candidateData: InsertVoteCandidate
   ) => Promise<VoteCandidate>;
   closeAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
+  closeExpiredOpenAudienceVotes: (now?: Date) => Promise<AudienceVote[]>;
   completeVoteCandidateMediaUpload: (
     input: CompleteVoteCandidateMediaUploadInput
   ) => Promise<VoteCandidateMedia>;
@@ -238,6 +239,8 @@ export function createAudienceVoteService(
   const getAudienceVotes = async (
     filters?: GetAudienceVotesFilters
   ): Promise<AudienceVote[]> => {
+    await closeExpiredOpenAudienceVotes();
+
     const showArchived = filters?.archived === true;
 
     return db
@@ -293,6 +296,8 @@ export function createAudienceVoteService(
   const getOpenAudienceVote = async (
     excludeId?: string
   ): Promise<AudienceVote | undefined> => {
+    await closeExpiredOpenAudienceVotes();
+
     const result = await db
       .select()
       .from(audienceVoteTable)
@@ -507,6 +512,8 @@ export function createAudienceVoteService(
   const openAudienceVote = async (
     id: string
   ): Promise<AudienceVote | undefined> => {
+    await closeExpiredOpenAudienceVotes();
+
     const currentVote = await getAudienceVote(id);
 
     if (!currentVote || currentVote.archived) {
@@ -668,10 +675,29 @@ export function createAudienceVoteService(
     return closedVote;
   };
 
+  const closeExpiredOpenAudienceVotes = async (
+    now = new Date()
+  ): Promise<AudienceVote[]> => {
+    return db
+      .update(audienceVoteTable)
+      .set({ status: "closed", updated_at: now })
+      .where(
+        and(
+          eq(audienceVoteTable.archived, false),
+          eq(audienceVoteTable.status, "open"),
+          isNotNull(audienceVoteTable.window_end),
+          lte(audienceVoteTable.window_end, now)
+        )
+      )
+      .returning();
+  };
+
   const updateAudienceVoteSchedule = async (
     id: string,
     input: PatchAudienceVoteScheduleClientOutput
   ): Promise<AudienceVote | undefined> => {
+    await closeExpiredOpenAudienceVotes();
+
     const currentVote = await getAudienceVote(id);
 
     if (!currentVote || currentVote.archived) {
@@ -723,6 +749,18 @@ export function createAudienceVoteService(
         )
       )
       .returning();
+
+    if (
+      updatedVote?.status === "open" &&
+      updatedVote.window_end &&
+      updatedVote.window_end <= new Date()
+    ) {
+      const closedVotes = await closeExpiredOpenAudienceVotes();
+      return (
+        closedVotes.find((closedVote) => closedVote.id === updatedVote.id) ??
+        getAudienceVote(updatedVote.id)
+      );
+    }
 
     return updatedVote;
   };
@@ -1094,7 +1132,8 @@ export function createAudienceVoteService(
             and(
               eq(audienceVoteTable.id, audienceVoteId),
               eq(audienceVoteTable.archived, false),
-              eq(audienceVoteTable.status, "open")
+              eq(audienceVoteTable.status, "open"),
+              sql`(${audienceVoteTable.window_end} is null or ${audienceVoteTable.window_end} > ${new Date()})`
             )
           )
       )
@@ -1134,6 +1173,7 @@ export function createAudienceVoteService(
             where ${audienceVoteTable.id} = ${audienceVoteCurrentVoteTable.audience_vote_id}
               and ${audienceVoteTable.status} = 'open'
               and ${audienceVoteTable.archived} = false
+              and (${audienceVoteTable.window_end} is null or ${audienceVoteTable.window_end} > ${new Date()})
           )`
         )
       )
@@ -1242,6 +1282,7 @@ export function createAudienceVoteService(
     addAudienceVote,
     addVoteCandidate,
     closeAudienceVote,
+    closeExpiredOpenAudienceVotes,
     completeVoteCandidateMediaUpload,
     getAudienceVote,
     getAudienceVoteCurrentVoteCounts,
