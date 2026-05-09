@@ -1,8 +1,7 @@
 import { render, pretty } from "@react-email/render";
 import { EmailTemplate } from "@/shared/email/email-template";
 import { BattleTicketEmailTemplate } from "@/shared/email/battle-email-template";
-import { auth } from "@/shared/better-auth/auth";
-import { headers } from "next/headers";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { EmailDemoPage } from "./email-demo-page";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +82,7 @@ async function renderEmails() {
 }
 
 export default async function DemoPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getDashboardSession();
   if (!session)
     return <p className="p-6 text-center">Unauthorized</p>;
 

@@ -199,29 +199,27 @@ export function suggestedPaymentAmount(
     ticket.finance?.payment_plan ?? "full"
   );
   const splitCount = expectedPaymentCount || Math.max(paymentNumber, 1);
-  return splitMoney(calculatedGrossPaymentTotal(ticket), splitCount)[
+  return splitMoney(calculatedPaymentTargetTotal(ticket), splitCount)[
     paymentNumber - 1
   ] ?? "0.00";
 }
 
-export function calculatedGrossPaymentTotal(ticket: TicketWithFinance): string {
+function calculatedPaymentTargetTotal(ticket: TicketWithFinance): string {
   if (isTicketZeroPaymentPlan(ticket.finance?.payment_plan)) return "0.00";
-  return normalizeMoney(
-    ticket.finance?.gross_total ?? ticket.finance_summary.gross_total
-  );
+  return getTicketPayableTotalMoney(ticket.finance);
 }
 
 export function getUnscheduledGrossPaymentAmount(
   ticket: TicketWithFinance
 ): string {
-  const grossPaymentTotal = toMoneyNumber(calculatedGrossPaymentTotal(ticket));
+  const targetPaymentTotal = toMoneyNumber(calculatedPaymentTargetTotal(ticket));
   const scheduledPaymentTotal = ticket.payments.reduce(
     (total, payment) => total + toMoneyNumber(payment.amount),
     0
   );
 
   return normalizeMoney(
-    Math.max(grossPaymentTotal - scheduledPaymentTotal, 0).toFixed(2)
+    Math.max(targetPaymentTotal - scheduledPaymentTotal, 0).toFixed(2)
   );
 }
 

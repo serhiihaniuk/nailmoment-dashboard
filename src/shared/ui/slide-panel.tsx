@@ -10,9 +10,17 @@ interface SlidePanelProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  showCloseButton?: boolean;
 }
 
-export function SlidePanel({ open, onClose, children, footer, className }: SlidePanelProps) {
+export function SlidePanel({
+  open,
+  onClose,
+  children,
+  footer,
+  className,
+  showCloseButton = true,
+}: SlidePanelProps) {
   React.useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
@@ -50,16 +58,18 @@ export function SlidePanel({ open, onClose, children, footer, className }: Slide
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
           {/* Close button — sticky within scroll area */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="sticky top-0 z-10 flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted/60 transition-colors ml-3 mt-3"
-            aria-label="Close panel"
-          >
-            <X size={16} className="text-muted-foreground" />
-          </button>
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="sticky top-0 z-10 flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted/60 transition-colors ml-3 mt-3"
+              aria-label="Close panel"
+            >
+              <X size={16} className="text-muted-foreground" />
+            </button>
+          ) : null}
 
-          <div className="px-6 pb-6 -mt-5">
+          <div className={cn("px-6 pb-6", showCloseButton && "-mt-5")}>
             {children}
           </div>
         </div>

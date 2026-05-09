@@ -384,7 +384,7 @@ export function PaymentsPanel({
             />
           </PaymentField>
           <PaymentField
-            label="Податок"
+            label="Комісія"
             saveStatus={getFieldStatus(taxAmountFieldKey)}
           >
             <MoneyCell

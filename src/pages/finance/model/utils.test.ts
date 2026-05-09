@@ -103,7 +103,7 @@ describe("finance API error parsing", () => {
 });
 
 describe("finance payment amount defaults", () => {
-  test("suggests new payments from gross ticket price instead of net total", () => {
+  test("suggests new payments from payable total after fee adjustments", () => {
     expect(
       suggestedPaymentAmount(
         makeTicket({
@@ -111,10 +111,10 @@ describe("finance payment amount defaults", () => {
         }),
         1
       )
-    ).toBe("250.00");
+    ).toBe("200.00");
   });
 
-  test("keeps manual add-payment remainder anchored to gross price", () => {
+  test("keeps manual add-payment remainder anchored to payable total", () => {
     const ticket = makeTicket({
       payments: [
         {
@@ -136,6 +136,6 @@ describe("finance payment amount defaults", () => {
       ],
     });
 
-    expect(getUnscheduledGrossPaymentAmount(ticket)).toBe("100.00");
+    expect(getUnscheduledGrossPaymentAmount(ticket)).toBe("0.00");
   });
 });

@@ -14,5 +14,5 @@ The new audience voting workflow will use one Telegram Mini App as the primary v
 - Internal broadcast processing endpoints must require an internal secret so public requests cannot trigger Telegram sends.
 - Telegram webhook and bot menu configuration should be handled by explicit manual setup, not dashboard UI.
 - The new Audience Vote system should use a new Telegram bot rather than reusing last year's voting bots.
-- New bot configuration should use scoped environment variables such as `TG_AUDIENCE_VOTE_BOT_TOKEN`, `TG_AUDIENCE_VOTE_WEBHOOK_SECRET`, `TG_AUDIENCE_VOTE_MINI_APP_URL`, `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`, and `TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID`.
+- New bot configuration should use scoped environment variables such as `TG_AUDIENCE_VOTE_BOT_TOKEN`, `TG_AUDIENCE_VOTE_WEBHOOK_SECRET`, `TG_AUDIENCE_VOTE_MINI_APP_URL`, `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`, and `TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS`.
 - Development and production should use separate Audience Vote Telegram bots or, at minimum, separate environment configuration that never points preview testing at the production voting bot.

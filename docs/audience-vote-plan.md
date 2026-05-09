@@ -1,8 +1,8 @@
 # Audience Vote Implementation Plan
 
-This plan captures the agreed direction for the new Telegram Mini App voting
-system. It replaces the legacy Telegram voting approach for new work; the old
-`/api/tg/*` routes remain legacy and should not be deepened.
+This plan captures the agreed direction for the Telegram Mini App voting
+system. It replaced the old message-based Telegram voting approach, which has
+been removed from the active codebase.
 
 ## Agent Handoff
 
@@ -165,7 +165,7 @@ Scoped env names:
 - `TG_AUDIENCE_VOTE_WEBHOOK_SECRET`
 - `TG_AUDIENCE_VOTE_MINI_APP_URL`
 - `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`
-- `TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID`
+- `TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS`
 
 Development and production should use separate Audience Vote bots, or at
 minimum separate env configuration that never points preview testing at the
@@ -192,12 +192,15 @@ Delivery rules:
 
 - use durable per-voter delivery rows;
 - process small batches, around 25 deliveries per run;
-- retry each delivery up to three times;
+- configured Operators receive both canary phases, but Operators and voter-canary
+  recipients are excluded from normal delivery so they do not receive the same
+  broadcast twice;
+- attempt each delivery at most once to avoid duplicate Telegram messages after ambiguous provider failures;
 - mark blocked/restricted voters inactive for future broadcasts;
 - allow dashboard-only interrupt;
 - interrupt must stop all future unsent deliveries;
 - already sent Telegram messages remain sent;
-- immediate dashboard kick and scheduled retry processor use the same safe
+- immediate dashboard kick and scheduled processor use the same safe
   processing path;
 - internal processor endpoints require `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`.
 

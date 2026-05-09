@@ -19,6 +19,8 @@ This repository runs a real production dashboard for Nail Moment. Treat it as a 
 
 The repository has separate local Vercel env files for dev and production: `.vercel/.env.preview.local` for the Dev Environment and `.vercel/.env.production.local` for production. Before testing workflows that can write data, send emails, create QR assets, process payments, or call external services, verify which env file and credentials are active.
 
+Optional local-only testing notes may live in `LOCAL_TESTING.md`. That file is gitignored and can include dev login details or other machine-specific smoke-test notes; do not copy its secrets or credentials into tracked files.
+
 ## Agent skills
 
 ### Issue tracker

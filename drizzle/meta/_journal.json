@@ -155,6 +155,69 @@
       "when": 1778155200000,
       "tag": "0021_cookie_consent_events",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778245910519,
+      "tag": "0022_audience_vote_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1778247177386,
+      "tag": "0023_vote_candidates",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1778250000000,
+      "tag": "0024_vote_candidate_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1778253000000,
+      "tag": "0025_audience_vote_one_open",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778256000000,
+      "tag": "0026_audience_vote_current_votes",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1778259000000,
+      "tag": "0027_audience_vote_broadcast_canary",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1778262000000,
+      "tag": "0028_audience_vote_broadcast_retry_processor",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1778265000000,
+      "tag": "0029_audience_vote_update_screen",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1778329097853,
+      "tag": "0030_drop_legacy_telegram_votes",
+      "breakpoints": true
     }
   ]
 }

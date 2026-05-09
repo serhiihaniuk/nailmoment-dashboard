@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -8,6 +9,7 @@ import {
   bigint,
   index,
   unique,
+  uniqueIndex,
   decimal,
 } from "drizzle-orm/pg-core";
 
@@ -119,6 +121,47 @@ export const cookieConsentSurfaceEnum = pgEnum("cookie_consent_surface_enum", [
   "banner",
   "settings",
 ]);
+
+export const audienceVoteKindEnum = pgEnum("audience_vote_kind_enum", [
+  "speaker",
+  "battle",
+  "final_battle",
+]);
+
+export const audienceVoteStatusEnum = pgEnum("audience_vote_status_enum", [
+  "draft",
+  "scheduled",
+  "open",
+  "closed",
+]);
+
+export const voteCandidateMediaTypeEnum = pgEnum(
+  "vote_candidate_media_type_enum",
+  ["photo", "video"]
+);
+
+export const audienceVoteBroadcastStatusEnum = pgEnum(
+  "audience_vote_broadcast_status_enum",
+  [
+    "canary_operator_pending",
+    "canary_operator_sent",
+    "canary_voters_sent",
+    "ready",
+    "completed",
+    "interrupted",
+    "failed",
+  ]
+);
+
+export const audienceVoteBroadcastDeliveryStageEnum = pgEnum(
+  "audience_vote_broadcast_delivery_stage_enum",
+  ["operator_canary", "voter_canary", "normal"]
+);
+
+export const audienceVoteBroadcastDeliveryStatusEnum = pgEnum(
+  "audience_vote_broadcast_delivery_status_enum",
+  ["pending", "sent", "failed", "skipped"]
+);
 
 export const battleTicketTable = pgTable(
   "battle_ticket",
@@ -344,6 +387,168 @@ export type CookieConsentEvent =
 export type InsertCookieConsentEvent =
   typeof cookieConsentEventTable.$inferInsert;
 
+export const audienceVoteTable = pgTable(
+  "audience_vote",
+  {
+    id: text("id").primaryKey(),
+    kind: audienceVoteKindEnum("kind").notNull(),
+    title: text("title").notNull(),
+    status: audienceVoteStatusEnum("status").notNull().default("draft"),
+    window_start: timestamp("window_start", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    window_end: timestamp("window_end", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteOneOpenActiveIdx: uniqueIndex(
+      "audience_vote_one_open_active_idx"
+    )
+      .on(table.status)
+      .where(
+        sql`${table.status} = 'open' and ${table.archived} = false`
+      ),
+    audienceVoteStatusIdx: index("audience_vote_status_idx").on(table.status),
+    audienceVoteCreatedAtIdx: index("audience_vote_created_at_idx").on(
+      table.created_at
+    ),
+  })
+);
+
+export type AudienceVote = typeof audienceVoteTable.$inferSelect;
+export type InsertAudienceVote = typeof audienceVoteTable.$inferInsert;
+
+export const audienceVoteUpdateScreenTable = pgTable(
+  "audience_vote_update_screen",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  }
+);
+
+export type AudienceVoteUpdateScreen =
+  typeof audienceVoteUpdateScreenTable.$inferSelect;
+export type InsertAudienceVoteUpdateScreen =
+  typeof audienceVoteUpdateScreenTable.$inferInsert;
+
+export const voteCandidateTable = pgTable(
+  "vote_candidate",
+  {
+    id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    display_order: integer("display_order").notNull().default(1),
+    display_name: text("display_name").notNull(),
+    internal_name: text("internal_name"),
+    caption: text("caption"),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    voteCandidateAudienceVoteIdx: index("vote_candidate_audience_vote_idx").on(
+      table.audience_vote_id
+    ),
+    voteCandidateAudienceVoteOrderIdx: index(
+      "vote_candidate_audience_vote_order_idx"
+    ).on(table.audience_vote_id, table.display_order),
+  })
+);
+
+export type VoteCandidate = typeof voteCandidateTable.$inferSelect;
+export type InsertVoteCandidate = typeof voteCandidateTable.$inferInsert;
+
+export const voteCandidateMediaTable = pgTable(
+  "vote_candidate_media",
+  {
+    id: text("id").primaryKey(),
+    candidate_id: text("candidate_id")
+      .notNull()
+      .references(() => voteCandidateTable.id, { onDelete: "cascade" }),
+    display_order: integer("display_order").notNull().default(1),
+    media_type: voteCandidateMediaTypeEnum("media_type").notNull(),
+    content_type: text("content_type").notNull(),
+    file_name: text("file_name").notNull(),
+    file_size_bytes: integer("file_size_bytes").notNull(),
+    blob_url: text("blob_url").notNull(),
+    blob_download_url: text("blob_download_url").notNull(),
+    blob_pathname: text("blob_pathname").notNull(),
+    archived: boolean("archived").notNull().default(false),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    voteCandidateMediaCandidateIdx: index(
+      "vote_candidate_media_candidate_idx"
+    ).on(table.candidate_id),
+    voteCandidateMediaCandidateOrderIdx: index(
+      "vote_candidate_media_candidate_order_idx"
+    ).on(table.candidate_id, table.display_order),
+    voteCandidateMediaBlobPathnameUnique: unique(
+      "vote_candidate_media_blob_pathname_unique"
+    ).on(table.blob_pathname),
+  })
+);
+
+export type VoteCandidateMedia =
+  typeof voteCandidateMediaTable.$inferSelect;
+export type InsertVoteCandidateMedia =
+  typeof voteCandidateMediaTable.$inferInsert;
+
 export type BattleTicket = typeof battleTicketTable.$inferSelect;
 export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 
@@ -380,23 +585,6 @@ export type TicketWithFinance = Ticket & {
   finance_summary: TicketFinanceSummary;
 };
 
-export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
-  id: text("id").primaryKey(),
-
-  telegram_user_id: bigint("telegram_user_id", { mode: "number" })
-    .notNull()
-    .unique(),
-
-  voted_for_id: text("voted_for_id").notNull(),
-
-  created_at: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-export type SpeakerVoteTG = typeof speakerVoteTGTable.$inferSelect;
-export type InsertSpeakerVoteTG = typeof speakerVoteTGTable.$inferInsert;
-
 export const telegramUsersTable = pgTable("telegram_users", {
   telegramUserId: bigint("telegram_user_id", { mode: "number" }).primaryKey(),
   firstName: text("first_name").notNull(),
@@ -414,39 +602,171 @@ export const telegramUsersTable = pgTable("telegram_users", {
     .defaultNow(),
 });
 
-/**
- * Stores the votes for the "Battle of Masters" event.
- * Keeps this data separate from the previous "Speaker Vote" event.
- */
-export const battleVoteTGTable = pgTable(
-  "battle_vote_tg",
+export const audienceVoteBroadcastTable = pgTable(
+  "audience_vote_broadcast",
   {
     id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    message_text: text("message_text").notNull(),
+    include_open_button: boolean("include_open_button")
+      .notNull()
+      .default(false),
+    status: audienceVoteBroadcastStatusEnum("status")
+      .notNull()
+      .default("canary_operator_pending"),
+    estimated_recipient_count: integer("estimated_recipient_count")
+      .notNull()
+      .default(0),
+    canary_voter_limit: integer("canary_voter_limit").notNull().default(25),
+    operator_telegram_user_id: bigint("operator_telegram_user_id", {
+      mode: "number",
+    }).notNull(),
+    next_stage_at: timestamp("next_stage_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    interrupted_at: timestamp("interrupted_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteBroadcastVoteIdx: index(
+      "audience_vote_broadcast_vote_idx"
+    ).on(table.audience_vote_id),
+    audienceVoteBroadcastStatusIdx: index(
+      "audience_vote_broadcast_status_idx"
+    ).on(table.status),
+    audienceVoteBroadcastCreatedAtIdx: index(
+      "audience_vote_broadcast_created_at_idx"
+    ).on(table.created_at),
+  })
+);
 
+export const audienceVoteBroadcastDeliveryTable = pgTable(
+  "audience_vote_broadcast_delivery",
+  {
+    id: text("id").primaryKey(),
+    broadcast_id: text("broadcast_id")
+      .notNull()
+      .references(() => audienceVoteBroadcastTable.id, { onDelete: "cascade" }),
+    telegram_user_id: bigint("telegram_user_id", {
+      mode: "number",
+    }).notNull(),
+    stage: audienceVoteBroadcastDeliveryStageEnum("stage").notNull(),
+    status: audienceVoteBroadcastDeliveryStatusEnum("status")
+      .notNull()
+      .default("pending"),
+    attempt_count: integer("attempt_count").notNull().default(0),
+    last_error: text("last_error"),
+    sent_at: timestamp("sent_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    next_attempt_at: timestamp("next_attempt_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    audienceVoteBroadcastDeliveryBroadcastIdx: index(
+      "audience_vote_broadcast_delivery_broadcast_idx"
+    ).on(table.broadcast_id),
+    audienceVoteBroadcastDeliveryStatusIdx: index(
+      "audience_vote_broadcast_delivery_status_idx"
+    ).on(table.status),
+    audienceVoteBroadcastDeliveryBroadcastStageStatusIdx: index(
+      "audience_vote_broadcast_delivery_broadcast_stage_status_idx"
+    ).on(table.broadcast_id, table.stage, table.status),
+    audienceVoteBroadcastDeliveryDueIdx: index(
+      "audience_vote_broadcast_delivery_due_idx"
+    ).on(table.stage, table.status, table.next_attempt_at),
+    audienceVoteBroadcastDeliveryUnique: unique(
+      "audience_vote_broadcast_delivery_unique"
+    ).on(table.broadcast_id, table.telegram_user_id, table.stage),
+  })
+);
+
+export const audienceVoteCurrentVoteTable = pgTable(
+  "audience_vote_current_vote",
+  {
+    id: text("id").primaryKey(),
+    audience_vote_id: text("audience_vote_id")
+      .notNull()
+      .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    candidate_id: text("candidate_id")
+      .notNull()
+      .references(() => voteCandidateTable.id, { onDelete: "cascade" }),
     telegram_user_id: bigint("telegram_user_id", { mode: "number" })
       .notNull()
       .references(() => telegramUsersTable.telegramUserId),
-
-    voted_for_contestant_id: text("voted_for_contestant_id").notNull(),
-
-    category_id: text("category_id").notNull(),
-
     created_at: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (table) => {
-    return {
-      userCategoryUnique: unique("user_category_unique").on(
-        table.telegram_user_id,
-        table.category_id
-      ),
-    };
-  }
+  (table) => ({
+    audienceVoteCurrentVoteVoteVoterUnique: unique(
+      "audience_vote_current_vote_vote_voter_unique"
+    ).on(table.audience_vote_id, table.telegram_user_id),
+    audienceVoteCurrentVoteAudienceVoteIdx: index(
+      "audience_vote_current_vote_audience_vote_idx"
+    ).on(table.audience_vote_id),
+    audienceVoteCurrentVoteCandidateIdx: index(
+      "audience_vote_current_vote_candidate_idx"
+    ).on(table.candidate_id),
+  })
 );
 
 export type TelegramUser = typeof telegramUsersTable.$inferSelect;
 export type InsertTelegramUser = typeof telegramUsersTable.$inferInsert;
 
-export type BattleVoteTG = typeof battleVoteTGTable.$inferSelect;
-export type InsertBattleVoteTG = typeof battleVoteTGTable.$inferInsert;
+export type AudienceVoteBroadcast =
+  typeof audienceVoteBroadcastTable.$inferSelect;
+export type InsertAudienceVoteBroadcast =
+  typeof audienceVoteBroadcastTable.$inferInsert;
+
+export type AudienceVoteBroadcastDelivery =
+  typeof audienceVoteBroadcastDeliveryTable.$inferSelect;
+export type InsertAudienceVoteBroadcastDelivery =
+  typeof audienceVoteBroadcastDeliveryTable.$inferInsert;
+
+export type AudienceVoteCurrentVote =
+  typeof audienceVoteCurrentVoteTable.$inferSelect;
+export type InsertAudienceVoteCurrentVote =
+  typeof audienceVoteCurrentVoteTable.$inferInsert;

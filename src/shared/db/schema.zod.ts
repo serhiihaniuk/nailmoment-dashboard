@@ -4,6 +4,15 @@ import {
   createSelectSchema,
 } from "drizzle-zod";
 import {
+  audienceVoteBroadcastDeliveryStageEnum,
+  audienceVoteBroadcastDeliveryStatusEnum,
+  audienceVoteBroadcastDeliveryTable,
+  audienceVoteBroadcastStatusEnum,
+  audienceVoteBroadcastTable,
+  audienceVoteKindEnum,
+  audienceVoteStatusEnum,
+  audienceVoteTable,
+  audienceVoteUpdateScreenTable,
   battleTicketTable,
   cookieConsentActionEnum,
   cookieConsentEventTable,
@@ -11,6 +20,8 @@ import {
   paymentInstallmentTable,
   ticketFinanceTable,
   ticketTable,
+  voteCandidateMediaTable,
+  voteCandidateTable,
 } from "./schema";
 import { TICKET_TYPE_LIST } from "./ticket-grade";
 
@@ -57,6 +68,23 @@ const optionalDateInputSchema = z.preprocess(
   (value) => (value === "" || value === null || value === undefined ? null : value),
   z.coerce.date().nullable()
 );
+
+function validateAudienceVoteWindow(
+  value: { window_end?: Date | null; window_start?: Date | null },
+  ctx: z.RefinementCtx
+) {
+  if (
+    value.window_start &&
+    value.window_end &&
+    value.window_end <= value.window_start
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Завершення має бути після початку",
+      path: ["window_end"],
+    });
+  }
+}
 
 export const selectTicketFinanceSchema = createSelectSchema(ticketFinanceTable);
 
@@ -133,6 +161,284 @@ export const cookieConsentEventClientSchema = z.object({
 
 export type CookieConsentEventClientInput = z.infer<
   typeof cookieConsentEventClientSchema
+>;
+
+const audienceVoteTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Назва обов’язкова")
+  .max(160, "Назва має бути не довшою за 160 символів");
+const audienceVoteUpdateScreenTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Заголовок екрана очікування обов’язковий")
+  .max(120, "Заголовок екрана очікування має бути не довшим за 120 символів");
+const audienceVoteUpdateScreenMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Повідомлення екрана очікування обов’язкове")
+  .max(1000, "Повідомлення екрана очікування має бути не довшим за 1000 символів");
+const audienceVoteBroadcastMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Текст повідомлення обов’язковий")
+  .max(4096, "Текст повідомлення має бути не довшим за 4096 символів");
+const voteCandidateDisplayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Публічне ім’я обов’язкове")
+  .max(160, "Публічне ім’я має бути не довшим за 160 символів");
+const voteCandidateDisplayOrderSchema = z.coerce
+  .number()
+  .int()
+  .min(1, "Порядок має бути щонайменше 1")
+  .max(1000, "Порядок має бути 1000 або менше");
+
+function normalizeOptionalText(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  }
+
+  return value;
+}
+
+function nullableTrimmedTextSchema(max: number, message: string) {
+  return z.preprocess(
+    normalizeOptionalText,
+    z.string().max(max, message).nullable()
+  );
+}
+
+function optionalNullableTrimmedTextSchema(max: number, message: string) {
+  return z.preprocess(
+    normalizeOptionalText,
+    z.string().max(max, message).nullable().optional()
+  );
+}
+
+export const selectAudienceVoteSchema = createSelectSchema(audienceVoteTable);
+
+export const insertAudienceVoteSchema = createInsertSchema(
+  audienceVoteTable,
+  {
+    id: z.string().trim().min(1, "ID обов’язковий"),
+    kind: z.enum(audienceVoteKindEnum.enumValues),
+    status: z.enum(audienceVoteStatusEnum.enumValues),
+    title: audienceVoteTitleSchema,
+    window_start: optionalDateInputSchema,
+    window_end: optionalDateInputSchema,
+  }
+).superRefine(validateAudienceVoteWindow);
+
+export const createAudienceVoteClientSchema = z
+  .object({
+    kind: z.enum(audienceVoteKindEnum.enumValues),
+    status: z.enum(["draft", "scheduled"]).default("draft"),
+    title: audienceVoteTitleSchema,
+    window_start: optionalDateInputSchema,
+    window_end: optionalDateInputSchema,
+  })
+  .superRefine(validateAudienceVoteWindow);
+
+export const patchAudienceVoteScheduleClientSchema = z
+  .object({
+    status: z.enum(["draft", "scheduled", "open"]),
+    window_start: optionalDateInputSchema,
+    window_end: optionalDateInputSchema,
+  })
+  .superRefine(validateAudienceVoteWindow);
+
+export type InsertAudienceVoteInput = z.input<
+  typeof insertAudienceVoteSchema
+>;
+export type CreateAudienceVoteClientInput = z.input<
+  typeof createAudienceVoteClientSchema
+>;
+export type CreateAudienceVoteClientOutput = z.output<
+  typeof createAudienceVoteClientSchema
+>;
+export type PatchAudienceVoteScheduleClientInput = z.input<
+  typeof patchAudienceVoteScheduleClientSchema
+>;
+export type PatchAudienceVoteScheduleClientOutput = z.output<
+  typeof patchAudienceVoteScheduleClientSchema
+>;
+
+export const selectAudienceVoteUpdateScreenSchema = createSelectSchema(
+  audienceVoteUpdateScreenTable
+);
+
+export const updateAudienceVoteUpdateScreenClientSchema = z.object({
+  message: audienceVoteUpdateScreenMessageSchema,
+  title: audienceVoteUpdateScreenTitleSchema,
+});
+
+export type UpdateAudienceVoteUpdateScreenClientInput = z.input<
+  typeof updateAudienceVoteUpdateScreenClientSchema
+>;
+export type UpdateAudienceVoteUpdateScreenClientOutput = z.output<
+  typeof updateAudienceVoteUpdateScreenClientSchema
+>;
+
+export const selectAudienceVoteBroadcastSchema = createSelectSchema(
+  audienceVoteBroadcastTable
+);
+
+export const insertAudienceVoteBroadcastSchema = createInsertSchema(
+  audienceVoteBroadcastTable,
+  {
+    audience_vote_id: z.string().trim().min(1, "ID голосування обов’язковий"),
+    canary_voter_limit: z.number().int().min(0).max(25),
+    estimated_recipient_count: z.number().int().min(0),
+    id: z.string().trim().min(1, "ID обов’язковий"),
+    message_text: audienceVoteBroadcastMessageSchema,
+    operator_telegram_user_id: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER),
+    status: z.enum(audienceVoteBroadcastStatusEnum.enumValues),
+  }
+);
+
+export const insertAudienceVoteBroadcastDeliverySchema = createInsertSchema(
+  audienceVoteBroadcastDeliveryTable,
+  {
+    broadcast_id: z.string().trim().min(1, "ID розсилки обов’язковий"),
+    id: z.string().trim().min(1, "ID обов’язковий"),
+    stage: z.enum(audienceVoteBroadcastDeliveryStageEnum.enumValues),
+    status: z.enum(audienceVoteBroadcastDeliveryStatusEnum.enumValues),
+    telegram_user_id: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER),
+  }
+);
+
+export const createAudienceVoteBroadcastClientSchema = z.object({
+  audience_vote_id: z.string().trim().min(1, "Голосування обов’язкове"),
+  include_open_button: z.coerce.boolean().default(false),
+  message_text: audienceVoteBroadcastMessageSchema,
+});
+
+export const previewAudienceVoteBroadcastClientSchema =
+  createAudienceVoteBroadcastClientSchema;
+
+export type InsertAudienceVoteBroadcastInput = z.input<
+  typeof insertAudienceVoteBroadcastSchema
+>;
+export type InsertAudienceVoteBroadcastDeliveryInput = z.input<
+  typeof insertAudienceVoteBroadcastDeliverySchema
+>;
+export type CreateAudienceVoteBroadcastClientInput = z.input<
+  typeof createAudienceVoteBroadcastClientSchema
+>;
+export type CreateAudienceVoteBroadcastClientOutput = z.output<
+  typeof createAudienceVoteBroadcastClientSchema
+>;
+
+export const selectVoteCandidateSchema = createSelectSchema(voteCandidateTable);
+
+export const insertVoteCandidateSchema = createInsertSchema(
+  voteCandidateTable,
+  {
+    audience_vote_id: z.string().trim().min(1, "ID голосування обов’язковий"),
+    caption: nullableTrimmedTextSchema(
+      1000,
+      "Підпис має бути не довшим за 1000 символів"
+    ),
+    display_name: voteCandidateDisplayNameSchema,
+    display_order: voteCandidateDisplayOrderSchema,
+    id: z.string().trim().min(1, "ID обов’язковий"),
+    internal_name: nullableTrimmedTextSchema(
+      160,
+      "Внутрішня назва має бути не довшою за 160 символів"
+    ),
+  }
+);
+
+export const createVoteCandidateClientSchema = z.object({
+  caption: optionalNullableTrimmedTextSchema(
+    1000,
+    "Підпис має бути не довшим за 1000 символів"
+  ).transform((value) => value ?? null),
+  display_name: voteCandidateDisplayNameSchema,
+  display_order: voteCandidateDisplayOrderSchema.optional(),
+  internal_name: optionalNullableTrimmedTextSchema(
+    160,
+    "Внутрішня назва має бути не довшою за 160 символів"
+  ).transform((value) => value ?? null),
+});
+
+export const patchVoteCandidateClientSchema = z.object({
+  caption: optionalNullableTrimmedTextSchema(
+    1000,
+    "Підпис має бути не довшим за 1000 символів"
+  ),
+  display_name: voteCandidateDisplayNameSchema.optional(),
+  display_order: voteCandidateDisplayOrderSchema.optional(),
+  internal_name: optionalNullableTrimmedTextSchema(
+    160,
+    "Внутрішня назва має бути не довшою за 160 символів"
+  ),
+});
+
+export const patchVoteCandidateMediaClientSchema = z.object({
+  archived: z.literal(false).optional(),
+  display_order: voteCandidateDisplayOrderSchema.optional(),
+});
+
+export type InsertVoteCandidateInput = z.input<
+  typeof insertVoteCandidateSchema
+>;
+export type CreateVoteCandidateClientInput = z.input<
+  typeof createVoteCandidateClientSchema
+>;
+export type CreateVoteCandidateClientOutput = z.output<
+  typeof createVoteCandidateClientSchema
+>;
+export type PatchVoteCandidateClientInput = z.input<
+  typeof patchVoteCandidateClientSchema
+>;
+export type PatchVoteCandidateClientOutput = z.output<
+  typeof patchVoteCandidateClientSchema
+>;
+export type PatchVoteCandidateMediaClientInput = z.input<
+  typeof patchVoteCandidateMediaClientSchema
+>;
+export type PatchVoteCandidateMediaClientOutput = z.output<
+  typeof patchVoteCandidateMediaClientSchema
+>;
+
+export const selectVoteCandidateMediaSchema = createSelectSchema(
+  voteCandidateMediaTable
+);
+
+export const insertVoteCandidateMediaSchema = createInsertSchema(
+  voteCandidateMediaTable,
+  {
+    blob_download_url: z.string().url(),
+    blob_pathname: z.string().trim().min(1, "Шлях Blob обов’язковий"),
+    blob_url: z.string().url(),
+    candidate_id: z.string().trim().min(1, "ID кандидата обов’язковий"),
+    content_type: z.string().trim().min(1, "Тип контенту обов’язковий"),
+    file_name: z
+      .string()
+      .trim()
+      .min(1, "Назва файлу обов’язкова")
+      .max(255, "Назва файлу має бути не довшою за 255 символів"),
+    file_size_bytes: z.coerce.number().int().min(1).max(104_857_600),
+    id: z.string().trim().min(1, "ID обов’язковий"),
+  }
+);
+
+export type InsertVoteCandidateMediaInput = z.input<
+  typeof insertVoteCandidateMediaSchema
 >;
 
 export const selectBattleTicketSchema = createSelectSchema(battleTicketTable);

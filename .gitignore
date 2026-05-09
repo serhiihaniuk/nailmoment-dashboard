@@ -38,6 +38,8 @@ yarn-error.log*
 .vercel
 .claude/
 .codex/
+.codex-next-dev.*.log
+LOCAL_TESTING.md
 
 # typescript
 *.tsbuildinfo

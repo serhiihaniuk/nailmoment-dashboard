@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { headers } from "next/headers";
 import { db } from "@/shared/db";
 import * as schema from "@/shared/db/schema";
 import { readVercelUrl } from "@/shared/config/env";
@@ -38,3 +39,9 @@ export const auth = betterAuth({
     schema,
   }),
 });
+
+type DashboardSession = Awaited<ReturnType<typeof auth.api.getSession>>;
+
+export async function getDashboardSession(): Promise<DashboardSession> {
+  return auth.api.getSession({ headers: await headers() });
+}

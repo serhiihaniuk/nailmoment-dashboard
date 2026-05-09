@@ -1,5 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/audience-vote/process",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/audience-vote/broadcasts/process",
+      "schedule": "* * * * *"
+    }
+  ],
   "git": {
     "deploymentEnabled": false
   }

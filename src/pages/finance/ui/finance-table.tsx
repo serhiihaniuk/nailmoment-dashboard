@@ -300,7 +300,7 @@ export function FinanceTable() {
                   Рахунок-фактура
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-20">
-                  Податок
+                  Комісія
                 </TableHead>
                 <TableHead className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-25">
                   Нетто

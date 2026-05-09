@@ -1,7 +1,6 @@
 // app/api/battle-ticket/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 
 import { deliverBattleTicket } from "@/app/battle-ticket-delivery";
@@ -10,7 +9,7 @@ import {
   parseBattleTicketList,
 } from "@/entities/battle-ticket";
 import { extractInstagramUsername } from "@/entities/ticket";
-import { auth } from "@/shared/better-auth/auth";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { db } from "@/shared/db";
 import {
   insertBattleTicketSchema,
@@ -74,7 +73,7 @@ const toDbBattleTicketPayload = (
 
 export async function GET() {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
     if (!session) {
       return NextResponse.json(
         { message: "Unauthorized: No session found." },
@@ -103,7 +102,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await getDashboardSession();
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

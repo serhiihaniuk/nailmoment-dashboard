@@ -42,7 +42,7 @@ export const newTicketFinanceSchema = insertTicketClientSchema
     if (taxAmount > payableTotal) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Податок не може бути більшим за суму до оплати після знижки",
+        message: "Комісія не може бути більшою за суму після знижки",
         path: ["tax_amount"],
       });
     }

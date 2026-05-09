@@ -18,7 +18,11 @@ erDiagram
   stripe_webhook_event ||--o| ticket : correlates
   stripe_webhook_event ||--o| battle_ticket : correlates
 
-  telegram_users ||--o{ battle_vote_tg : casts
+  telegram_users ||--o{ audience_vote_current_vote : casts
+  audience_vote ||--o{ vote_candidate : has
+  audience_vote ||--o{ audience_vote_current_vote : has
+  vote_candidate ||--o{ vote_candidate_media : has
+  vote_candidate ||--o{ audience_vote_current_vote : receives
 
   ticket {
     text id PK
@@ -97,19 +101,66 @@ erDiagram
     text username
     boolean isActive
     timestamptz lastBroadcastSentAt
+    timestamptz createdAt
   }
 
-  battle_vote_tg {
+  audience_vote {
     text id PK
-    bigint telegram_user_id
-    text category_id
-    text voted_for_contestant_id
+    enum kind
+    text title
+    enum status
+    timestamptz window_start
+    timestamptz window_end
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
   }
 
-  speaker_vote_tg {
+  vote_candidate {
     text id PK
-    text voted_for_id
+    text audience_vote_id FK
+    integer display_order
+    text display_name
+    text internal_name
+    text caption
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
   }
+
+  vote_candidate_media {
+    text id PK
+    text candidate_id FK
+    integer display_order
+    enum media_type
+    text content_type
+    text file_name
+    integer file_size_bytes
+    text blob_url
+    text blob_download_url
+    text blob_pathname UK
+    boolean archived
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  audience_vote_current_vote {
+    text id PK
+    text audience_vote_id FK
+    text candidate_id FK
+    bigint telegram_user_id FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  audience_vote_update_screen {
+    text id PK
+    text title
+    text message
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
 ```
 
 The Stripe correlations above are operational correlations, not declared
@@ -175,9 +226,9 @@ Meaning:
 
 - `gross_total`: base ticket amount before discount.
 - `discount_amount`: discount amount, not percent.
-- `tax_amount`: tax/fee amount. For Stripe webhook-created records this stores
-  the app's estimated Stripe fee.
-- `net_total`: payable total minus tax/fee.
+- `tax_amount`: legacy column name for commission/fee amount. For Stripe
+  webhook-created records this stores the app's estimated Stripe fee.
+- `net_total`: payable total after discount and commission/fee adjustment.
 - `payment_plan`: `full`, `two_parts`, `three_parts`, `custom`, `free`,
   `sponsor`.
 - `sale_source`: `site`, `direct_transfer`, or `other`.
@@ -226,26 +277,90 @@ Why event id, not session id:
 - The session id is stored separately for operator search and correlation with
   ticket/battle rows.
 
-### Telegram Voting
+### Telegram Voters
 
-`telegram_users` stores users seen by the bots and broadcast throttling state.
+`telegram_users` stores Telegram users who have opened the Audience Vote bot or
+Mini App. Audience Vote uses it for Mini App voter identity, active/inactive
+broadcast targeting, and broadcast throttling state.
 
-`battle_vote_tg` stores battle/festival vote rows:
+### Audience Vote
 
-- `telegram_user_id`
-- `category_id`
-- `voted_for_contestant_id`
+`audience_vote` stores the core Mini App voting stages for the new Audience
+Vote system.
 
-`speaker_vote_tg` stores speaker vote rows and is aggregated by
-`GET /api/speaker_vote`.
+Important fields:
+
+- `kind`: `speaker`, `battle`, or `final_battle`.
+- `title`: public title shown to voters later in the Mini App flow.
+- `status`: `draft`, `scheduled`, `open`, or `closed`.
+- `window_start` / `window_end`: optional planning/display window.
+- `archived`: soft-delete flag; normal Operator lists exclude archived rows.
+
+Only one non-archived `audience_vote` row may have `status = 'open'` at a
+time. The app validates that rule before opening, and
+`audience_vote_one_open_active_idx` enforces it in Postgres.
+
+`vote_candidate` stores Operator-managed options for an Audience Vote.
+
+Important fields:
+
+- `display_order`: Operator-defined order for the voter-facing feed.
+- `display_name`: public label shown to voters.
+- `internal_name`: Operator-only label or note; Mini App contracts must not
+  expose it.
+- `caption`: optional public text shown with the candidate.
+- `archived`: soft-delete flag; normal Operator lists, voter-facing views, and
+  future opening validation exclude archived rows.
+
+`vote_candidate_media` stores public Vercel Blob assets for Vote Candidates.
+
+Important fields:
+
+- `display_order`: upload order for active media.
+- `media_type`: `photo` or `video`, derived from the allowed content type.
+- `blob_url`: public Vercel Blob URL shown in Operator and future voter views.
+- `blob_pathname`: deterministic app-controlled Blob pathname; unique so the
+  app never overwrites existing media.
+- `archived`: soft-delete flag. Archived/replaced media remains preserved for
+  Operators and later cleanup, but normal voter-facing reads should use active
+  media only.
+
+Opening and closing are handled by the Audience Vote lifecycle routes. Voter
+rows use `audience_vote_current_vote`, which stores the latest selection for
+one Telegram Voter in one Audience Vote. It has a unique constraint on
+`audience_vote_id` and `telegram_user_id`, so later vote-save flows can update
+the current selection instead of preserving vote-change history. Operator
+results aggregate this table by `candidate_id` and do not expose a voter list.
+
+`audience_vote_update_screen` stores the single current Mini App fallback screen
+shown when no Audience Vote is open. Operators edit the current title/message
+from the dashboard; the table intentionally stores current state only, not a
+history of previous update screens.
+
+`audience_vote_broadcast` stores Operator-confirmed broadcast messages,
+canary/normal workflow status, the estimated active recipient count, the
+primary Operator Telegram id for audit/backward compatibility, and the
+DB-backed interrupt status. Current canary recipients are stored as delivery
+rows, so multiple configured Operators can receive the test stages.
+
+`audience_vote_broadcast_delivery` stores one durable delivery row per
+recipient and stage. Important fields:
+
+- `stage`: `operator_canary`, `voter_canary`, or `normal`.
+- `status`: `pending`, `sent`, `failed`, or `skipped`.
+- `attempt_count`: incremented when a processor claims the one allowed send
+  attempt.
+- `next_attempt_at`: due timestamp used by the scheduled processor before a
+  delivery has been attempted.
+- `sent_at`: records successful Telegram provider handoff.
 
 ## Finance Formula
 
 ```txt
-gross_total - discount_amount = payableTotal
-payableTotal - tax_amount     = netTotal
-sum(payment.amount where is_paid) = paidTotal
-payableTotal - paidTotal      = remainingTotal
+gross_total - discount_amount - tax_amount = payableTotal
+payableTotal                               = netTotal
+sum(payment.amount where is_paid)          = paidTotal
+payableTotal - paidTotal                   = remainingTotal
 ```
 
 Zero payment plans:
@@ -271,5 +386,23 @@ Relevant finance/Stripe migrations:
 - `drizzle/0019_payment_installment_is_paid.sql`: adds `is_paid`.
 - `drizzle/0020_finance_discount_storage_backfill.sql`: discount storage
   backfill.
+- `drizzle/0022_audience_vote_core.sql`: adds core Audience Vote enums and
+  table.
+- `drizzle/0023_vote_candidates.sql`: adds Vote Candidates for Audience Votes.
+- `drizzle/0024_vote_candidate_media.sql`: adds Vote Candidate Media records
+  for public Vercel Blob uploads.
+- `drizzle/0025_audience_vote_one_open.sql`: adds the partial unique index that
+  allows only one non-deleted open Audience Vote.
+- `drizzle/0026_audience_vote_current_votes.sql`: adds the current vote rows
+  used for aggregate Operator results and later Mini App vote changes.
+- `drizzle/0027_audience_vote_broadcast_canary.sql`: adds Audience Vote
+  Broadcast and delivery tables for confirmation and canary staging.
+- `drizzle/0028_audience_vote_broadcast_retry_processor.sql`: adds retry
+  scheduling metadata and the completed broadcast status.
+- `drizzle/0029_audience_vote_update_screen.sql`: adds the Operator-managed
+  Mini App update screen shown when no Audience Vote is open.
+- `drizzle/0030_drop_legacy_telegram_votes.sql`: removes the old
+  message-based Telegram voting tables (`battle_vote_tg` and
+  `speaker_vote_tg`) from environments where the cleanup migration is applied.
 
 Production migration work must follow `AGENTS.md`.

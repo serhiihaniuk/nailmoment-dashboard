@@ -1,13 +1,16 @@
-import "dotenv/config";
+import { config } from "dotenv";
 
 import { defineConfig } from "drizzle-kit";
-import { readPostgresUrl } from "./src/shared/config/env";
+import { readDatabaseUrl, readOptionalEnv } from "./src/shared/config/env";
+
+config({ path: ".env.local" });
+config();
 
 export default defineConfig({
   out: "./drizzle",
-  schema: "./shared/db/schema.ts",
+  schema: "./src/shared/db/schema.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: readPostgresUrl(),
+    url: readOptionalEnv("POSTGRES_URL") ?? readDatabaseUrl(),
   },
 });
