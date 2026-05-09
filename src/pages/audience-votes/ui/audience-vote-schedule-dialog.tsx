@@ -18,8 +18,14 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedule-dialog";
 
-export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
-  const state = useAudienceVoteScheduleDialog(vote);
+export function AudienceVoteScheduleDialog({
+  vote,
+  votes,
+}: {
+  vote: AudienceVote;
+  votes: AudienceVote[];
+}) {
+  const state = useAudienceVoteScheduleDialog({ vote, votes });
   const isOpenVote = vote.status === "open";
   const isEditable =
     vote.status === "draft" || vote.status === "scheduled" || isOpenVote;

@@ -14,6 +14,7 @@ import {
   type CreateAudienceVoteClientOutput,
 } from "@/shared/db/schema.zod";
 import { createAudienceVoteService } from "@/shared/db/service/audience-vote-service";
+import { audienceVoteTransitionErrorResponse } from "./[id]/transition-response";
 
 const audienceVoteService = createAudienceVoteService(db);
 
@@ -83,13 +84,10 @@ export async function POST(request: Request) {
     return NextResponse.json(parseAudienceVote(vote), { status: 201 });
   } catch (error) {
     console.error("API Error adding audience vote:", error);
-    const message =
-      error instanceof Error ? error.message : "Could not add audience vote.";
-
-    return NextResponse.json(
-      { message: `Internal Server Error: ${message}` },
-      { status: 500 }
-    );
+    return audienceVoteTransitionErrorResponse({
+      error,
+      fallbackMessage: "Could not add audience vote.",
+    });
   }
 }
 

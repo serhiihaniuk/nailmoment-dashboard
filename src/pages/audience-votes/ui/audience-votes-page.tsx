@@ -52,6 +52,7 @@ export default function AudienceVotesPage() {
   } = useQuery<AudienceVote[], Error>({
     queryKey: audienceVotesQueryKey,
     queryFn: fetchAudienceVotes,
+    refetchInterval: 10_000,
     staleTime: 10_000,
   });
 
@@ -97,7 +98,7 @@ export default function AudienceVotesPage() {
           <AudienceVoteBotSettingsDialog />
           <AudienceVoteUpdateScreenDialog />
           <AudienceVoteBroadcastDialog votes={votes ?? []} />
-          <CreateAudienceVoteDialog />
+          <CreateAudienceVoteDialog votes={votes ?? []} />
         </div>
       </div>
 
@@ -149,7 +150,7 @@ export default function AudienceVotesPage() {
           ) : (
             <div className="space-y-4">
               {sortedVotes.map((vote) => (
-                <VoteCard key={vote.id} vote={vote} />
+                <VoteCard key={vote.id} vote={vote} votes={votes} />
               ))}
             </div>
           )}

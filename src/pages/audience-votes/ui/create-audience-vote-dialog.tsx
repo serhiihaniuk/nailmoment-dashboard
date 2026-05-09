@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { CalendarClock, Loader2, Plus } from "lucide-react";
 
+import type { AudienceVote } from "@/entities/audience-vote";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -28,7 +29,11 @@ import {
 } from "../model/audience-vote-form";
 import { useCreateAudienceVoteDialog } from "../model/use-create-audience-vote-dialog";
 
-export function CreateAudienceVoteDialog() {
+export function CreateAudienceVoteDialog({
+  votes,
+}: {
+  votes: AudienceVote[];
+}) {
   const {
     draft,
     errors,
@@ -40,7 +45,7 @@ export function CreateAudienceVoteDialog() {
     updateDraft,
     updateKind,
     updateStatus,
-  } = useCreateAudienceVoteDialog();
+  } = useCreateAudienceVoteDialog(votes);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
+import { doTimeWindowsOverlap, type TimeWindow } from "@/shared/lib/time-window";
 import {
   patchAudienceVoteScheduleClientSchema,
   type PatchAudienceVoteScheduleClientOutput,
@@ -23,6 +24,11 @@ export type AudienceVoteScheduleApiError = {
   errors?: Record<string, string[] | undefined> | undefined;
   message: string;
 };
+
+export interface AudienceVoteScheduleConflict {
+  conflictingVote: AudienceVote;
+  message: string;
+}
 
 type ParseAudienceVoteScheduleDraftResult =
   | { data: AudienceVoteScheduleFormValues; ok: true }
@@ -89,6 +95,56 @@ export function mapAudienceVoteScheduleApiErrors(
   );
 }
 
+export function findAudienceVoteScheduleConflict({
+  excludeVoteId,
+  now = new Date(),
+  schedule,
+  votes,
+}: {
+  excludeVoteId?: string | undefined;
+  now?: Date;
+  schedule: {
+    status: AudienceVoteStatus;
+    window_end: Date | null;
+    window_start: Date | null;
+  };
+  votes: AudienceVote[];
+}): AudienceVoteScheduleConflict | null {
+  const scheduleWindow = getReservedWindow(schedule, now);
+
+  if (!scheduleWindow) {
+    return null;
+  }
+
+  const conflictingVote = votes.find((vote) => {
+    if (vote.id === excludeVoteId || vote.archived || vote.status === "closed") {
+      return false;
+    }
+
+    const voteWindow = getReservedWindow(vote, now);
+
+    return voteWindow
+      ? doTimeWindowsOverlap(scheduleWindow, voteWindow)
+      : false;
+  });
+
+  return conflictingVote
+    ? {
+        conflictingVote,
+        message: `Розклад перетинається з голосуванням "${conflictingVote.title}".`,
+      }
+    : null;
+}
+
+export function mapAudienceVoteScheduleConflictToFieldErrors(
+  conflict: AudienceVoteScheduleConflict
+): AudienceVoteScheduleFieldErrors {
+  return {
+    window_end: conflict.message,
+    window_start: conflict.message,
+  };
+}
+
 function formatDateTimeLocalInput(value: Date | null): string {
   if (!value) {
     return "";
@@ -132,4 +188,25 @@ function isAudienceVoteScheduleField(
     value === "window_end" ||
     value === "window_start"
   );
+}
+
+function getReservedWindow(
+  schedule: {
+    status: AudienceVoteStatus;
+    window_end: Date | null;
+    window_start: Date | null;
+  },
+  now: Date
+): TimeWindow | null {
+  if (schedule.status === "scheduled") {
+    return schedule.window_start
+      ? { end: schedule.window_end, start: schedule.window_start }
+      : null;
+  }
+
+  if (schedule.status === "open") {
+    return { end: schedule.window_end, start: schedule.window_start ?? now };
+  }
+
+  return null;
 }

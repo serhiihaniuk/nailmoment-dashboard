@@ -10,7 +10,9 @@ import {
 } from "../api/audience-votes-client";
 import {
   createAudienceVoteScheduleDraft,
+  findAudienceVoteScheduleConflict,
   mapAudienceVoteScheduleApiErrors,
+  mapAudienceVoteScheduleConflictToFieldErrors,
   parseAudienceVoteScheduleDraft,
   type AudienceVoteScheduleFieldErrors,
   type AudienceVoteScheduleDraft,
@@ -18,7 +20,13 @@ import {
 } from "./audience-vote-schedule";
 import { audienceVotesQueryKey } from "./use-create-audience-vote-dialog";
 
-export function useAudienceVoteScheduleDialog(vote: AudienceVote) {
+export function useAudienceVoteScheduleDialog({
+  vote,
+  votes,
+}: {
+  vote: AudienceVote;
+  votes: AudienceVote[];
+}) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<AudienceVoteScheduleDraft>(() =>
     createAudienceVoteScheduleDraft(vote)
@@ -90,6 +98,18 @@ export function useAudienceVoteScheduleDialog(vote: AudienceVote) {
 
     if (!parsed.ok) {
       setErrors(parsed.errors);
+      return;
+    }
+
+    const conflict = findAudienceVoteScheduleConflict({
+      excludeVoteId: vote.id,
+      schedule: parsed.data,
+      votes,
+    });
+
+    if (conflict) {
+      setErrors(mapAudienceVoteScheduleConflictToFieldErrors(conflict));
+      setFormError(conflict.message);
       return;
     }
 

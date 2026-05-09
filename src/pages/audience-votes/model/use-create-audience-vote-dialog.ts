@@ -20,10 +20,11 @@ import {
   type CreateAudienceVoteFormDraft,
   type CreateAudienceVoteFormValues,
 } from "./audience-vote-form";
+import { findAudienceVoteScheduleConflict } from "./audience-vote-schedule";
 
 export const audienceVotesQueryKey = ["audienceVotes"] as const;
 
-export function useCreateAudienceVoteDialog() {
+export function useCreateAudienceVoteDialog(votes: AudienceVote[]) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CreateAudienceVoteFormDraft>(
     createAudienceVoteDefaultDraft
@@ -102,6 +103,20 @@ export function useCreateAudienceVoteDialog() {
 
     if (!parsed.ok) {
       setErrors(parsed.errors);
+      return;
+    }
+
+    const conflict = findAudienceVoteScheduleConflict({
+      schedule: parsed.data,
+      votes,
+    });
+
+    if (conflict) {
+      setErrors({
+        window_end: conflict.message,
+        window_start: conflict.message,
+      });
+      setFormError(conflict.message);
       return;
     }
 
