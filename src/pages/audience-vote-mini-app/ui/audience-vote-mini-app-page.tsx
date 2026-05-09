@@ -9,7 +9,7 @@ import {
   Vote,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   AudienceVoteKind,
@@ -46,7 +46,11 @@ type LoadState =
 const miniAppHeaderLabel =
   "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
 
-export default function AudienceVoteMiniAppPage() {
+export default function AudienceVoteMiniAppPage({
+  dashboardPreview = false,
+}: {
+  dashboardPreview?: boolean;
+}) {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "booting",
   });
@@ -58,7 +62,9 @@ export default function AudienceVoteMiniAppPage() {
     async function loadFeed() {
       prepareTelegramMiniAppViewport();
 
-      const initData = readTelegramInitData();
+      const initData = dashboardPreview
+        ? "dashboard-preview"
+        : readTelegramInitData();
       if (!initData) {
         if (!cancelled) {
           setLoadState({ status: "missing-init-data" });
@@ -71,7 +77,9 @@ export default function AudienceVoteMiniAppPage() {
       }
 
       try {
-        const data = await fetchAudienceVoteMiniAppFeed(initData);
+        const data = await fetchAudienceVoteMiniAppFeed(initData, {
+          dashboardPreview,
+        });
 
         if (data.status === "open_vote") {
           prepareTelegramMiniAppViewport({ fullscreen: true });
@@ -98,14 +106,15 @@ export default function AudienceVoteMiniAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadCount]);
+  }, [dashboardPreview, reloadCount]);
 
   return (
-    <main className="tg-mini-app-safe-top min-h-svh bg-neutral-950 text-white">
+    <main className="tg-mini-app-safe-top tg-mini-app-no-select min-h-svh bg-neutral-950 text-white">
       <div className="mx-auto flex min-h-svh w-full max-w-md flex-col sm:max-w-xl lg:max-w-2xl">
         <MiniAppHeader loadState={loadState} />
         <div className="flex-1 px-3 py-4">
           <MiniAppBody
+            dashboardPreview={dashboardPreview}
             loadState={loadState}
             onRetry={() => setReloadCount((count) => count + 1)}
           />
@@ -144,9 +153,11 @@ function MiniAppHeader({ loadState }: { loadState: LoadState }) {
 }
 
 function MiniAppBody({
+  dashboardPreview,
   loadState,
   onRetry,
 }: {
+  dashboardPreview: boolean;
   loadState: LoadState;
   onRetry: () => void;
 }) {
@@ -199,23 +210,46 @@ function MiniAppBody({
     );
   }
 
-  return <VoteFeed data={loadState.data} initData={loadState.initData} />;
+  return (
+    <VoteFeed
+      data={loadState.data}
+      initData={loadState.initData}
+      previewMode={dashboardPreview}
+    />
+  );
 }
 
 function VoteFeed({
   data,
   initData,
+  previewMode,
 }: {
   data: Extract<AudienceVoteMiniAppResponse, { status: "open_vote" }>;
   initData: string;
+  previewMode: boolean;
 }) {
   const [selectedCandidateId, setSelectedCandidateId] =
     useState<VoteCandidateId | null>(data.selected_candidate_id);
   const [pendingCandidateId, setPendingCandidateId] =
     useState<VoteCandidateId | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const feedRef = useRef<HTMLElement | null>(null);
+
+  const handleVideoPlay = useCallback((currentVideo: HTMLVideoElement) => {
+    const videos = feedRef.current?.querySelectorAll("video") ?? [];
+
+    videos.forEach((video) => {
+      if (video !== currentVideo && !video.paused) {
+        video.pause();
+      }
+    });
+  }, []);
 
   async function handleVote(candidateId: VoteCandidateId) {
+    if (previewMode || candidateId === selectedCandidateId) {
+      return;
+    }
+
     const previousCandidateId = selectedCandidateId;
 
     setSelectedCandidateId(candidateId);
@@ -242,10 +276,15 @@ function VoteFeed({
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4" ref={feedRef}>
       {saveError ? (
         <div className="rounded-md border border-red-400/40 bg-red-950/50 px-3 py-2 text-sm text-red-100">
           {saveError}
+        </div>
+      ) : null}
+      {previewMode ? (
+        <div className="rounded-md border border-orange-300/30 bg-orange-950/40 px-3 py-2 text-sm text-orange-100">
+          Режим перегляду з дашборду. Голоси тут не зберігаються.
         </div>
       ) : null}
       {data.candidates.map((candidate) => (
@@ -254,8 +293,9 @@ function VoteFeed({
           isPending={pendingCandidateId === candidate.id}
           isSelected={selectedCandidateId === candidate.id}
           key={candidate.id}
+          onVideoPlay={handleVideoPlay}
           onVote={() => void handleVote(candidate.id)}
-          votingLocked={pendingCandidateId !== null}
+          votingLocked={previewMode || pendingCandidateId !== null}
         />
       ))}
     </section>
@@ -266,18 +306,25 @@ function CandidateCard({
   candidate,
   isPending,
   isSelected,
+  onVideoPlay,
   onVote,
   votingLocked,
 }: {
   candidate: MiniAppVoteCandidate;
   isPending: boolean;
   isSelected: boolean;
+  onVideoPlay: (video: HTMLVideoElement) => void;
   onVote: () => void;
   votingLocked: boolean;
 }) {
+  const buttonDisabled = votingLocked || isSelected;
+
   return (
     <article className="overflow-hidden rounded-lg border border-white/10 bg-neutral-900 shadow-2xl">
-      <CandidateMediaCarousel candidate={candidate} />
+      <CandidateMediaCarousel
+        candidate={candidate}
+        onVideoPlay={onVideoPlay}
+      />
 
       <div className="grid gap-3 p-4">
         <div>
@@ -294,12 +341,12 @@ function CandidateCard({
           className={cn(
             "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition",
             isSelected
-              ? "bg-emerald-500 hover:bg-emerald-400"
+              ? "bg-emerald-500"
               : "bg-orange-500 hover:bg-orange-400",
-            votingLocked && !isPending && "opacity-60",
+            buttonDisabled && !isPending && "cursor-not-allowed opacity-70",
             isPending && "opacity-90"
           )}
-          disabled={votingLocked}
+          disabled={buttonDisabled}
           onClick={onVote}
           type="button"
         >
@@ -323,11 +370,14 @@ function CandidateCard({
 
 function CandidateMediaCarousel({
   candidate,
+  onVideoPlay,
 }: {
   candidate: MiniAppVoteCandidate;
+  onVideoPlay: (video: HTMLVideoElement) => void;
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
   const hasMultipleMedia = candidate.media.length > 1;
 
   useEffect(() => {
@@ -337,6 +387,8 @@ function CandidateMediaCarousel({
 
     function updateCurrentIndex() {
       setCurrentIndex(api?.selectedScrollSnap() ?? 0);
+      const videos = carouselRef.current?.querySelectorAll("video") ?? [];
+      videos.forEach((video) => video.pause());
     }
 
     updateCurrentIndex();
@@ -360,53 +412,56 @@ function CandidateMediaCarousel({
   }
 
   return (
-    <Carousel
-      className="relative aspect-4/5 overflow-hidden bg-neutral-800 **:data-[slot=carousel-content]:h-full **:data-[slot=carousel-item]:h-full"
-      opts={{ align: "start", loop: hasMultipleMedia }}
-      setApi={setApi}
-    >
-      <CarouselContent className="h-full ml-0">
-        {candidate.media.map((media, index) => (
-          <CarouselItem className="h-full pl-0" key={media.id}>
-            <CandidateMedia
-              candidateName={candidate.display_name}
-              media={media}
-              mediaNumber={index + 1}
-            />
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-
-      {hasMultipleMedia ? (
-        <>
-          <CarouselPrevious
-            aria-label="Попереднє медіа"
-            className="left-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
-          />
-          <CarouselNext
-            aria-label="Наступне медіа"
-            className="right-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
-          />
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 backdrop-blur">
-            {candidate.media.map((media, index) => (
-              <button
-                aria-label={`Медіа ${index + 1}`}
-                className={cn(
-                  "size-2 rounded-full bg-white/40 transition",
-                  index === currentIndex && "w-5 bg-white"
-                )}
-                key={media.id}
-                onClick={() => api?.scrollTo(index)}
-                type="button"
+    <div ref={carouselRef}>
+      <Carousel
+        className="relative aspect-4/5 overflow-hidden bg-neutral-800"
+        opts={{ align: "start", loop: hasMultipleMedia }}
+        setApi={setApi}
+      >
+        <CarouselContent className="h-full ml-0" viewportClassName="h-full">
+          {candidate.media.map((media, index) => (
+            <CarouselItem className="h-full pl-0" key={media.id}>
+              <CandidateMedia
+                candidateName={candidate.display_name}
+                media={media}
+                mediaNumber={index + 1}
+                onVideoPlay={onVideoPlay}
               />
-            ))}
-          </div>
-          <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-            {currentIndex + 1} / {candidate.media.length}
-          </div>
-        </>
-      ) : null}
-    </Carousel>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+
+        {hasMultipleMedia ? (
+          <>
+            <CarouselPrevious
+              aria-label="Попереднє медіа"
+              className="left-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
+            />
+            <CarouselNext
+              aria-label="Наступне медіа"
+              className="right-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
+            />
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 backdrop-blur">
+              {candidate.media.map((media, index) => (
+                <button
+                  aria-label={`Медіа ${index + 1}`}
+                  className={cn(
+                    "size-2 rounded-full bg-white/40 transition",
+                    index === currentIndex && "w-5 bg-white"
+                  )}
+                  key={media.id}
+                  onClick={() => api?.scrollTo(index)}
+                  type="button"
+                />
+              ))}
+            </div>
+            <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+              {currentIndex + 1} / {candidate.media.length}
+            </div>
+          </>
+        ) : null}
+      </Carousel>
+    </div>
   );
 }
 
@@ -414,10 +469,12 @@ function CandidateMedia({
   candidateName,
   media,
   mediaNumber,
+  onVideoPlay,
 }: {
   candidateName: string;
   media: PublicVoteCandidateMedia;
   mediaNumber: number;
+  onVideoPlay: (video: HTMLVideoElement) => void;
 }) {
   if (media.media_type === "photo") {
     return (
@@ -427,6 +484,7 @@ function CandidateMedia({
           alt=""
           aria-hidden="true"
           className="absolute -inset-8 size-[calc(100%+4rem)] scale-115 object-cover opacity-70 blur-3xl saturate-125"
+          draggable={false}
           src={media.blob_url}
         />
         <div className="absolute inset-0 bg-black/35" />
@@ -434,7 +492,8 @@ function CandidateMedia({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={`${candidateName}, медіа ${mediaNumber}`}
-            className="max-h-full max-w-full object-contain shadow-2xl"
+            className="h-auto max-h-full w-full object-contain shadow-2xl"
+            draggable={false}
             src={media.blob_url}
           />
         </div>
@@ -446,6 +505,7 @@ function CandidateMedia({
     <video
       className="size-full bg-black object-contain"
       controls
+      onPlay={(event) => onVideoPlay(event.currentTarget)}
       playsInline
       preload="metadata"
     >

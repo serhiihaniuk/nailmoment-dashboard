@@ -213,6 +213,23 @@
     );
   }
 
+  .tg-mini-app-no-select,
+  .tg-mini-app-no-select * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .tg-mini-app-no-select ::selection {
+    background: transparent;
+    color: inherit;
+  }
+
+  .tg-mini-app-no-select img,
+  .tg-mini-app-no-select video {
+    -webkit-user-drag: none;
+  }
+
   /* Vercel-style layered shadow */
   .shadow-surface {
     box-shadow:

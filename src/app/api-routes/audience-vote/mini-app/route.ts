@@ -13,6 +13,7 @@ import {
   AudienceVoteWriteError,
   createAudienceVoteService,
 } from "@/shared/db/service/audience-vote-service";
+import { getDashboardSession } from "@/shared/better-auth/auth";
 import { isPostgresUndefinedTableError } from "@/shared/db/postgres-errors";
 import type { TelegramMiniAppUser } from "@/shared/telegram/mini-app-init-data";
 import { validateTelegramMiniAppInitData } from "@/shared/telegram/mini-app-init-data";
@@ -21,7 +22,9 @@ const audienceVoteService = createAudienceVoteService(db);
 
 export async function GET(request: Request) {
   try {
-    const authenticated = await authenticateMiniAppRequest(request);
+    const authenticated = await authenticateMiniAppRequest(request, {
+      allowDashboardPreview: true,
+    });
     if (!authenticated.ok) return authenticated.response;
 
     const openVote = await audienceVoteService.getOpenAudienceVote();
@@ -160,11 +163,30 @@ function readTelegramInitData(request: Request): string | undefined {
 }
 
 async function authenticateMiniAppRequest(
-  request: Request
+  request: Request,
+  options: { allowDashboardPreview?: boolean } = {}
 ): Promise<
   | { ok: true; user: TelegramMiniAppUser }
   | { ok: false; response: NextResponse }
 > {
+  if (
+    options.allowDashboardPreview &&
+    request.headers.get("x-dashboard-mini-app-preview") === "1"
+  ) {
+    const session = await getDashboardSession();
+
+    if (session) {
+      return {
+        ok: true,
+        user: {
+          firstName: "Dashboard",
+          id: 0,
+          username: "dashboard_preview",
+        },
+      };
+    }
+  }
+
   const initData = readTelegramInitData(request);
 
   if (!initData) {

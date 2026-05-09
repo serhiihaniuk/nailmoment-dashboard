@@ -46,6 +46,32 @@ describe("Audience Vote Mini App API client", () => {
     expect(JSON.stringify(feed)).not.toContain("total_votes");
   });
 
+  test("fetches the dashboard preview feed with the preview header", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        status: "update_screen",
+        update_screen: {
+          message: "Preview message",
+          title: "Preview",
+        },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const feed = await fetchAudienceVoteMiniAppFeed("dashboard-preview", {
+      dashboardPreview: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/mini-app", {
+      cache: "no-store",
+      headers: {
+        "x-dashboard-mini-app-preview": "1",
+        "x-telegram-init-data": "dashboard-preview",
+      },
+    });
+    expect(feed).toMatchObject({ status: "update_screen" });
+  });
+
   test("saves the current vote through the Telegram initData boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({

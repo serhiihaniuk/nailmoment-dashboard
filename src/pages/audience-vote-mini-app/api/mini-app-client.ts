@@ -8,12 +8,16 @@ import {
 } from "@/entities/audience-vote";
 
 export async function fetchAudienceVoteMiniAppFeed(
-  initData: string
+  initData: string,
+  options: { dashboardPreview?: boolean } = {}
 ): Promise<AudienceVoteMiniAppResponse> {
   const response = await fetch("/api/audience-vote/mini-app", {
     cache: "no-store",
     headers: {
       "x-telegram-init-data": initData,
+      ...(options.dashboardPreview
+        ? { "x-dashboard-mini-app-preview": "1" }
+        : {}),
     },
   });
   const json: unknown = await response.json().catch(() => null);

@@ -193,19 +193,19 @@ The finance rule that determines whether a **Ticket** is unpaid by schedule, ful
 _Avoid_: Installment plan, payment schedule, payment type
 
 **Ticket Finance**:
-The finance state for a **Ticket**, including totals, discount, tax or fee amount, sale source, invoice details, notes, and **Payment Plan**.
+The finance state for a **Ticket**, including totals, discount, commission amount, sale source, invoice details, notes, and **Payment Plan**.
 _Avoid_: Finance row, accounting data, payment info
 
 **Ticket Discount**:
 A reduction applied to a **Ticket** gross total before calculating the payable total.
 _Avoid_: Discount code, promotion, coupon
 
-**Tax Amount**:
-The finance amount subtracted from a **Ticket** payable total when calculating net total.
-_Avoid_: Fee Amount, Stripe fee, VAT unless the workflow explicitly means VAT
+**Commission Amount**:
+The finance amount stored in the legacy `tax_amount` column and subtracted from a **Ticket** payable total like a discount.
+_Avoid_: Tax, VAT unless the workflow explicitly means VAT
 
 **Ticket Finance Totals**:
-The calculated and stored money totals used to understand a **Ticket** gross, payable, paid, remaining, tax, and net amounts.
+The calculated and stored money totals used to understand a **Ticket** gross, payable, paid, remaining, commission, and net amounts.
 _Avoid_: Summary, chart totals, revenue numbers
 
 **Paid Ticket**:
@@ -319,7 +319,7 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - A **Payment** may have one **Payment Method**.
 - **Ticket Finance** and **Payment** can record a **Sale Source**.
 - **Ticket Finance** may include a **Ticket Discount** stored as an amount.
-- **Ticket Finance** may include a **Tax Amount** used to calculate net total.
+- **Ticket Finance** may include a **Commission Amount** used to calculate payable and net totals.
 - **Ticket Finance Totals** are derived from **Ticket Finance** and **Payments**.
 - **Ticket Finance** owns the **Payment Plan** for its **Ticket**.
 - A **Paid Ticket** is a finance status, not a **Ticket** origin.
@@ -361,6 +361,6 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - "Delivered" refers to **Ticket Delivery** or **Battle Ticket Delivery**, not **Ticket Arrival**.
 - `archived` is the implementation field name for soft delete; the domain language is **Soft Deleted Ticket** or **Soft Deleted Battle Ticket**.
 - Percent-like discount input is an operator convenience; the domain **Ticket Discount** is stored as an amount.
-- `tax_amount` may currently include Stripe processing-fee estimates, but the dashboard domain term is **Tax Amount**.
+- `tax_amount` is a legacy column name; the dashboard domain term is **Commission Amount**.
 - Vercel names the local dev env file `.vercel/.env.preview.local`, but the domain language is **Dev Environment**.
 - **Customer** is distinct from **Operator** and from dashboard auth user records.

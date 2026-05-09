@@ -241,7 +241,7 @@ paidAmount
   +- calculateDefaultStripeProcessingFee(amount)
   |    -> round(amount * 1.5%) + 1.00
   |
-  +- ticket_finance.tax_amount = estimated fee
+  +- ticket_finance.tax_amount = estimated fee (legacy column name)
   +- ticket_finance.net_total = paidAmount - estimated fee
   +- ticket_finance.discount_amount = 0.00
   +- ticket_finance.payment_plan = full

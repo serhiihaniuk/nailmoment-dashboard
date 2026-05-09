@@ -1,4 +1,17 @@
-import { and, asc, count, desc, eq, isNotNull, lte, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  isNotNull,
+  isNull,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
@@ -172,6 +185,7 @@ export interface IAudienceVoteService {
   getAudienceVoteUpdateScreen: () => Promise<
     AudienceVoteUpdateScreen | undefined
   >;
+  getDueScheduledAudienceVotes: (now?: Date) => Promise<AudienceVote[]>;
   getOpenAudienceVote: (
     excludeId?: string
   ) => Promise<AudienceVote | undefined>;
@@ -690,6 +704,32 @@ export function createAudienceVoteService(
         )
       )
       .returning();
+  };
+
+  const getDueScheduledAudienceVotes = async (
+    now = new Date()
+  ): Promise<AudienceVote[]> => {
+    await closeExpiredOpenAudienceVotes(now);
+
+    return db
+      .select()
+      .from(audienceVoteTable)
+      .where(
+        and(
+          eq(audienceVoteTable.archived, false),
+          eq(audienceVoteTable.status, "scheduled"),
+          isNotNull(audienceVoteTable.window_start),
+          lte(audienceVoteTable.window_start, now),
+          or(
+            isNull(audienceVoteTable.window_end),
+            gt(audienceVoteTable.window_end, now)
+          )
+        )
+      )
+      .orderBy(
+        asc(audienceVoteTable.window_start),
+        asc(audienceVoteTable.created_at)
+      );
   };
 
   const updateAudienceVoteSchedule = async (
@@ -1289,6 +1329,7 @@ export function createAudienceVoteService(
     getAudienceVotes,
     getAudienceVoteUpdateScreen,
     getCurrentVoteForTelegramVoter,
+    getDueScheduledAudienceVotes,
     getOpenAudienceVote,
     getVoteCandidate,
     getVoteCandidateMedia,

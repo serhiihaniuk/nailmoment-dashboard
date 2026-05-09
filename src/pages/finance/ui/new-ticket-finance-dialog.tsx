@@ -274,7 +274,7 @@ export function NewTicketFinanceDialog({
                 }
               />
             </PaymentField>
-            <PaymentField label="Податок" error={fieldErrors.tax_amount}>
+            <PaymentField label="Комісія" error={fieldErrors.tax_amount}>
               <Input
                 type="number"
                 min="0"

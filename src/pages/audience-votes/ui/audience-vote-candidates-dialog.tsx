@@ -24,6 +24,7 @@ import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Progress } from "@/shared/ui/progress";
 import { Textarea } from "@/shared/ui/textarea";
 import {
   AlertDialog,
@@ -571,22 +572,44 @@ function CandidateDetailPanel({
 
             {/* Upload placeholder */}
             {!media.isClosed && (
-              <label className="aspect-square rounded-lg border-2 border-dashed border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5">
+              <label
+                className={cn(
+                  "aspect-square rounded-lg border-2 border-dashed border-border/60 transition-colors flex flex-col items-center justify-center gap-1.5",
+                  media.isUploading
+                    ? "cursor-not-allowed bg-muted/40 opacity-70"
+                    : "cursor-pointer hover:border-primary/50 hover:bg-muted/50"
+                )}
+              >
                 <input
                   key={media.fileInputKey}
                   type="file"
                   accept={VOTE_CANDIDATE_MEDIA_ACCEPT}
                   onChange={media.handleFileChange}
+                  disabled={media.isUploading}
                   className="sr-only"
                 />
-                <ImagePlus size={20} className="text-muted-foreground" />
+                {media.isUploading ? (
+                  <Loader2
+                    size={20}
+                    className="animate-spin text-muted-foreground"
+                  />
+                ) : (
+                  <ImagePlus size={20} className="text-muted-foreground" />
+                )}
                 <span className="text-[11px] text-muted-foreground">
-                  Додати медіа
+                  {media.isUploading ? "Завантаження..." : "Додати медіа"}
                 </span>
               </label>
             )}
           </div>
         )}
+
+        {media.isUploading ? (
+          <CandidateMediaUploadProgress
+            fileName={media.file?.name ?? "Медіафайл"}
+            progress={media.uploadProgress}
+          />
+        ) : null}
 
         {/* Upload UI when file selected */}
         {media.file && media.shouldShowManualUpload && (
@@ -705,6 +728,40 @@ function CandidateDetailPanel({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CandidateMediaUploadProgress({
+  fileName,
+  progress,
+}: {
+  fileName: string;
+  progress: number | null;
+}) {
+  const normalizedProgress = Math.max(
+    0,
+    Math.min(100, Math.round(progress ?? 0))
+  );
+  const status =
+    normalizedProgress >= 100
+      ? "Зберігаємо медіа..."
+      : normalizedProgress > 0
+        ? "Завантажуємо файл..."
+        : "Готуємо завантаження...";
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-medium">{fileName}</p>
+          <p className="text-[11px] text-muted-foreground">{status}</p>
+        </div>
+        <span className="shrink-0 text-[12px] font-medium tabular-nums">
+          {normalizedProgress}%
+        </span>
+      </div>
+      <Progress value={normalizedProgress} />
     </div>
   );
 }

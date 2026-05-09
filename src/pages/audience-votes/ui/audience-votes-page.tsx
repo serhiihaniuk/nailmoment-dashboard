@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Loader2, Vote } from "lucide-react";
+import { FileText, Loader2, Smartphone, Vote } from "lucide-react";
 
 import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
 import {
@@ -17,6 +18,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/shared/ui/empty";
+import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/shared/lib/cn";
 import { fetchAudienceVotes } from "../api/audience-votes-client";
@@ -85,6 +87,12 @@ export default function AudienceVotesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/audience-vote?preview=1" rel="noreferrer" target="_blank">
+              <Smartphone aria-hidden="true" />
+              Перегляд Mini App
+            </Link>
+          </Button>
           <AudienceVoteUpdateScreenDialog />
           <AudienceVoteBroadcastDialog votes={votes ?? []} />
           <CreateAudienceVoteDialog />

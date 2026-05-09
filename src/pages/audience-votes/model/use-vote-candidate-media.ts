@@ -82,6 +82,11 @@ export function useVoteCandidateMedia({
         replacesMediaId,
         voteId: vote.id,
       }),
+    onMutate: () => {
+      setFormError(null);
+      setSuccessMessage(null);
+      setUploadProgress(0);
+    },
     onError: (error) => {
       resetFileInput();
       setFormError(error.message);

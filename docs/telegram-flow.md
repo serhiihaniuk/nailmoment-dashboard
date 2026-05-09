@@ -53,6 +53,12 @@ This API is intentionally not Better Auth protected. It trusts only server-side
 Telegram `initData` validation and never returns Vote Candidate Internal Names
 or Operator-only media fields.
 
+Dashboard Operators can open `/audience-vote?preview=1` from `/audience-votes`
+to review the Mini App feed without Telegram `initData`. That mode requires a
+valid Better Auth dashboard session, sends a preview-only request header to the
+Mini App GET API, and disables voting in the client. Vote saves still require
+real Telegram `initData`.
+
 The update screen fallback is Operator-managed from the protected dashboard at
 `/audience-votes`. It stores one current title/message in
 `audience_vote_update_screen`; if that row does not exist yet, the Mini App
@@ -105,6 +111,12 @@ Operator confirms broadcast
        +- send normal deliveries in batches of 25
 
 Vercel Cron
+  |
+  +- GET /api/audience-vote/process
+  |    |
+  |    +- require processor secret
+  |    +- close expired open Audience Votes
+  |    +- open the first valid scheduled Audience Vote whose start time is due
   |
   +- GET /api/audience-vote/broadcasts/process
        |

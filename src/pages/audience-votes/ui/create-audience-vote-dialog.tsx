@@ -68,7 +68,7 @@ export function CreateAudienceVoteDialog() {
             />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <Field label="Тип" message={errors.kind}>
               <Select
                 disabled={isPending}
@@ -110,14 +110,14 @@ export function CreateAudienceVoteDialog() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Початок" message={errors.window_start}>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="pl-9"
+                  className="min-w-0 w-full pl-9 pr-10"
                   disabled={isPending}
                   onChange={(event) =>
                     updateDraft("window_start", event.target.value)
@@ -129,14 +129,14 @@ export function CreateAudienceVoteDialog() {
             </Field>
 
             <Field label="Завершення" message={errors.window_end}>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="pl-9"
+                  className="min-w-0 w-full pl-9 pr-10"
                   disabled={isPending}
                   onChange={(event) =>
                     updateDraft("window_end", event.target.value)
@@ -176,7 +176,7 @@ function Field({
   message?: string | undefined;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <Label>{label}</Label>
       {children}
       {message ? <p className="text-sm text-destructive">{message}</p> : null}

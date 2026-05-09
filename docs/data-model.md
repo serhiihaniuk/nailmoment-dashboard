@@ -225,9 +225,9 @@ Meaning:
 
 - `gross_total`: base ticket amount before discount.
 - `discount_amount`: discount amount, not percent.
-- `tax_amount`: tax/fee amount. For Stripe webhook-created records this stores
-  the app's estimated Stripe fee.
-- `net_total`: payable total minus tax/fee.
+- `tax_amount`: legacy column name for commission/fee amount. For Stripe
+  webhook-created records this stores the app's estimated Stripe fee.
+- `net_total`: payable total after discount and commission/fee adjustment.
 - `payment_plan`: `full`, `two_parts`, `three_parts`, `custom`, `free`,
   `sponsor`.
 - `sale_source`: `site`, `direct_transfer`, or `other`.
@@ -356,10 +356,10 @@ recipient and stage. Important fields:
 ## Finance Formula
 
 ```txt
-gross_total - discount_amount = payableTotal
-payableTotal - tax_amount     = netTotal
-sum(payment.amount where is_paid) = paidTotal
-payableTotal - paidTotal      = remainingTotal
+gross_total - discount_amount - tax_amount = payableTotal
+payableTotal                               = netTotal
+sum(payment.amount where is_paid)          = paidTotal
+payableTotal - paidTotal                   = remainingTotal
 ```
 
 Zero payment plans:

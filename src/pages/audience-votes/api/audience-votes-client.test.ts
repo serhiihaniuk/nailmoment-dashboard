@@ -197,6 +197,23 @@ describe("audience votes API client", () => {
       "/api/audience-vote/vote_1",
       expect.objectContaining({ method: "PATCH" })
     );
+    const firstCall = fetchMock.mock.calls[0];
+    if (!firstCall) {
+      throw new Error("Expected schedule update request to be sent.");
+    }
+    const requestInit = firstCall[1];
+    if (
+      !requestInit ||
+      typeof requestInit !== "object" ||
+      !("body" in requestInit)
+    ) {
+      throw new Error("Expected schedule update request body.");
+    }
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      status: "scheduled",
+      window_end: "2026-05-09T13:00:00.000Z",
+      window_start: "2026-05-09T12:00:00.000Z",
+    });
     expect(vote.status).toBe("scheduled");
     expect(vote.window_start).toBeInstanceOf(Date);
   });
