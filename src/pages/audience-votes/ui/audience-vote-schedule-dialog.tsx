@@ -53,14 +53,14 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
         <form className="grid gap-4" onSubmit={state.handleSubmit}>
           <div className="grid gap-4">
             <Field label="Початок" message={state.errors.window_start}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={state.isPending || isOpenVote}
                   onChange={(event) =>
                     state.updateDraft("window_start", event.target.value)
@@ -72,14 +72,14 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
             </Field>
 
             <Field label="Завершення" message={state.errors.window_end}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={state.isPending}
                   onChange={(event) =>
                     state.updateDraft("window_end", event.target.value)
