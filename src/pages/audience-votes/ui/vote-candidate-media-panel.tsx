@@ -165,9 +165,12 @@ export function VoteCandidateMediaPanel({
                 </div>
               ) : (
                 <VoteCandidateMediaGrid
+                  canRestore={state.canSoftDelete}
                   canSoftDelete={state.canSoftDelete}
                   isDeleting={state.isDeleting}
+                  isRestoring={state.isRestoring}
                   media={state.activeMedia}
+                  onRestore={state.restoreMedia}
                   onSoftDelete={state.softDeleteMedia}
                 />
               )}
@@ -177,8 +180,11 @@ export function VoteCandidateMediaPanel({
                   <Separator />
                   <ArchivedMediaSection
                     canSoftDelete={state.canSoftDelete}
+                    canRestore={state.canSoftDelete}
                     isDeleting={state.isDeleting}
+                    isRestoring={state.isRestoring}
                     media={state.archivedMedia}
+                    onRestore={state.restoreMedia}
                     onSoftDelete={state.softDeleteMedia}
                     onToggle={() => state.setShowArchived(!state.showArchived)}
                     showArchived={state.showArchived}
@@ -194,16 +200,22 @@ export function VoteCandidateMediaPanel({
 }
 
 function ArchivedMediaSection({
+  canRestore,
   canSoftDelete,
   isDeleting,
+  isRestoring,
   media,
+  onRestore,
   onSoftDelete,
   onToggle,
   showArchived,
 }: {
+  canRestore: boolean;
   canSoftDelete: boolean;
   isDeleting: boolean;
+  isRestoring: boolean;
   media: VoteCandidateMedia[];
+  onRestore: (media: VoteCandidateMedia) => void;
   onSoftDelete: (media: VoteCandidateMedia) => void;
   onToggle: () => void;
   showArchived: boolean;
@@ -222,9 +234,12 @@ function ArchivedMediaSection({
       </Button>
       {showArchived ? (
         <VoteCandidateMediaGrid
+          canRestore={canRestore}
           canSoftDelete={canSoftDelete}
           isDeleting={isDeleting}
+          isRestoring={isRestoring}
           media={media}
+          onRestore={onRestore}
           onSoftDelete={onSoftDelete}
         />
       ) : null}

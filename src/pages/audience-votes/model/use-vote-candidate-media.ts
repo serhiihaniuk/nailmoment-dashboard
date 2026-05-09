@@ -13,6 +13,7 @@ import {
 import {
   deleteVoteCandidateMedia,
   fetchVoteCandidateMedia,
+  restoreVoteCandidateMedia,
   updateVoteCandidateMedia,
   uploadVoteCandidateMedia,
   type VoteCandidateMediaApiError,
@@ -163,6 +164,33 @@ export function useVoteCandidateMedia({
     },
   });
 
+  const restoreMutation = useMutation<
+    VoteCandidateMedia,
+    VoteCandidateMediaApiError,
+    VoteCandidateMediaId
+  >({
+    mutationFn: (mediaId) =>
+      restoreVoteCandidateMedia({
+        candidateId: candidate.id,
+        mediaId,
+        voteId: vote.id,
+      }),
+    onError: (error) => {
+      setFormError(error.message);
+      setSuccessMessage(null);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: audienceVoteCandidateMediaQueryKey({
+          candidateId: candidate.id,
+          voteId: vote.id,
+        }),
+      });
+      setFormError(null);
+      setSuccessMessage("Медіа відновлено.");
+    },
+  });
+
   function selectFile(selectedFile: File | null) {
     setUploadProgress(null);
     setSuccessMessage(null);
@@ -222,6 +250,14 @@ export function useVoteCandidateMedia({
     deleteMutation.mutate(media.id);
   }
 
+  function restoreMedia(media: VoteCandidateMedia) {
+    if (!canSoftDelete || restoreMutation.isPending) {
+      return;
+    }
+
+    restoreMutation.mutate(media.id);
+  }
+
   function moveMedia(media: VoteCandidateMedia, displayOrder: number) {
     if (!canSoftDelete || updateMutation.isPending) {
       return;
@@ -256,14 +292,19 @@ export function useVoteCandidateMedia({
     isLoading: mediaQuery.isLoading,
     isQueryError: mediaQuery.isError,
     isReordering: updateMutation.isPending,
+    isRestoring: restoreMutation.isPending,
     isUploading: uploadMutation.isPending,
     moveMedia,
     pendingMediaId:
-      updateMutation.variables?.mediaId ?? deleteMutation.variables ?? null,
+      updateMutation.variables?.mediaId ??
+      deleteMutation.variables ??
+      restoreMutation.variables ??
+      null,
     queryError: mediaQuery.error,
     replaceMediaId,
     replaceMediaSelectValue,
     resetFileInput,
+    restoreMedia,
     selectFile,
     setShowArchived,
     shouldShowManualUpload: false,

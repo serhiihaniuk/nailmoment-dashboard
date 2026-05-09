@@ -47,6 +47,7 @@
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.7.1",
+    "embla-carousel-react": "^8.6.0",
     "grammy": "^1.41.1",
     "lucide-react": "^0.503.0",
     "nanoid": "^5.1.7",

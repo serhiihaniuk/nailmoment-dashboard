@@ -28,7 +28,7 @@ describe("Audience Vote Broadcast processor", () => {
       broadcastId: "broadcast_1",
       canaryVoterLimit: 2,
       nextAttemptAt: now,
-      operatorTelegramUserId: 299445418,
+      operatorTelegramUserIds: [299445418],
     });
 
     expect(
@@ -39,6 +39,31 @@ describe("Audience Vote Broadcast processor", () => {
     ).toEqual([
       { stage: "operator_canary", telegramUserId: 299445418 },
       { stage: "voter_canary", telegramUserId: 299445418 },
+      { stage: "voter_canary", telegramUserId: 111 },
+      { stage: "voter_canary", telegramUserId: 222 },
+      { stage: "normal", telegramUserId: 333 },
+    ]);
+  });
+
+  test("builds canary deliveries for multiple Operators and excludes them from normal delivery", () => {
+    const rows = buildAudienceVoteBroadcastDeliveryRows({
+      activeTelegramUserIds: [299445418, 400, 111, 222, 333],
+      broadcastId: "broadcast_1",
+      canaryVoterLimit: 2,
+      nextAttemptAt: now,
+      operatorTelegramUserIds: [299445418, 400],
+    });
+
+    expect(
+      rows.map((row) => ({
+        stage: row.stage,
+        telegramUserId: row.telegram_user_id,
+      }))
+    ).toEqual([
+      { stage: "operator_canary", telegramUserId: 299445418 },
+      { stage: "operator_canary", telegramUserId: 400 },
+      { stage: "voter_canary", telegramUserId: 299445418 },
+      { stage: "voter_canary", telegramUserId: 400 },
       { stage: "voter_canary", telegramUserId: 111 },
       { stage: "voter_canary", telegramUserId: 222 },
       { stage: "normal", telegramUserId: 333 },

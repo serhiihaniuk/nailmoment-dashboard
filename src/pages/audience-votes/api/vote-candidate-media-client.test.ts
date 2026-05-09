@@ -4,8 +4,12 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   audienceVoteIdSchema,
   voteCandidateIdSchema,
+  voteCandidateMediaIdSchema,
 } from "@/entities/audience-vote";
-import { uploadVoteCandidateMedia } from "./vote-candidate-media-client";
+import {
+  restoreVoteCandidateMedia,
+  uploadVoteCandidateMedia,
+} from "./vote-candidate-media-client";
 
 vi.mock("@vercel/blob/client", () => ({
   upload: vi.fn(),
@@ -67,6 +71,28 @@ describe("vote candidate media client", () => {
     expect(requestBody.payload.blob.pathname).toBe(blob.pathname);
     expect(clientPayload.mediaId).toBe("media_1");
     expect(media.created_at).toBeInstanceOf(Date);
+  });
+
+  test("restores archived media through the existing media PATCH route", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json(makeMediaResponse()));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const media = await restoreVoteCandidateMedia({
+      candidateId: voteCandidateIdSchema.parse("candidate_1"),
+      mediaId: voteCandidateMediaIdSchema.parse("media_1"),
+      voteId: audienceVoteIdSchema.parse("vote_1"),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/vote_1/candidates/candidate_1/media/media_1",
+      expect.objectContaining({
+        body: JSON.stringify({ archived: false }),
+        method: "PATCH",
+      })
+    );
+    expect(media.id).toBe("media_1");
   });
 });
 

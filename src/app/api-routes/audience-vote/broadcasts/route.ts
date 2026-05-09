@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 import {
@@ -7,19 +6,13 @@ import {
   parseAudienceVoteBroadcastList,
 } from "@/entities/audience-vote";
 import { getDashboardSession } from "@/shared/better-auth/auth";
-import { readTelegramAudienceVoteOperatorTelegramId } from "@/shared/config/env";
 import { db } from "@/shared/db";
 import { createAudienceVoteBroadcastClientSchema } from "@/shared/db/schema.zod";
 import { createAudienceVoteBroadcastService } from "@/shared/db/service/audience-vote-broadcast-service";
 import { processAudienceVoteBroadcast } from "./broadcast-processor";
+import { readAudienceVoteBroadcastOperatorTelegramUserIds } from "./operator-telegram-users";
 
 const audienceVoteBroadcastService = createAudienceVoteBroadcastService(db);
-
-const operatorTelegramUserIdSchema = z.coerce
-  .number()
-  .int()
-  .positive()
-  .max(Number.MAX_SAFE_INTEGER);
 
 export async function GET() {
   try {
@@ -67,7 +60,8 @@ export async function POST(request: Request) {
     const broadcast =
       await audienceVoteBroadcastService.createAudienceVoteBroadcast({
         ...parsed.data,
-        operatorTelegramUserId: readOperatorTelegramUserId(),
+        operatorTelegramUserIds:
+          readAudienceVoteBroadcastOperatorTelegramUserIds(),
       });
 
     if (!broadcast) {
@@ -98,12 +92,6 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-function readOperatorTelegramUserId() {
-  return operatorTelegramUserIdSchema.parse(
-    readTelegramAudienceVoteOperatorTelegramId()
-  );
 }
 
 export const dynamic = "force-dynamic";

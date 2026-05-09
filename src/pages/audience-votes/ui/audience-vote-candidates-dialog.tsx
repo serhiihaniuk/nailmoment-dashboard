@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { 
+  ArrowLeft,
   ArrowDown,
+  ArrowRight,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   ImageOff,
   ImagePlus, 
   Loader2, 
   Plus, 
+  RotateCcw,
   Trash2, 
   Upload, 
   Users, 
@@ -71,7 +72,8 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
   const firstCandidate = state.candidates[0] ?? null;
   const selectedCandidate =
     state.candidates.find((candidate) => candidate.id === selectedCandidateId) ??
-    firstCandidate;
+    null;
+  const desktopSelectedCandidate = selectedCandidate ?? firstCandidate;
   
   const handleOpenChange = (open: boolean) => {
     state.handleOpenChange(open);
@@ -100,10 +102,10 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
           Кандидати
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[95vh] sm:max-h-[90vh] overflow-hidden w-[95vw] sm:w-[90vw] sm:max-w-5xl lg:max-w-6xl p-0 gap-0 flex flex-col">
+      <DialogContent className="flex h-[92svh] max-h-[92svh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[90vw] sm:max-w-5xl lg:max-w-6xl">
         {/* Header */}
         <DialogHeader className="px-4 sm:px-6 py-4 border-b border-border/50 bg-muted/30 shrink-0">
-          <div className="flex items-start justify-between gap-3">
+          <div className="pr-10">
             <div className="min-w-0">
               <DialogTitle className="text-base sm:text-lg">
                 Керування кандидатами
@@ -117,31 +119,35 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                   {formatAudienceVoteStatus(vote.status)}
                 </Badge>
               </DialogDescription>
-            </div>
-            {!state.isLocked && (
-              <div className="text-right text-[12px] text-muted-foreground shrink-0">
+              <p className="mt-1 text-[12px] text-muted-foreground">
                 <span className="font-medium text-foreground">
                   {state.candidates.length}
                 </span>{" "}
                 кандидатів
-              </div>
-            )}
+              </p>
+            </div>
           </div>
         </DialogHeader>
 
         {/* Main content - master detail */}
-        <div className="flex-1 flex min-h-0 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
           {/* Left panel - candidates list */}
-          <div className="w-56 sm:w-64 border-r border-border/50 flex flex-col bg-muted/20 shrink-0">
+          <div
+            className={cn(
+              "min-h-0 w-full shrink-0 flex-col border-border/50 bg-muted/20 md:flex md:max-h-none md:w-64 md:border-r",
+              selectedCandidate ? "hidden" : "flex flex-1 md:flex-none",
+              "md:border-b-0"
+            )}
+          >
             {/* Add new candidate form (if not locked) */}
             {!state.isLocked && (
               <div className="p-3 border-b border-border/40">
-                <form onSubmit={state.handleCreateSubmit} className="space-y-2">
+                <form onSubmit={state.handleCreateSubmit} className="grid gap-2 sm:grid-cols-2 md:block md:space-y-2">
                   <Input
                     placeholder="Ім’я кандидата..."
                     value={state.draft.display_name}
                     onChange={(e) => state.updateDraft("display_name", e.target.value)}
-                    className="h-8 text-[13px]"
+                    className="h-8 text-[13px] sm:col-span-1 md:col-span-1"
                     disabled={state.isCreating}
                   />
                   {state.errors.display_name && (
@@ -151,7 +157,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                     placeholder="Внутрішня назва (необов’язково)"
                     value={state.draft.internal_name}
                     onChange={(e) => state.updateDraft("internal_name", e.target.value)}
-                    className="h-8 text-[13px]"
+                    className="h-8 text-[13px] sm:col-span-1 md:col-span-1"
                     disabled={state.isCreating}
                   />
                   {state.errors.internal_name && (
@@ -161,7 +167,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                     placeholder="Підпис (необов’язково)"
                     value={state.draft.caption}
                     onChange={(e) => state.updateDraft("caption", e.target.value)}
-                    className="min-h-15 text-[13px]"
+                    className="min-h-15 text-[13px] sm:col-span-2 md:col-span-1"
                     disabled={state.isCreating}
                     rows={2}
                   />
@@ -171,7 +177,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                   <Button 
                     type="submit" 
                     size="sm" 
-                    className="w-full h-7 text-[12px]"
+                    className="h-8 w-full text-[12px] sm:col-span-2 md:col-span-1 md:h-7"
                     disabled={state.isCreating || !state.draft.display_name.trim()}
                   >
                     {state.isCreating ? (
@@ -186,7 +192,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
             )}
             
             {/* Candidates list */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               {state.isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -203,9 +209,9 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 <div className="py-1">
                   {state.candidates.map((candidate, candidateIndex) => (
                     <div
-                      key={candidate.id}
-                      className={cn(
-                        "w-full px-3 py-2.5 flex items-center gap-2 transition-colors",
+                        key={candidate.id}
+                        className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2.5 transition-colors",
                         "hover:bg-muted/60",
                         selectedCandidate?.id === candidate.id
                           ? "bg-muted/80 border-l-2 border-primary" 
@@ -234,30 +240,44 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                       {state.pendingCandidateId === candidate.id && (
                         <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
                       )}
-                      {!state.isLocked && (
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => state.moveCandidate(candidate, candidate.display_order - 1)}
-                            disabled={state.isPending || candidateIndex <= 0}
-                            aria-label="Move candidate up"
-                          >
-                            <ArrowUp size={14} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => state.moveCandidate(candidate, candidate.display_order + 1)}
-                            disabled={state.isPending || candidateIndex >= state.candidates.length - 1}
-                            aria-label="Move candidate down"
-                          >
-                            <ArrowDown size={14} />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 md:size-7"
+                          onClick={() =>
+                            state.moveCandidate(
+                              candidate,
+                              candidate.display_order - 1
+                            )
+                          }
+                          disabled={
+                            state.isLocked || state.isPending || candidateIndex <= 0
+                          }
+                          aria-label="Перемістити кандидата вище"
+                        >
+                          <ArrowUp size={14} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 md:size-7"
+                          onClick={() =>
+                            state.moveCandidate(
+                              candidate,
+                              candidate.display_order + 1
+                            )
+                          }
+                          disabled={
+                            state.isLocked ||
+                            state.isPending ||
+                            candidateIndex >= state.candidates.length - 1
+                          }
+                          aria-label="Перемістити кандидата нижче"
+                        >
+                          <ArrowDown size={14} />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -266,22 +286,22 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
           </div>
 
           {/* Right panel - candidate detail */}
-          <div className="flex-1 min-w-0 overflow-y-auto">
-            {selectedCandidate ? (
+          <div
+            className={cn(
+              "min-w-0 flex-1 overflow-y-auto",
+              selectedCandidate ? "block" : "hidden md:block"
+            )}
+          >
+            {desktopSelectedCandidate ? (
               <CandidateDetailPanel
-                candidate={selectedCandidate}
+                candidate={desktopSelectedCandidate}
                 vote={vote}
                 state={state}
-                onNavigate={(direction) => {
-                  const currentIndex = state.candidates.findIndex(c => c.id === selectedCandidate.id);
-                  const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
-                  const nextCandidate = state.candidates[newIndex];
-                  if (newIndex >= 0 && newIndex < state.candidates.length && nextCandidate) {
-                    setSelectedCandidateId(nextCandidate.id);
-                  }
-                }}
-                canNavigatePrev={state.candidates.findIndex(c => c.id === selectedCandidate.id) > 0}
-                canNavigateNext={state.candidates.findIndex(c => c.id === selectedCandidate.id) < state.candidates.length - 1}
+                onBack={
+                  selectedCandidate
+                    ? () => setSelectedCandidateId(null)
+                    : undefined
+                }
                 onRequestDelete={setCandidateToDelete}
               />
             ) : (
@@ -312,53 +332,33 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
 
 function CandidateDetailPanel({
   candidate,
+  onBack,
   vote,
   state,
-  onNavigate,
   onRequestDelete,
-  canNavigatePrev,
-  canNavigateNext,
 }: {
   candidate: VoteCandidate;
+  onBack?: (() => void) | undefined;
   vote: AudienceVote;
   state: ReturnType<typeof useVoteCandidatesDialog>;
-  onNavigate: (direction: "prev" | "next") => void;
   onRequestDelete: (candidate: VoteCandidate) => void;
-  canNavigatePrev: boolean;
-  canNavigateNext: boolean;
 }) {
   const media = useVoteCandidateMedia({ candidate, vote });
   const isEditing = state.editingCandidateId === candidate.id;
-  const currentIndex = state.candidates.findIndex(c => c.id === candidate.id);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      {/* Navigation header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onNavigate("prev")}
-            disabled={!canNavigatePrev}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          <span className="text-[12px] text-muted-foreground tabular-nums px-1">
-            {currentIndex + 1} / {state.candidates.length}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onNavigate("next")}
-            disabled={!canNavigateNext}
-          >
-            <ChevronRight size={16} />
-          </Button>
-        </div>
-      </div>
+      {onBack ? (
+        <Button
+          className="h-9 px-2 text-[13px] md:hidden"
+          onClick={onBack}
+          type="button"
+          variant="ghost"
+        >
+          <ArrowLeft size={14} className="mr-1" />
+          Кандидати
+        </Button>
+      ) : null}
 
       {/* Candidate info section */}
       <div className="space-y-4">
@@ -495,17 +495,17 @@ function CandidateDetailPanel({
                 />
                 {media.canSoftDelete && (
                   <>
-                    <div className="absolute left-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="absolute left-1.5 top-1.5 flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() =>
                           media.moveMedia(item, item.display_order - 1)
                         }
                         disabled={media.isReordering || index === 0}
-                        className="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Перемістити медіа вище"
+                        className="rounded-md bg-black/65 p-2 text-white shadow-sm transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40 md:p-1.5"
+                        aria-label="Перемістити медіа ліворуч"
                       >
-                        <ArrowUp size={12} />
+                        <ArrowLeft size={12} />
                       </button>
                       <button
                         type="button"
@@ -516,10 +516,10 @@ function CandidateDetailPanel({
                           media.isReordering ||
                           index === media.activeMedia.length - 1
                         }
-                        className="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Перемістити медіа нижче"
+                        className="rounded-md bg-black/65 p-2 text-white shadow-sm transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40 md:p-1.5"
+                        aria-label="Перемістити медіа праворуч"
                       >
-                        <ArrowDown size={12} />
+                        <ArrowRight size={12} />
                       </button>
                     </div>
                     <AlertDialog>
@@ -527,7 +527,7 @@ function CandidateDetailPanel({
                         <button
                           type="button"
                           disabled={media.isDeleting}
-                          className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                          className="absolute right-1.5 top-1.5 rounded-md bg-black/65 p-2 text-white opacity-100 shadow-sm transition-opacity hover:bg-black/80 md:p-1.5 md:opacity-0 md:group-hover:opacity-100"
                           aria-label="Видалити медіа"
                         >
                           {media.pendingMediaId === item.id &&
@@ -674,12 +674,30 @@ function CandidateDetailPanel({
                 {media.archivedMedia.map((item) => (
                   <div 
                     key={item.id} 
-                    className="relative aspect-square rounded-md overflow-hidden bg-muted border border-border/30 opacity-50"
+                    className="group relative aspect-square overflow-hidden rounded-md border border-border/30 bg-muted"
                   >
                     <CandidateMediaPreview
                       alt={candidate.display_name}
                       media={item}
                     />
+                    <div className="absolute inset-0 bg-background/55" />
+                    {media.canSoftDelete ? (
+                      <button
+                        aria-label="Відновити медіа"
+                        className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-center gap-1 rounded-md bg-background/95 px-2 py-1.5 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-background"
+                        disabled={media.isRestoring}
+                        onClick={() => media.restoreMedia(item)}
+                        type="button"
+                      >
+                        {media.pendingMediaId === item.id &&
+                        media.isRestoring ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <RotateCcw size={12} />
+                        )}
+                        Відновити
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>

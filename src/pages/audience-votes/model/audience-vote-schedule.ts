@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-import type { AudienceVote, CreateAudienceVoteStatus } from "@/entities/audience-vote";
+import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
 import {
   patchAudienceVoteScheduleClientSchema,
   type PatchAudienceVoteScheduleClientOutput,
 } from "@/shared/db/schema.zod";
 
 export type AudienceVoteScheduleDraft = {
-  status: CreateAudienceVoteStatus;
+  status: AudienceVoteStatus;
   window_end: string;
   window_start: string;
 };
@@ -37,7 +37,7 @@ export function createAudienceVoteScheduleDraft(
   vote: AudienceVote
 ): AudienceVoteScheduleDraft {
   return {
-    status: vote.status === "scheduled" ? "scheduled" : "draft",
+    status: vote.status,
     window_end: formatDateTimeLocalInput(vote.window_end),
     window_start: formatDateTimeLocalInput(vote.window_start),
   };

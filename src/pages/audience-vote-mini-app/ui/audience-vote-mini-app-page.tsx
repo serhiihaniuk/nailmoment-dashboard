@@ -2,8 +2,6 @@
 
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ImageIcon,
   Loader2,
   RefreshCw,
@@ -21,6 +19,14 @@ import type {
   VoteCandidateId,
 } from "@/entities/audience-vote";
 import { cn } from "@/shared/lib/cn";
+import type { CarouselApi } from "@/shared/ui/carousel";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/shared/ui/carousel";
 import {
   fetchAudienceVoteMiniAppFeed,
   saveAudienceVoteMiniAppVote,
@@ -265,68 +271,9 @@ function CandidateCard({
   onVote: () => void;
   votingLocked: boolean;
 }) {
-  const [mediaIndex, setMediaIndex] = useState(0);
-  const currentMedia = candidate.media[mediaIndex] ?? null;
-
-  function showPreviousMedia() {
-    setMediaIndex((index) =>
-      index === 0 ? candidate.media.length - 1 : index - 1
-    );
-  }
-
-  function showNextMedia() {
-    setMediaIndex((index) =>
-      index >= candidate.media.length - 1 ? 0 : index + 1
-    );
-  }
-
   return (
     <article className="overflow-hidden rounded-lg border border-white/10 bg-neutral-900 shadow-2xl">
-      <div className="relative aspect-4/5 bg-neutral-800">
-        {currentMedia ? (
-          <CandidateMedia
-            candidateName={candidate.display_name}
-            media={currentMedia}
-            mediaNumber={mediaIndex + 1}
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center text-white/45">
-            <ImageIcon aria-hidden="true" className="size-10" />
-          </div>
-        )}
-
-        {candidate.media.length > 1 ? (
-          <>
-            <button
-              aria-label="Попереднє медіа"
-              className="absolute left-2 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
-              onClick={showPreviousMedia}
-              type="button"
-            >
-              <ChevronLeft aria-hidden="true" className="size-5" />
-            </button>
-            <button
-              aria-label="Наступне медіа"
-              className="absolute right-2 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
-              onClick={showNextMedia}
-              type="button"
-            >
-              <ChevronRight aria-hidden="true" className="size-5" />
-            </button>
-            <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-md bg-black/50 px-2 py-1 backdrop-blur">
-              {candidate.media.map((media, index) => (
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full bg-white/35",
-                    index === mediaIndex && "bg-white"
-                  )}
-                  key={media.id}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
-      </div>
+      <CandidateMediaCarousel candidate={candidate} />
 
       <div className="grid gap-3 p-4">
         <div>
@@ -367,6 +314,95 @@ function CandidateCard({
         </button>
       </div>
     </article>
+  );
+}
+
+function CandidateMediaCarousel({
+  candidate,
+}: {
+  candidate: MiniAppVoteCandidate;
+}) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const hasMultipleMedia = candidate.media.length > 1;
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    function updateCurrentIndex() {
+      setCurrentIndex(api?.selectedScrollSnap() ?? 0);
+    }
+
+    updateCurrentIndex();
+    api.on("select", updateCurrentIndex);
+    api.on("reInit", updateCurrentIndex);
+
+    return () => {
+      api.off("select", updateCurrentIndex);
+      api.off("reInit", updateCurrentIndex);
+    };
+  }, [api]);
+
+  if (candidate.media.length === 0) {
+    return (
+      <div className="relative aspect-4/5 bg-neutral-800">
+        <div className="flex size-full items-center justify-center text-white/45">
+          <ImageIcon aria-hidden="true" className="size-10" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Carousel
+      className="relative aspect-4/5 overflow-hidden bg-neutral-800"
+      opts={{ align: "start", loop: hasMultipleMedia }}
+      setApi={setApi}
+    >
+      <CarouselContent className="h-full ml-0">
+        {candidate.media.map((media, index) => (
+          <CarouselItem className="h-full pl-0" key={media.id}>
+            <CandidateMedia
+              candidateName={candidate.display_name}
+              media={media}
+              mediaNumber={index + 1}
+            />
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+
+      {hasMultipleMedia ? (
+        <>
+          <CarouselPrevious
+            aria-label="Попереднє медіа"
+            className="left-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
+          />
+          <CarouselNext
+            aria-label="Наступне медіа"
+            className="right-3 size-11 border-white/20 bg-black/60 text-white backdrop-blur hover:bg-black/75 hover:text-white disabled:hidden"
+          />
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 backdrop-blur">
+            {candidate.media.map((media, index) => (
+              <button
+                aria-label={`Медіа ${index + 1}`}
+                className={cn(
+                  "size-2 rounded-full bg-white/40 transition",
+                  index === currentIndex && "w-5 bg-white"
+                )}
+                key={media.id}
+                onClick={() => api?.scrollTo(index)}
+                type="button"
+              />
+            ))}
+          </div>
+          <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+            {currentIndex + 1} / {candidate.media.length}
+          </div>
+        </>
+      ) : null}
+    </Carousel>
   );
 }
 

@@ -246,7 +246,7 @@ export const createAudienceVoteClientSchema = z
 
 export const patchAudienceVoteScheduleClientSchema = z
   .object({
-    status: z.enum(["draft", "scheduled"]),
+    status: z.enum(["draft", "scheduled", "open"]),
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
   })
@@ -389,7 +389,8 @@ export const patchVoteCandidateClientSchema = z.object({
 });
 
 export const patchVoteCandidateMediaClientSchema = z.object({
-  display_order: voteCandidateDisplayOrderSchema,
+  archived: z.literal(false).optional(),
+  display_order: voteCandidateDisplayOrderSchema.optional(),
 });
 
 export type InsertVoteCandidateInput = z.input<

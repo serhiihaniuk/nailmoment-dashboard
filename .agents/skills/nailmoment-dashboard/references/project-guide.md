@@ -81,10 +81,14 @@ Telegram:
 
 ```txt
 docs/telegram-flow.md
-src/app/api-routes/tg/festival-bot/*
-src/app/api-routes/tg/speaker-bot/route.ts
-src/entities/voting/model/voting.ts
-src/app/api-routes/speaker_vote/route.ts
+app/audience-vote/page.tsx
+app/api/audience-vote/bot/route.ts
+app/api/audience-vote/mini-app/route.ts
+src/pages/audience-vote-mini-app/*
+src/pages/audience-votes/*
+src/entities/audience-vote/*
+src/shared/telegram/*
+src/app/api-routes/audience-vote/*
 ```
 
 ## Safe Implementation Pattern

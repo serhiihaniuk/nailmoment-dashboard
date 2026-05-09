@@ -1,4 +1,15 @@
-import { and, asc, count, desc, eq, inArray, lt, lte, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  lt,
+  lte,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
@@ -45,7 +56,7 @@ export type AudienceVoteBroadcastSummary = AudienceVoteBroadcast & {
 
 export interface CreateAudienceVoteBroadcastInput
   extends CreateAudienceVoteBroadcastClientOutput {
-  operatorTelegramUserId: number;
+  operatorTelegramUserIds: number[];
   now?: Date;
 }
 
@@ -108,12 +119,12 @@ const interruptibleBroadcastStatuses: readonly AudienceVoteBroadcastStatus[] = [
 
 export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   const getActiveBroadcastTargetVoterCount = async (
-    operatorTelegramUserId: number
+    operatorTelegramUserIds: number[]
   ): Promise<number> => {
     const [result] = await db
       .select({ total: count(telegramUsersTable.telegramUserId) })
       .from(telegramUsersTable)
-      .where(activeBroadcastTargetWhere(operatorTelegramUserId));
+      .where(activeBroadcastTargetWhere(operatorTelegramUserIds));
 
     return result?.total ?? 0;
   };
@@ -209,10 +220,15 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     include_open_button,
     message_text,
     now = new Date(),
-    operatorTelegramUserId,
+    operatorTelegramUserIds,
   }: CreateAudienceVoteBroadcastInput): Promise<
     AudienceVoteBroadcastSummary | undefined
   > => {
+    const normalizedOperatorTelegramUserIds =
+      normalizeOperatorTelegramUserIds(operatorTelegramUserIds);
+    const primaryOperatorTelegramUserId =
+      normalizedOperatorTelegramUserIds[0];
+
     const [vote] = await db
       .select({ id: audienceVoteTable.id })
       .from(audienceVoteTable)
@@ -229,7 +245,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     }
 
     const activeVoters = await getActiveBroadcastTargetVoters(
-      operatorTelegramUserId
+      normalizedOperatorTelegramUserIds
     );
     const canaryVoters = activeVoters.slice(
       0,
@@ -244,7 +260,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       include_open_button,
       message_text,
       next_stage_at: now,
-      operator_telegram_user_id: operatorTelegramUserId,
+      operator_telegram_user_id: primaryOperatorTelegramUserId,
       status: "canary_operator_pending",
     } satisfies InsertAudienceVoteBroadcast);
 
@@ -265,7 +281,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
         broadcastId,
         canaryVoterLimit: canaryVoters.length,
         nextAttemptAt: now,
-        operatorTelegramUserId,
+        operatorTelegramUserIds: normalizedOperatorTelegramUserIds,
       })
     );
 
@@ -607,11 +623,13 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
 
-  async function getActiveBroadcastTargetVoters(operatorTelegramUserId: number) {
+  async function getActiveBroadcastTargetVoters(
+    operatorTelegramUserIds: number[]
+  ) {
     return db
       .select({ telegramUserId: telegramUsersTable.telegramUserId })
       .from(telegramUsersTable)
-      .where(activeBroadcastTargetWhere(operatorTelegramUserId))
+      .where(activeBroadcastTargetWhere(operatorTelegramUserIds))
       .orderBy(
         asc(telegramUsersTable.createdAt),
         asc(telegramUsersTable.telegramUserId)
@@ -722,16 +740,19 @@ export function buildAudienceVoteBroadcastDeliveryRows({
   broadcastId,
   canaryVoterLimit = AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT,
   nextAttemptAt,
-  operatorTelegramUserId,
+  operatorTelegramUserIds,
 }: {
   activeTelegramUserIds: number[];
   broadcastId: string;
   canaryVoterLimit?: number;
   nextAttemptAt: Date;
-  operatorTelegramUserId: number;
+  operatorTelegramUserIds: number[];
 }): InsertAudienceVoteBroadcastDelivery[] {
+  const normalizedOperatorTelegramUserIds =
+    normalizeOperatorTelegramUserIds(operatorTelegramUserIds);
+  const operatorTelegramUserIdSet = new Set(normalizedOperatorTelegramUserIds);
   const targetTelegramUserIds = activeTelegramUserIds.filter(
-    (telegramUserId) => telegramUserId !== operatorTelegramUserId
+    (telegramUserId) => !operatorTelegramUserIdSet.has(telegramUserId)
   );
   const canaryTelegramUserIds = targetTelegramUserIds.slice(
     0,
@@ -743,18 +764,22 @@ export function buildAudienceVoteBroadcastDeliveryRows({
   );
 
   return [
-    buildDeliveryRow({
-      broadcastId,
-      nextAttemptAt,
-      stage: "operator_canary",
-      telegramUserId: operatorTelegramUserId,
-    }),
-    buildDeliveryRow({
-      broadcastId,
-      nextAttemptAt,
-      stage: "voter_canary",
-      telegramUserId: operatorTelegramUserId,
-    }),
+    ...normalizedOperatorTelegramUserIds.map((telegramUserId) =>
+      buildDeliveryRow({
+        broadcastId,
+        nextAttemptAt,
+        stage: "operator_canary",
+        telegramUserId,
+      })
+    ),
+    ...normalizedOperatorTelegramUserIds.map((telegramUserId) =>
+      buildDeliveryRow({
+        broadcastId,
+        nextAttemptAt,
+        stage: "voter_canary",
+        telegramUserId,
+      })
+    ),
     ...canaryTelegramUserIds.map((telegramUserId) =>
       buildDeliveryRow({
         broadcastId,
@@ -774,11 +799,31 @@ export function buildAudienceVoteBroadcastDeliveryRows({
   ];
 }
 
-function activeBroadcastTargetWhere(operatorTelegramUserId: number) {
+function activeBroadcastTargetWhere(operatorTelegramUserIds: number[]) {
+  const normalizedOperatorTelegramUserIds =
+    normalizeOperatorTelegramUserIds(operatorTelegramUserIds);
+
   return and(
     eq(telegramUsersTable.isActive, true),
-    ne(telegramUsersTable.telegramUserId, operatorTelegramUserId)
+    notInArray(
+      telegramUsersTable.telegramUserId,
+      normalizedOperatorTelegramUserIds
+    )
   );
+}
+
+function normalizeOperatorTelegramUserIds(
+  operatorTelegramUserIds: number[]
+): [number, ...number[]] {
+  const [firstOperatorTelegramUserId, ...otherOperatorTelegramUserIds] = [
+    ...new Set(operatorTelegramUserIds),
+  ];
+
+  if (firstOperatorTelegramUserId === undefined) {
+    throw new Error("At least one Operator Telegram user id is required.");
+  }
+
+  return [firstOperatorTelegramUserId, ...otherOperatorTelegramUserIds];
 }
 
 function buildDeliveryRow({

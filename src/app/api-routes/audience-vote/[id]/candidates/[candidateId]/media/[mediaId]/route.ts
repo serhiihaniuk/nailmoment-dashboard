@@ -74,7 +74,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           message:
-            "Media order can only be changed before an Audience Vote opens.",
+            "Media can only be changed before an Audience Vote opens.",
         },
         { status: 403 }
       );
@@ -90,19 +90,24 @@ export async function PATCH(
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
 
-    const media = await audienceVoteService.getVoteCandidateMedia(
-      parsedParams.data.mediaId
-    );
-    if (!media || media.archived || media.candidate_id !== candidate.id) {
-      return NextResponse.json({ message: "Not found" }, { status: 404 });
-    }
-
     const parsed = await parseRequestJson(
       request,
       patchVoteCandidateMediaClientSchema,
       { errorFormat: "fieldErrors" }
     );
     if (!parsed.ok) return parsed.response;
+
+    const media = await audienceVoteService.getVoteCandidateMedia(
+      parsedParams.data.mediaId
+    );
+    const isRestoreRequest = parsed.data.archived === false;
+    if (
+      !media ||
+      (!isRestoreRequest && media.archived) ||
+      media.candidate_id !== candidate.id
+    ) {
+      return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
 
     if (objectKeys(parsed.data).length === 0) {
       return NextResponse.json(

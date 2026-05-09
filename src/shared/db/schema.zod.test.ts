@@ -4,7 +4,9 @@ import {
   createAudienceVoteClientSchema,
   createVoteCandidateClientSchema,
   insertVoteCandidateSchema,
+  patchAudienceVoteScheduleClientSchema,
   patchVoteCandidateClientSchema,
+  patchVoteCandidateMediaClientSchema,
 } from "./schema.zod";
 
 describe("audience vote route schemas", () => {
@@ -88,6 +90,35 @@ describe("vote candidate route schemas", () => {
       display_order: 1,
       id: "candidate_1",
       internal_name: null,
+    });
+  });
+
+  test("parses open vote closing-time schedule updates", () => {
+    const parsed = patchAudienceVoteScheduleClientSchema.parse({
+      status: "open",
+      window_end: "2026-05-09T20:00:00.000Z",
+      window_start: "2026-05-08T12:00:00.000Z",
+    });
+
+    expect(parsed.status).toBe("open");
+    expect(parsed.window_end).toBeInstanceOf(Date);
+  });
+
+  test("parses media reorder and restore patches", () => {
+    expect(
+      patchVoteCandidateMediaClientSchema.parse({
+        display_order: "3",
+      })
+    ).toEqual({
+      display_order: 3,
+    });
+
+    expect(
+      patchVoteCandidateMediaClientSchema.parse({
+        archived: false,
+      })
+    ).toEqual({
+      archived: false,
     });
   });
 

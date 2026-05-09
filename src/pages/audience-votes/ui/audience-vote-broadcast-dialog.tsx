@@ -15,19 +15,8 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
 import { Textarea } from "@/shared/ui/textarea";
-import {
-  formatAudienceVoteKind,
-  formatAudienceVoteStatus,
-} from "../model/audience-vote-form";
 import { useAudienceVoteBroadcastDialog } from "../model/use-audience-vote-broadcast-dialog";
 
 interface AudienceVoteBroadcastDialogProps {
@@ -77,27 +66,11 @@ export function AudienceVoteBroadcastDialog({
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handlePreview}>
-          <Field label="Голосування" message={errors.audience_vote_id}>
-            <Select
-              disabled={isPending}
-              onValueChange={(value) =>
-                updateDraft("audience_vote_id", value)
-              }
-              value={draft.audience_vote_id}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Оберіть голосування" />
-              </SelectTrigger>
-              <SelectContent>
-                {votes.map((vote) => (
-                  <SelectItem key={vote.id} value={vote.id}>
-                    {vote.title} / {formatAudienceVoteKind(vote.kind)} /{" "}
-                    {formatAudienceVoteStatus(vote.status)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          {errors.audience_vote_id ? (
+            <p className="text-sm font-medium text-destructive">
+              {errors.audience_vote_id}
+            </p>
+          ) : null}
 
           <Field label="Текст повідомлення" message={errors.message_text}>
             <Textarea

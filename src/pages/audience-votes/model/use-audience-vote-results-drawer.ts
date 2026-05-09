@@ -13,7 +13,7 @@ import { fetchAudienceVoteResults } from "../api/audience-votes-client";
 export const audienceVoteResultsQueryKey = (voteId: AudienceVoteId) =>
   ["audienceVoteResults", voteId] as const;
 
-export function useAudienceVoteResultsDialog(vote: AudienceVote) {
+export function useAudienceVoteResultsDrawer(vote: AudienceVote) {
   const [open, setOpen] = useState(false);
 
   const query = useQuery<AudienceVoteResults, Error>({

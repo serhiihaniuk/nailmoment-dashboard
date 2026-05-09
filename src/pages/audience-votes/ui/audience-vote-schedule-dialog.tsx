@@ -20,7 +20,9 @@ import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedu
 
 export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
   const state = useAudienceVoteScheduleDialog(vote);
-  const isEditable = vote.status === "draft" || vote.status === "scheduled";
+  const isOpenVote = vote.status === "open";
+  const isEditable =
+    vote.status === "draft" || vote.status === "scheduled" || isOpenVote;
 
   if (!isEditable) {
     return null;
@@ -41,20 +43,25 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
             Додайте або змініть час для чернетки. Якщо очистити обидва поля,
             голосування знову стане незапланованим.
           </DialogDescription>
+          {isOpenVote ? (
+            <p className="text-sm text-muted-foreground">
+              Голосування вже відкрите. Можна змінити лише час завершення.
+            </p>
+          ) : null}
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={state.handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <Field label="Початок" message={state.errors.window_start}>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="pl-9"
-                  disabled={state.isPending}
+                  className="min-w-0 w-full pl-9 pr-10"
+                  disabled={state.isPending || isOpenVote}
                   onChange={(event) =>
                     state.updateDraft("window_start", event.target.value)
                   }
@@ -65,14 +72,14 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
             </Field>
 
             <Field label="Завершення" message={state.errors.window_end}>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="pl-9"
+                  className="min-w-0 w-full pl-9 pr-10"
                   disabled={state.isPending}
                   onChange={(event) =>
                     state.updateDraft("window_end", event.target.value)
@@ -84,8 +91,13 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
             </Field>
           </div>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden">
             Розклад можна редагувати лише до відкриття голосування.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {isOpenVote
+              ? "Початок зафіксований. Змініть завершення, щоб продовжити або скоротити голосування."
+              : "Розклад можна редагувати до відкриття голосування."}
           </p>
 
           {state.formError ? (
@@ -124,7 +136,7 @@ function Field({
   message?: string | undefined;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <Label>{label}</Label>
       {children}
       {message ? <p className="text-sm text-destructive">{message}</p> : null}

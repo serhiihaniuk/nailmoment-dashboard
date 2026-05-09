@@ -585,23 +585,6 @@ export type TicketWithFinance = Ticket & {
   finance_summary: TicketFinanceSummary;
 };
 
-export const speakerVoteTGTable = pgTable("speaker_vote_tg", {
-  id: text("id").primaryKey(),
-
-  telegram_user_id: bigint("telegram_user_id", { mode: "number" })
-    .notNull()
-    .unique(),
-
-  voted_for_id: text("voted_for_id").notNull(),
-
-  created_at: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-export type SpeakerVoteTG = typeof speakerVoteTGTable.$inferSelect;
-export type InsertSpeakerVoteTG = typeof speakerVoteTGTable.$inferInsert;
-
 export const telegramUsersTable = pgTable("telegram_users", {
   telegramUserId: bigint("telegram_user_id", { mode: "number" }).primaryKey(),
   firstName: text("first_name").notNull(),
@@ -770,37 +753,6 @@ export const audienceVoteCurrentVoteTable = pgTable(
   })
 );
 
-/**
- * Stores the votes for the "Battle of Masters" event.
- * Keeps this data separate from the previous "Speaker Vote" event.
- */
-export const battleVoteTGTable = pgTable(
-  "battle_vote_tg",
-  {
-    id: text("id").primaryKey(),
-
-    telegram_user_id: bigint("telegram_user_id", { mode: "number" })
-      .notNull()
-      .references(() => telegramUsersTable.telegramUserId),
-
-    voted_for_contestant_id: text("voted_for_contestant_id").notNull(),
-
-    category_id: text("category_id").notNull(),
-
-    created_at: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => {
-    return {
-      userCategoryUnique: unique("user_category_unique").on(
-        table.telegram_user_id,
-        table.category_id
-      ),
-    };
-  }
-);
-
 export type TelegramUser = typeof telegramUsersTable.$inferSelect;
 export type InsertTelegramUser = typeof telegramUsersTable.$inferInsert;
 
@@ -818,6 +770,3 @@ export type AudienceVoteCurrentVote =
   typeof audienceVoteCurrentVoteTable.$inferSelect;
 export type InsertAudienceVoteCurrentVote =
   typeof audienceVoteCurrentVoteTable.$inferInsert;
-
-export type BattleVoteTG = typeof battleVoteTGTable.$inferSelect;
-export type InsertBattleVoteTG = typeof battleVoteTGTable.$inferInsert;

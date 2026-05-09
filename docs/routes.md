@@ -17,7 +17,6 @@ runtime boundary, response parser, and side effects.
 | `/ticket/:id` | `app/(protected)/ticket/[id]/page.tsx` | `src/pages/ticket-detail` | Protected layout | Ticket detail page and arrival tools. |
 | `/pdf/:id` | `app/(protected)/pdf/[id]/page.tsx` | `src/pages/pdf-ticket-preview` | Protected layout | Ticket email/PDF preview UI. |
 | `/pdf/demo` | `app/(protected)/pdf/demo/page.tsx` | `src/pages/pdf-demo` | Protected layout | Demo email/PDF preview. |
-| `/speaker_vote` | `app/(protected)/speaker_vote/page.tsx` | `src/pages/speaker-vote` | Protected layout | Speaker vote results dashboard. |
 | `/audience-votes` | `app/(protected)/audience-votes/page.tsx` | `src/pages/audience-votes` | Protected layout | Audience Vote list/create dashboard. |
 | `/cookie-analytics` | `app/(protected)/cookie-analytics/page.tsx` | `src/pages/cookie-analytics` | Protected layout | Cookie consent analytics, charts, and recent events. |
 | `/info` | `app/(protected)/info/page.tsx` | `src/pages/info` | Protected layout | Help/info page. |
@@ -33,8 +32,6 @@ app/(protected)/layout.tsx
 ```
 
 ## API Routes
-
-> Legacy note: `/api/tg/*` routes are leftovers from a previous event season. Do not deepen or refactor them; future Telegram voting should be redesigned from scratch. See [ADR-0001](adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
 
 | Method / URL | Root route file | Implementation | Auth | Request parsing | Response parsing / consumer | Side effects |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -69,7 +66,7 @@ app/(protected)/layout.tsx
 | `POST /api/audience-vote/bot` | `app/api/audience-vote/bot/route.ts` | `src/app/api-routes/audience-vote/bot/route.ts` | Telegram webhook secret token header, not Better Auth | `x-telegram-bot-api-secret-token` compared with `TG_AUDIENCE_VOTE_WEBHOOK_SECRET`; Grammy update parsing | Telegram webhook response | Handles `/start` and `/vote` only: upserts/reactivates the Telegram Voter and sends a Ukrainian Audience Vote Mini App entry button. |
 | `GET /api/audience-vote/broadcasts` | `app/api/audience-vote/broadcasts/route.ts` | `src/app/api-routes/audience-vote/broadcasts/route.ts` | Required | none | `parseAudienceVoteBroadcastList()` in audience vote page client | Reads Audience Vote Broadcast summaries with per-stage delivery counts. |
 | `POST /api/audience-vote/broadcasts/preview` | `app/api/audience-vote/broadcasts/preview/route.ts` | `src/app/api-routes/audience-vote/broadcasts/preview/route.ts` | Required | `previewAudienceVoteBroadcastClientSchema` | `parseAudienceVoteBroadcastPreview()` in audience vote page client | Previews message text, open-voting button choice, and active recipient count without creating delivery rows. |
-| `POST /api/audience-vote/broadcasts` | `app/api/audience-vote/broadcasts/route.ts` | `src/app/api-routes/audience-vote/broadcasts/route.ts` | Required | `createAudienceVoteBroadcastClientSchema` | `parseAudienceVoteBroadcast()` in audience vote page client | Creates confirmed broadcast delivery rows and immediately kicks the safe processor for the Operator canary. |
+| `POST /api/audience-vote/broadcasts` | `app/api/audience-vote/broadcasts/route.ts` | `src/app/api-routes/audience-vote/broadcasts/route.ts` | Required | `createAudienceVoteBroadcastClientSchema` | `parseAudienceVoteBroadcast()` in audience vote page client | Creates confirmed broadcast delivery rows and immediately kicks the safe processor for configured Operator canaries. |
 | `POST /api/audience-vote/broadcasts/:broadcastId/process` | `app/api/audience-vote/broadcasts/[broadcastId]/process/route.ts` | `src/app/api-routes/audience-vote/broadcasts/[broadcastId]/process/route.ts` | Required | `audienceVoteBroadcastIdSchema` route param | `parseAudienceVoteBroadcast()` in audience vote page client | Dashboard-triggered safe processor kick for canary, normal delivery, and retry batches. |
 | `POST /api/audience-vote/broadcasts/:broadcastId/interrupt` | `app/api/audience-vote/broadcasts/[broadcastId]/interrupt/route.ts` | `src/app/api-routes/audience-vote/broadcasts/[broadcastId]/interrupt/route.ts` | Required | `audienceVoteBroadcastIdSchema` route param | `parseAudienceVoteBroadcast()` in audience vote page client | Sets the DB-backed kill switch and skips future unsent deliveries while preserving already sent records. |
 | `GET /api/audience-vote/broadcasts/process` | `app/api/audience-vote/broadcasts/process/route.ts` | `src/app/api-routes/audience-vote/broadcasts/process/route.ts` | Processor secret, not Better Auth | `Authorization: Bearer <TG_AUDIENCE_VOTE_PROCESSOR_SECRET>` or Vercel `CRON_SECRET` bearer | JSON `{ processed, broadcast_ids }` | Scheduled processor for due unsent broadcasts; uses the same safe send path as dashboard kicks. |
@@ -80,9 +77,6 @@ app/(protected)/layout.tsx
 | `GET /api/audience-vote/:id/candidates/:candidateId/media` | `app/api/audience-vote/[id]/candidates/[candidateId]/media/route.ts` | `src/app/api-routes/audience-vote/[id]/candidates/[candidateId]/media/route.ts` | Required | `audienceVoteIdSchema`, `voteCandidateIdSchema` | `parseVoteCandidateMediaList()` in audience vote page client | Reads active and archived Vote Candidate Media for Operators. |
 | `DELETE /api/audience-vote/:id/candidates/:candidateId/media/:mediaId` | `app/api/audience-vote/[id]/candidates/[candidateId]/media/[mediaId]/route.ts` | `src/app/api-routes/audience-vote/[id]/candidates/[candidateId]/media/[mediaId]/route.ts` | Required | `audienceVoteIdSchema`, `voteCandidateIdSchema`, `voteCandidateMediaIdSchema` | `{ id }` | Soft-deletes Vote Candidate Media before the Audience Vote opens; never deletes Blob files. |
 | `POST /api/audience-vote/:id/candidates/:candidateId/media/upload` | `app/api/audience-vote/[id]/candidates/[candidateId]/media/upload/route.ts` | `src/app/api-routes/audience-vote/[id]/candidates/[candidateId]/media/upload/route.ts` | Required for token generation; Vercel Blob callback for completion | Vercel Blob `handleUpload`, app-controlled path/payload validation | Vercel Blob client upload response; media client invalidates list | Issues constrained client-upload tokens and records completed public Blob media without overwrites or Blob deletes. |
-| `POST /api/tg/festival-bot` | `app/api/tg/festival-bot/route.ts` | `src/app/api-routes/tg/festival-bot/route.ts` | Telegram webhook token route config | Grammy update parsing | Telegram response | Festival voting, media slider, broadcasts, DB votes/users. |
-| `POST /api/tg/speaker-bot` | `app/api/tg/speaker-bot/route.ts` | `src/app/api-routes/tg/speaker-bot/route.ts` | Telegram webhook token route config | Grammy update parsing | Telegram response | Speaker/battle category voting and broadcasts. |
-| `GET /api/speaker_vote` | `app/api/speaker_vote/route.ts` | `src/app/api-routes/speaker_vote/route.ts` | Required | none | Speaker vote page | Aggregates `speaker_vote_tg` counts. |
 | `GET /api/pdf/:id` | `app/api/pdf/[id]/route.tsx` | `src/app/api-routes/pdf/[id]/route.tsx` | Required | raw `id` param | HTML response | Renders ticket email HTML preview. |
 | `GET /api/pdf` | `app/api/pdf/route.ts` | `src/app/api-routes/pdf/route.ts` | none today | none | Plain response | Test Logtail endpoint. |
 
@@ -106,6 +100,6 @@ Routes with special handling:
 
 - Stripe must read `request.text()` for signature verification before JSON
   parsing. See [stripe-flow.md](stripe-flow.md).
-- Telegram routes are owned by Grammy's `webhookCallback`.
+- The Audience Vote bot route is owned by Grammy's `webhookCallback`.
 - PDF/email preview routes render HTML and can return `text/html`.
 - Better Auth route is delegated to Better Auth.

@@ -678,13 +678,13 @@ export function createAudienceVoteService(
       return undefined;
     }
 
-    if (currentVote.status === "open" || currentVote.status === "closed") {
+    if (currentVote.status === "closed") {
       throw new AudienceVoteTransitionError({
         issues: [
           {
             code: "schedule_locked",
             message:
-              "Schedule can only be edited before an Audience Vote is opened.",
+              "Schedule cannot be edited after an Audience Vote is closed.",
           },
         ],
         message: "Audience Vote schedule cannot be updated.",
@@ -692,17 +692,33 @@ export function createAudienceVoteService(
       });
     }
 
-    const validatedData = patchAudienceVoteScheduleClientSchema.parse(input);
+    const validatedData =
+      currentVote.status === "open"
+        ? patchAudienceVoteScheduleClientSchema.parse({
+            ...input,
+            status: "open",
+            window_start: currentVote.window_start,
+          })
+        : patchAudienceVoteScheduleClientSchema.parse(input);
+    const updateData =
+      currentVote.status === "open"
+        ? {
+            status: "open" as const,
+            window_end: validatedData.window_end,
+            window_start: currentVote.window_start,
+          }
+        : validatedData;
     const [updatedVote] = await db
       .update(audienceVoteTable)
-      .set(validatedData)
+      .set(updateData)
       .where(
         and(
           eq(audienceVoteTable.id, id),
           eq(audienceVoteTable.archived, false),
           or(
             eq(audienceVoteTable.status, "draft"),
-            eq(audienceVoteTable.status, "scheduled")
+            eq(audienceVoteTable.status, "scheduled"),
+            eq(audienceVoteTable.status, "open")
           )
         )
       )
@@ -888,16 +904,43 @@ export function createAudienceVoteService(
     mediaData: PatchVoteCandidateMediaClientInput
   ): Promise<VoteCandidateMedia | undefined> => {
     const currentMedia = await getVoteCandidateMedia(id);
-    if (!currentMedia || currentMedia.archived) {
+    if (!currentMedia) {
       return undefined;
     }
 
     const validatedData = patchVoteCandidateMediaClientSchema.parse(mediaData);
-    await reorderActiveCandidateMedia(
-      currentMedia.candidate_id,
-      id,
-      validatedData.display_order
-    );
+
+    if (currentMedia.archived) {
+      if (validatedData.archived !== false) {
+        return undefined;
+      }
+
+      const activeMedia = await getVoteCandidateMediaList({
+        archived: false,
+        candidateId: currentMedia.candidate_id,
+      });
+      const restoredOrder = validatedData.display_order ?? activeMedia.length + 1;
+
+      await db
+        .update(voteCandidateMediaTable)
+        .set({ archived: false, display_order: restoredOrder })
+        .where(eq(voteCandidateMediaTable.id, id));
+      await reorderActiveCandidateMedia(
+        currentMedia.candidate_id,
+        id,
+        restoredOrder
+      );
+
+      return getVoteCandidateMedia(id);
+    }
+
+    if (validatedData.display_order !== undefined) {
+      await reorderActiveCandidateMedia(
+        currentMedia.candidate_id,
+        id,
+        validatedData.display_order
+      );
+    }
 
     return getVoteCandidateMedia(id);
   };

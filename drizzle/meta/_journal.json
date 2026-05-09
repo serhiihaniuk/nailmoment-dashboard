@@ -211,6 +211,13 @@
       "when": 1778265000000,
       "tag": "0029_audience_vote_update_screen",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1778329097853,
+      "tag": "0030_drop_legacy_telegram_votes",
+      "breakpoints": true
     }
   ]
 }

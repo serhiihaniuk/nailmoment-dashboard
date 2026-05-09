@@ -18,7 +18,6 @@ erDiagram
   stripe_webhook_event ||--o| ticket : correlates
   stripe_webhook_event ||--o| battle_ticket : correlates
 
-  telegram_users ||--o{ battle_vote_tg : casts
   telegram_users ||--o{ audience_vote_current_vote : casts
   audience_vote ||--o{ vote_candidate : has
   audience_vote ||--o{ audience_vote_current_vote : has
@@ -104,13 +103,6 @@ erDiagram
     timestamptz lastBroadcastSentAt
   }
 
-  battle_vote_tg {
-    text id PK
-    bigint telegram_user_id
-    text category_id
-    text voted_for_contestant_id
-  }
-
   audience_vote {
     text id PK
     enum kind
@@ -168,10 +160,6 @@ erDiagram
     timestamptz updated_at
   }
 
-  speaker_vote_tg {
-    text id PK
-    text voted_for_id
-  }
 ```
 
 The Stripe correlations above are operational correlations, not declared
@@ -288,18 +276,11 @@ Why event id, not session id:
 - The session id is stored separately for operator search and correlation with
   ticket/battle rows.
 
-### Telegram Voting
+### Telegram Voters
 
-`telegram_users` stores users seen by the bots and broadcast throttling state.
-
-`battle_vote_tg` stores battle/festival vote rows:
-
-- `telegram_user_id`
-- `category_id`
-- `voted_for_contestant_id`
-
-`speaker_vote_tg` stores speaker vote rows and is aggregated by
-`GET /api/speaker_vote`.
+`telegram_users` stores Telegram users who have opened the Audience Vote bot or
+Mini App. Audience Vote uses it for Mini App voter identity, active/inactive
+broadcast targeting, and broadcast throttling state.
 
 ### Audience Vote
 
@@ -357,7 +338,9 @@ history of previous update screens.
 
 `audience_vote_broadcast` stores Operator-confirmed broadcast messages,
 canary/normal workflow status, the estimated active recipient count, the
-Operator Telegram id used for canaries, and the DB-backed interrupt status.
+primary Operator Telegram id for audit/backward compatibility, and the
+DB-backed interrupt status. Current canary recipients are stored as delivery
+rows, so multiple configured Operators can receive the test stages.
 
 `audience_vote_broadcast_delivery` stores one durable delivery row per
 recipient and stage. Important fields:
@@ -417,5 +400,8 @@ Relevant finance/Stripe migrations:
   scheduling metadata and the completed broadcast status.
 - `drizzle/0029_audience_vote_update_screen.sql`: adds the Operator-managed
   Mini App update screen shown when no Audience Vote is open.
+- `drizzle/0030_drop_legacy_telegram_votes.sql`: removes the old
+  message-based Telegram voting tables (`battle_vote_tg` and
+  `speaker_vote_tg`) from environments where the cleanup migration is applied.
 
 Production migration work must follow `AGENTS.md`.

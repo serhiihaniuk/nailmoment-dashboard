@@ -52,14 +52,6 @@ export function readOptionalLogtailConfig(env: Env = process.env) {
   };
 }
 
-export function readTelegramFestivalBotToken(env: Env = process.env) {
-  return readRequiredEnv("TG_FESTIVAL_BOT", env);
-}
-
-export function readTelegramSpeakerBotToken(env: Env = process.env) {
-  return readRequiredEnv("TG_BOT", env);
-}
-
 export function readTelegramAudienceVoteBotToken(env: Env = process.env) {
   return readRequiredEnv("TG_AUDIENCE_VOTE_BOT_TOKEN", env);
 }
@@ -76,10 +68,13 @@ export function readTelegramAudienceVoteProcessorSecret(env: Env = process.env) 
   return readRequiredEnv("TG_AUDIENCE_VOTE_PROCESSOR_SECRET", env);
 }
 
-export function readTelegramAudienceVoteOperatorTelegramId(
+export function readTelegramAudienceVoteOperatorTelegramIds(
   env: Env = process.env
 ) {
-  return readRequiredEnv("TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID", env);
+  return (
+    readOptionalEnv("TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS", env) ??
+    readRequiredEnv("TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID", env)
+  );
 }
 
 export function readVercelUrl(env: Env = process.env) {

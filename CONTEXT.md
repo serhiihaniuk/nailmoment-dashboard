@@ -295,7 +295,7 @@ _Avoid_: Optimistic save, inline edit, mutation flow
 - An **Audience Vote Broadcast** targets all active **Telegram Voters** who have opened the voting bot.
 - An **Audience Vote Broadcast** has message text and may include an open-voting button.
 - An **Audience Vote Broadcast** starts with an **Audience Vote Broadcast Canary** before normal delivery.
-- An **Audience Vote Broadcast Canary** sends first to the **Operator**, waits two minutes, sends to 25 **Telegram Voters** plus the **Operator**, then waits two more minutes before normal delivery.
+- An **Audience Vote Broadcast Canary** sends first to every configured **Operator**, waits two minutes, sends to 25 **Telegram Voters** plus every configured **Operator**, then waits two more minutes before normal delivery.
 - An **Operator** may interrupt an **Audience Vote Broadcast** from the dashboard.
 - Interrupting an **Audience Vote Broadcast** must stop all future unsent deliveries.
 - An **Audience Vote Broadcast** is delivered through **Audience Vote Broadcast Deliveries**.

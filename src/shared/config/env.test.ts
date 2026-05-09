@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   readTelegramAudienceVoteBotToken,
   readTelegramAudienceVoteMiniAppUrl,
-  readTelegramAudienceVoteOperatorTelegramId,
+  readTelegramAudienceVoteOperatorTelegramIds,
   readTelegramAudienceVoteProcessorSecret,
   readTelegramAudienceVoteWebhookSecret,
   readOptionalEnv,
@@ -65,10 +65,27 @@ describe("env readers", () => {
     expect(readTelegramAudienceVoteMiniAppUrl(env)).toBe(
       "https://example.com/audience-vote"
     );
-    expect(readTelegramAudienceVoteOperatorTelegramId(env)).toBe("299445418");
+    expect(readTelegramAudienceVoteOperatorTelegramIds(env)).toBe("299445418");
     expect(readTelegramAudienceVoteProcessorSecret(env)).toBe(
       "processor-secret"
     );
     expect(readTelegramAudienceVoteWebhookSecret(env)).toBe("webhook-secret");
+  });
+
+  test("reads plural Audience Vote Operator Telegram ids with singular fallback", () => {
+    expect(
+      readTelegramAudienceVoteOperatorTelegramIds(
+        testEnv({ TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID: " 299445418 " })
+      )
+    ).toBe("299445418");
+
+    expect(
+      readTelegramAudienceVoteOperatorTelegramIds(
+        testEnv({
+          TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_ID: " 299445418 ",
+          TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS: " 299445418, 400 ",
+        })
+      )
+    ).toBe("299445418, 400");
   });
 });

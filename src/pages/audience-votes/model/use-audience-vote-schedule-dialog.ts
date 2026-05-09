@@ -78,7 +78,11 @@ export function useAudienceVoteScheduleDialog(vote: AudienceVote) {
     setFormError(null);
 
     const nextStatus =
-      draft.window_start || draft.window_end ? "scheduled" : "draft";
+      vote.status === "open"
+        ? "open"
+        : draft.window_start || draft.window_end
+          ? "scheduled"
+          : "draft";
     const parsed = parseAudienceVoteScheduleDraft({
       ...draft,
       status: nextStatus,

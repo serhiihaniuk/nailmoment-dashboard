@@ -7,6 +7,7 @@ import {
   ImageIcon,
   ImageOff,
   Loader2,
+  RotateCcw,
   Trash2,
   Video,
 } from "lucide-react";
@@ -39,14 +40,20 @@ import {
 } from "../model/vote-candidate-media";
 
 export function VoteCandidateMediaTile({
+  canRestore,
   canSoftDelete,
   isDeleting,
+  isRestoring,
   media,
+  onRestore,
   onSoftDelete,
 }: {
+  canRestore: boolean;
   canSoftDelete: boolean;
   isDeleting: boolean;
+  isRestoring: boolean;
   media: VoteCandidateMedia;
+  onRestore?: ((media: VoteCandidateMedia) => void) | undefined;
   onSoftDelete: (media: VoteCandidateMedia) => void;
 }) {
   return (
@@ -62,10 +69,13 @@ export function VoteCandidateMediaTile({
         </CardTitle>
         <CardAction>
           <MediaTileActions
+            canRestore={canRestore}
             canSoftDelete={canSoftDelete}
             isArchived={media.archived}
             isDeleting={isDeleting}
+            isRestoring={isRestoring}
             media={media}
+            onRestore={onRestore}
             onSoftDelete={onSoftDelete}
           />
         </CardAction>
@@ -159,16 +169,22 @@ function MediaPreviewFallback({ media }: { media: VoteCandidateMedia }) {
 }
 
 function MediaTileActions({
+  canRestore,
   canSoftDelete,
   isArchived,
   isDeleting,
+  isRestoring,
   media,
+  onRestore,
   onSoftDelete,
 }: {
+  canRestore: boolean;
   canSoftDelete: boolean;
   isArchived: boolean;
   isDeleting: boolean;
+  isRestoring: boolean;
   media: VoteCandidateMedia;
+  onRestore?: ((media: VoteCandidateMedia) => void) | undefined;
   onSoftDelete: (media: VoteCandidateMedia) => void;
 }) {
   return (
@@ -183,7 +199,22 @@ function MediaTileActions({
           <ExternalLink aria-hidden="true" data-icon="inline-start" />
         </a>
       </Button>
-      {!isArchived ? (
+      {isArchived ? (
+        <Button
+          aria-label="Відновити медіа"
+          disabled={!canRestore || isRestoring || !onRestore}
+          onClick={() => onRestore?.(media)}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          {isRestoring ? (
+            <Loader2 aria-hidden="true" className="animate-spin" />
+          ) : (
+            <RotateCcw aria-hidden="true" />
+          )}
+        </Button>
+      ) : (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
@@ -221,7 +252,7 @@ function MediaTileActions({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      ) : null}
+      )}
     </div>
   );
 }

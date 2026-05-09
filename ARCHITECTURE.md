@@ -36,10 +36,8 @@ Use these as the daily navigation set:
 | Debug finance totals, autosave, discounts, payment plans | [docs/finance-flow.md](docs/finance-flow.md) |
 | Debug Stripe checkout webhook fulfillment and totals | [docs/stripe-flow.md](docs/stripe-flow.md) |
 | Debug ticket creation, QR codes, Resend emails, PDF/email previews | [docs/ticket-email-qr-flow.md](docs/ticket-email-qr-flow.md) |
-| Debug Telegram bots and voting | [docs/telegram-flow.md](docs/telegram-flow.md) |
+| Debug Audience Vote Telegram bot, Mini App, and broadcasts | [docs/telegram-flow.md](docs/telegram-flow.md) |
 | Build new Audience Vote Mini App voting | [docs/audience-vote-plan.md](docs/audience-vote-plan.md) |
-
-> Legacy note: Existing Telegram voting routes are leftovers from a previous event season. Do not deepen or refactor this flow; future Telegram voting should be designed as a fresh implementation. See [ADR-0001](docs/adr/0001-treat-telegram-voting-as-legacy-pending-rewrite.md).
 
 ## Mental Model
 
@@ -129,7 +127,6 @@ src/
     info/                               Help/info page
     pdf-demo/                           Email/PDF demo UI
     pdf-ticket-preview/                 Email preview page and server actions
-    speaker-vote/                       Speaker vote results UI
     audience-votes/                     Audience Vote list/create UI
     audience-vote-mini-app/             Public Telegram Mini App feed UI
     home/                               Root route UI
@@ -188,9 +185,9 @@ Stripe webhook
   -> src/app/api-routes/webhooks/stripe/route.ts
   -> src/app/stripe/*
 
-Telegram webhook
-  -> app/api/tg/*/route.ts
-  -> src/app/api-routes/tg/*/route.ts
+Telegram Audience Vote bot webhook
+  -> app/api/audience-vote/bot/route.ts
+  -> src/app/api-routes/audience-vote/bot/route.ts
 ```
 
 Protected UI routes render through:
@@ -243,8 +240,10 @@ Primary groups:
 - Tickets: `ticket`, `battle_ticket`.
 - Finance: `ticket_finance`, `payment_installment`.
 - Stripe audit/idempotency: `stripe_webhook_event`.
-- Telegram voting: `telegram_users`, `battle_vote_tg`, `speaker_vote_tg`.
-- Audience Vote: `audience_vote`, `vote_candidate`, `vote_candidate_media`.
+- Telegram voters: `telegram_users`.
+- Audience Vote: `audience_vote`, `vote_candidate`, `vote_candidate_media`,
+  `audience_vote_current_vote`, `audience_vote_broadcast`,
+  `audience_vote_broadcast_delivery`, `audience_vote_update_screen`.
 
 Important idempotency fields:
 
@@ -341,11 +340,6 @@ src/entities/audience-vote/*
 src/shared/telegram/*
 src/app/api-routes/audience-vote/route.ts
 src/app/api-routes/audience-vote/mini-app/route.ts
-src/app/api-routes/tg/festival-bot/*
-src/app/api-routes/tg/speaker-bot/route.ts
-src/entities/voting/model/voting.ts
-src/app/api-routes/speaker_vote/route.ts
-src/pages/speaker-vote/*
 src/shared/db/schema.ts
 ```
 

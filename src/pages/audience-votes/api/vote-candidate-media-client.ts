@@ -179,4 +179,30 @@ export async function updateVoteCandidateMedia({
   return parseVoteCandidateMedia(json);
 }
 
+export async function restoreVoteCandidateMedia({
+  candidateId,
+  mediaId,
+  voteId,
+}: {
+  candidateId: VoteCandidateId;
+  mediaId: VoteCandidateMediaId;
+  voteId: AudienceVoteId;
+}): Promise<VoteCandidateMedia> {
+  const response = await fetch(
+    singleVoteCandidateMediaUrl({ candidateId, mediaId, voteId }),
+    {
+      body: JSON.stringify({ archived: false }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    }
+  );
+  const json = await readJson(response);
+
+  if (!response.ok) {
+    throw parseVoteCandidateMediaApiError(json);
+  }
+
+  return parseVoteCandidateMedia(json);
+}
+
 export type { VoteCandidateMediaApiError };
