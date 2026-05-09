@@ -426,16 +426,18 @@ function CandidateMedia({
         <img
           alt=""
           aria-hidden="true"
-          className="absolute -inset-6 size-[calc(100%+3rem)] scale-110 object-cover opacity-65 blur-2xl"
+          className="absolute -inset-8 size-[calc(100%+4rem)] scale-115 object-cover opacity-70 blur-3xl saturate-125"
           src={media.blob_url}
         />
-        <div className="absolute inset-0 bg-black/25" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          alt={`${candidateName}, медіа ${mediaNumber}`}
-          className="relative z-1 size-full object-contain"
-          src={media.blob_url}
-        />
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="relative z-1 flex size-full items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={`${candidateName}, медіа ${mediaNumber}`}
+            className="max-h-full max-w-full object-contain shadow-2xl"
+            src={media.blob_url}
+          />
+        </div>
       </div>
     );
   }
