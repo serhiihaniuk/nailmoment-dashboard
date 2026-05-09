@@ -47,7 +47,7 @@ export function AudienceVoteLifecycleActions({
 
         {vote.status === "closed" ? (
           <span className="text-xs font-medium text-muted-foreground">
-            Final
+            Завершено
           </span>
         ) : null}
       </div>
@@ -81,22 +81,23 @@ function OpenVoteAction({
           ) : (
             <Play aria-hidden="true" data-icon="inline-start" />
           )}
-          Open
+          Відкрити
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Open Audience Vote?</AlertDialogTitle>
+          <AlertDialogTitle>Відкрити голосування?</AlertDialogTitle>
           <AlertDialogDescription>
-            {vote.title} will become the current Mini App voting stage. The
-            server will validate candidates, media, and the one-open-vote rule.
+            {vote.title} стане поточним етапом голосування в Mini App. Сервер
+            перевірить кандидатів, медіа та правило одного відкритого
+            голосування.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>Скасувати</AlertDialogCancel>
           <AlertDialogAction onClick={onOpen}>
             <Play aria-hidden="true" data-icon="inline-start" />
-            Open vote
+            Відкрити голосування
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -124,24 +125,25 @@ function CloseVoteAction({
           ) : (
             <Lock aria-hidden="true" data-icon="inline-start" />
           )}
-          Close
+          Закрити
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Close Audience Vote?</AlertDialogTitle>
+          <AlertDialogTitle>Закрити голосування?</AlertDialogTitle>
           <AlertDialogDescription>
-            {vote.title} will be final. It cannot be reopened after closing.
+            {vote.title} буде завершено. Після закриття його не можна буде
+            відкрити повторно.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>Скасувати</AlertDialogCancel>
           <AlertDialogAction
             className={buttonVariants({ variant: "destructive" })}
             onClick={onClose}
           >
             <Lock aria-hidden="true" data-icon="inline-start" />
-            Close vote
+            Закрити голосування
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

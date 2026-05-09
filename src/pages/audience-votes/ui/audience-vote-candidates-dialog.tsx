@@ -1,12 +1,13 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { 
   ArrowDown,
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  ImageOff,
   ImagePlus, 
   Loader2, 
   Plus, 
@@ -24,6 +25,17 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -40,23 +52,26 @@ import {
 } from "@/shared/ui/select";
 import { cn } from "@/shared/lib/cn";
 
-import type { AudienceVote, VoteCandidate } from "@/entities/audience-vote";
+import type { AudienceVote, VoteCandidate, VoteCandidateMedia } from "@/entities/audience-vote";
 import { VOTE_CANDIDATE_MEDIA_ACCEPT } from "@/entities/audience-vote";
 import { formatAudienceVoteStatus } from "../model/audience-vote-form";
 import { useVoteCandidatesDialog } from "../model/use-vote-candidates-dialog";
 import { useVoteCandidateMedia, addNewMediaSelectValue } from "../model/use-vote-candidate-media";
+import { canBrowserPreviewVoteCandidateMedia } from "../model/vote-candidate-media";
 import { VoteCandidateDeleteDialog } from "./vote-candidate-delete-dialog";
 
 export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
   const state = useVoteCandidatesDialog(vote);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<
+    VoteCandidate["id"] | null
+  >(null);
   const [candidateToDelete, setCandidateToDelete] =
     useState<VoteCandidate | null>(null);
-  
+
+  const firstCandidate = state.candidates[0] ?? null;
   const selectedCandidate =
     state.candidates.find((candidate) => candidate.id === selectedCandidateId) ??
-    state.candidates[0] ??
-    null;
+    firstCandidate;
   
   const handleOpenChange = (open: boolean) => {
     state.handleOpenChange(open);
@@ -82,7 +97,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[12px]">
           <Users size={14} />
-          Candidates
+          Кандидати
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[95vh] sm:max-h-[90vh] overflow-hidden w-[95vw] sm:w-[90vw] sm:max-w-5xl lg:max-w-6xl p-0 gap-0 flex flex-col">
@@ -90,7 +105,9 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
         <DialogHeader className="px-4 sm:px-6 py-4 border-b border-border/50 bg-muted/30 shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <DialogTitle className="text-base sm:text-lg">Manage Candidates</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg">
+                Керування кандидатами
+              </DialogTitle>
               <DialogDescription className="mt-1 flex items-center gap-2 flex-wrap text-[12px] sm:text-sm">
                 <span className="font-medium text-foreground truncate">{vote.title}</span>
                 <Badge 
@@ -103,7 +120,10 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
             </div>
             {!state.isLocked && (
               <div className="text-right text-[12px] text-muted-foreground shrink-0">
-                <span className="font-medium text-foreground">{state.candidates.length}</span> candidates
+                <span className="font-medium text-foreground">
+                  {state.candidates.length}
+                </span>{" "}
+                кандидатів
               </div>
             )}
           </div>
@@ -118,7 +138,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
               <div className="p-3 border-b border-border/40">
                 <form onSubmit={state.handleCreateSubmit} className="space-y-2">
                   <Input
-                    placeholder="New candidate name..."
+                    placeholder="Ім’я кандидата..."
                     value={state.draft.display_name}
                     onChange={(e) => state.updateDraft("display_name", e.target.value)}
                     className="h-8 text-[13px]"
@@ -128,7 +148,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                     <p className="text-[11px] text-destructive">{state.errors.display_name}</p>
                   )}
                   <Input
-                    placeholder="Internal name (optional)"
+                    placeholder="Внутрішня назва (необов’язково)"
                     value={state.draft.internal_name}
                     onChange={(e) => state.updateDraft("internal_name", e.target.value)}
                     className="h-8 text-[13px]"
@@ -138,7 +158,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                     <p className="text-[11px] text-destructive">{state.errors.internal_name}</p>
                   )}
                   <Textarea
-                    placeholder="Caption (optional)"
+                    placeholder="Підпис (необов’язково)"
                     value={state.draft.caption}
                     onChange={(e) => state.updateDraft("caption", e.target.value)}
                     className="min-h-15 text-[13px]"
@@ -159,7 +179,7 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                     ) : (
                       <Plus size={12} className="mr-1" />
                     )}
-                    Add Candidate
+                    Додати кандидата
                   </Button>
                 </form>
               </div>
@@ -173,44 +193,72 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 </div>
               ) : state.isQueryError ? (
                 <div className="p-4 text-center text-[13px] text-destructive">
-                  Could not load candidates: {state.queryError?.message}
+                  Не вдалося завантажити кандидатів: {state.queryError?.message}
                 </div>
               ) : state.candidates.length === 0 ? (
                 <div className="p-4 text-center text-[13px] text-muted-foreground">
-                  No candidates yet
+                  Кандидатів ще немає
                 </div>
               ) : (
                 <div className="py-1">
-                  {state.candidates.map((candidate) => (
-                    <button
+                  {state.candidates.map((candidate, candidateIndex) => (
+                    <div
                       key={candidate.id}
-                      type="button"
-                      onClick={() => setSelectedCandidateId(candidate.id)}
                       className={cn(
-                        "w-full px-3 py-2.5 text-left flex items-center gap-2 transition-colors",
+                        "w-full px-3 py-2.5 flex items-center gap-2 transition-colors",
                         "hover:bg-muted/60",
                         selectedCandidate?.id === candidate.id
                           ? "bg-muted/80 border-l-2 border-primary" 
                           : "border-l-2 border-transparent"
                       )}
                     >
-                      <span className="text-[11px] text-muted-foreground w-5 shrink-0 tabular-nums">
-                        {candidate.display_order}.
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium">
-                          {candidate.display_name}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCandidateId(candidate.id)}
+                        className="min-w-0 flex flex-1 items-center gap-2 text-left"
+                      >
+                        <span className="text-[11px] text-muted-foreground w-5 shrink-0 tabular-nums">
+                          {candidate.display_order}.
                         </span>
-                        {candidate.internal_name ? (
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {candidate.internal_name}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium">
+                            {candidate.display_name}
                           </span>
-                        ) : null}
-                      </span>
+                          {candidate.internal_name ? (
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {candidate.internal_name}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
                       {state.pendingCandidateId === candidate.id && (
                         <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
                       )}
-                    </button>
+                      {!state.isLocked && (
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => state.moveCandidate(candidate, candidate.display_order - 1)}
+                            disabled={state.isPending || candidateIndex <= 0}
+                            aria-label="Move candidate up"
+                          >
+                            <ArrowUp size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => state.moveCandidate(candidate, candidate.display_order + 1)}
+                            disabled={state.isPending || candidateIndex >= state.candidates.length - 1}
+                            aria-label="Move candidate down"
+                          >
+                            <ArrowDown size={14} />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -241,10 +289,10 @@ export function AudienceVoteCandidatesDialog({ vote }: { vote: AudienceVote }) {
                 {state.isLoading 
                   ? <Loader2 className="w-5 h-5 animate-spin" />
                   : state.isQueryError
-                    ? "Could not load candidates"
+                    ? "Не вдалося завантажити кандидатів"
                   : state.candidates.length === 0 
-                    ? "Add a candidate to get started"
-                    : "Select a candidate to view details"
+                    ? "Додайте кандидата, щоб почати"
+                    : "Оберіть кандидата, щоб переглянути деталі"
                 }
               </div>
             )}
@@ -309,49 +357,7 @@ function CandidateDetailPanel({
           >
             <ChevronRight size={16} />
           </Button>
-          {!state.isLocked && (
-            <>
-              <span className="mx-1 h-4 w-px bg-border" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => state.moveCandidate(candidate, candidate.display_order - 1)}
-                disabled={state.isPending || currentIndex <= 0}
-                aria-label="Move candidate up"
-              >
-                <ArrowUp size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => state.moveCandidate(candidate, candidate.display_order + 1)}
-                disabled={state.isPending || currentIndex >= state.candidates.length - 1}
-                aria-label="Move candidate down"
-              >
-                <ArrowDown size={14} />
-              </Button>
-            </>
-          )}
         </div>
-        
-        {!state.isLocked && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[12px] text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onRequestDelete(candidate)}
-            disabled={state.isDeleting}
-          >
-            {state.pendingCandidateId === candidate.id && state.isDeleting ? (
-              <Loader2 size={12} className="animate-spin mr-1" />
-            ) : (
-              <Trash2 size={12} className="mr-1" />
-            )}
-            Delete
-          </Button>
-        )}
       </div>
 
       {/* Candidate info section */}
@@ -359,7 +365,9 @@ function CandidateDetailPanel({
         {isEditing ? (
           <form onSubmit={state.handleEditSubmit} className="space-y-3 p-4 rounded-lg border border-border/50 bg-muted/30">
             <div>
-              <Label className="text-[12px] text-muted-foreground">Display Name</Label>
+              <Label className="text-[12px] text-muted-foreground">
+                Публічна назва
+              </Label>
               <Input
                 value={state.editDraft.display_name}
                 onChange={(e) => state.updateEditDraft("display_name", e.target.value)}
@@ -371,7 +379,9 @@ function CandidateDetailPanel({
               )}
             </div>
             <div>
-              <Label className="text-[12px] text-muted-foreground">Internal Name (optional)</Label>
+              <Label className="text-[12px] text-muted-foreground">
+                Внутрішня назва (необов’язково)
+              </Label>
               <Input
                 value={state.editDraft.internal_name}
                 onChange={(e) => state.updateEditDraft("internal_name", e.target.value)}
@@ -383,7 +393,9 @@ function CandidateDetailPanel({
               )}
             </div>
             <div>
-              <Label className="text-[12px] text-muted-foreground">Caption (optional)</Label>
+              <Label className="text-[12px] text-muted-foreground">
+                Підпис (необов’язково)
+              </Label>
               <Textarea
                 value={state.editDraft.caption}
                 onChange={(e) => state.updateEditDraft("caption", e.target.value)}
@@ -392,13 +404,30 @@ function CandidateDetailPanel({
                 rows={2}
               />
             </div>
-            <div className="flex gap-2 pt-1">
-              <Button type="submit" size="sm" className="h-8 text-[12px]" disabled={state.isEditing}>
-                {state.isEditing ? <Loader2 size={12} className="animate-spin mr-1" /> : <Check size={12} className="mr-1" />}
-                Save Changes
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="h-8 text-[12px]" onClick={state.cancelEditing}>
-                Cancel
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" className="h-8 text-[12px]" disabled={state.isEditing}>
+                  {state.isEditing ? <Loader2 size={12} className="animate-spin mr-1" /> : <Check size={12} className="mr-1" />}
+                Зберегти зміни
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-[12px]" onClick={state.cancelEditing}>
+                Скасувати
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-[12px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => onRequestDelete(candidate)}
+                disabled={state.isDeleting}
+                type="button"
+              >
+                {state.pendingCandidateId === candidate.id && state.isDeleting ? (
+                  <Loader2 size={12} className="animate-spin mr-1" />
+                ) : (
+                  <Trash2 size={12} className="mr-1" />
+                )}
+                Видалити
               </Button>
             </div>
           </form>
@@ -407,7 +436,7 @@ function CandidateDetailPanel({
             <div className="min-w-0">
               <h3 className="text-lg font-semibold">{candidate.display_name}</h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-                <span>Order {candidate.display_order}</span>
+                <span>Порядок {candidate.display_order}</span>
                 {candidate.internal_name ? (
                   <>
                     <span className="text-border">&middot;</span>
@@ -418,7 +447,9 @@ function CandidateDetailPanel({
               {candidate.caption ? (
                 <p className="text-[13px] text-muted-foreground mt-1">{candidate.caption}</p>
               ) : (
-                <p className="text-[13px] text-muted-foreground/50 mt-1 italic">No caption</p>
+                <p className="text-[13px] text-muted-foreground/50 mt-1 italic">
+                  Без підпису
+                </p>
               )}
             </div>
             {!state.isLocked && (
@@ -429,7 +460,7 @@ function CandidateDetailPanel({
                 onClick={() => state.startEditing(candidate)}
               >
                 <Pencil size={12} className="mr-1" />
-                Edit
+                Редагувати
               </Button>
             )}
           </div>
@@ -439,9 +470,10 @@ function CandidateDetailPanel({
       {/* Media section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium">Media</h4>
+          <h4 className="text-sm font-medium">Медіа</h4>
           <span className="text-[12px] text-muted-foreground">
-            {media.activeMedia.length} {media.activeMedia.length === 1 ? "file" : "files"}
+            {media.activeMedia.length}{" "}
+            {media.activeMedia.length === 1 ? "файл" : "файлів"}
           </span>
         </div>
 
@@ -452,38 +484,86 @@ function CandidateDetailPanel({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {media.activeMedia.map((item) => (
+            {media.activeMedia.map((item, index) => (
               <div 
                 key={item.id} 
                 className="relative group aspect-square rounded-lg overflow-hidden bg-muted border border-border/50"
               >
-                {item.media_type === "video" ? (
-                  <video 
-                    src={item.blob_url} 
-                    className="w-full h-full object-cover"
-                    muted
-                  />
-                ) : (
-                  <Image
-                    src={item.blob_url}
-                    alt={candidate.display_name}
-                    fill
-                    className="object-cover"
-                  />
-                )}
+                <CandidateMediaPreview
+                  alt={candidate.display_name}
+                  media={item}
+                />
                 {media.canSoftDelete && (
-                  <button
-                    type="button"
-                    onClick={() => media.softDeleteMedia(item)}
-                    disabled={media.isDeleting}
-                    className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
-                  >
-                    <X size={12} />
-                  </button>
+                  <>
+                    <div className="absolute left-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          media.moveMedia(item, item.display_order - 1)
+                        }
+                        disabled={media.isReordering || index === 0}
+                        className="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Перемістити медіа вище"
+                      >
+                        <ArrowUp size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          media.moveMedia(item, item.display_order + 1)
+                        }
+                        disabled={
+                          media.isReordering ||
+                          index === media.activeMedia.length - 1
+                        }
+                        className="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Перемістити медіа нижче"
+                      >
+                        <ArrowDown size={12} />
+                      </button>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={media.isDeleting}
+                          className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                          aria-label="Видалити медіа"
+                        >
+                          {media.pendingMediaId === item.id &&
+                          (media.isDeleting || media.isReordering) ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <X size={12} />
+                          )}
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Видалити медіа?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Це медіа буде приховано з активного списку кандидата.
+                            Дію можна виконувати лише до відкриття голосування.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={media.isDeleting}>
+                            Скасувати
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            disabled={media.isDeleting}
+                            onClick={() => media.softDeleteMedia(item)}
+                          >
+                            Видалити
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 )}
                 {item.media_type === "video" && (
                   <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] bg-black/60 text-white">
-                    Video
+                    Відео
                   </div>
                 )}
               </div>
@@ -500,14 +580,16 @@ function CandidateDetailPanel({
                   className="sr-only"
                 />
                 <ImagePlus size={20} className="text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">Add media</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Додати медіа
+                </span>
               </label>
             )}
           </div>
         )}
 
         {/* Upload UI when file selected */}
-        {media.file && (
+        {media.file && media.shouldShowManualUpload && (
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium truncate">{media.file.name}</p>
@@ -522,13 +604,15 @@ function CandidateDetailPanel({
                 onValueChange={media.handleReplaceMediaChange}
               >
                 <SelectTrigger className="w-28 h-8 text-[12px]">
-                  <SelectValue placeholder="Action" />
+                  <SelectValue placeholder="Дія" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={addNewMediaSelectValue}>Add new</SelectItem>
+                  <SelectItem value={addNewMediaSelectValue}>
+                    Додати нове
+                  </SelectItem>
                   {media.activeMedia.map((item, idx) => (
                     <SelectItem key={item.id} value={item.id}>
-                      Replace #{idx + 1}
+                      Замінити #{idx + 1}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -549,7 +633,7 @@ function CandidateDetailPanel({
               ) : (
                 <>
                   <Upload size={12} className="mr-1" />
-                  Upload
+                  Завантажити
                 </>
               )}
             </Button>
@@ -581,7 +665,8 @@ function CandidateDetailPanel({
               onClick={() => media.setShowArchived(!media.showArchived)}
               className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              {media.showArchived ? "Hide" : "Show"} archived ({media.archivedMedia.length})
+              {media.showArchived ? "Сховати" : "Показати"} архів (
+              {media.archivedMedia.length})
             </button>
             
             {media.showArchived && (
@@ -591,16 +676,10 @@ function CandidateDetailPanel({
                     key={item.id} 
                     className="relative aspect-square rounded-md overflow-hidden bg-muted border border-border/30 opacity-50"
                   >
-                    {item.media_type === "video" ? (
-                      <video src={item.blob_url} className="w-full h-full object-cover" muted />
-                    ) : (
-                      <Image
-                        src={item.blob_url}
-                        alt={candidate.display_name}
-                        fill
-                        className="object-cover"
-                      />
-                    )}
+                    <CandidateMediaPreview
+                      alt={candidate.display_name}
+                      media={item}
+                    />
                   </div>
                 ))}
               </div>
@@ -608,6 +687,73 @@ function CandidateDetailPanel({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CandidateMediaPreview({
+  alt,
+  media,
+}: {
+  alt: string;
+  media: VoteCandidateMedia;
+}) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const canPreview =
+    !previewFailed &&
+    canBrowserPreviewVoteCandidateMedia({
+      contentType: media.content_type,
+      mediaType: media.media_type,
+    });
+
+  if (!canPreview) {
+    return <CandidateMediaPreviewFallback media={media} />;
+  }
+
+  if (media.media_type === "video") {
+    return (
+      <video
+        className="h-full w-full object-cover"
+        muted
+        onError={() => setPreviewFailed(true)}
+        preload="metadata"
+      >
+        <source src={media.blob_url} type={media.content_type} />
+      </video>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      alt={alt}
+      className="h-full w-full object-cover"
+      onError={() => setPreviewFailed(true)}
+      src={media.blob_url}
+    />
+  );
+}
+
+function CandidateMediaPreviewFallback({
+  media,
+}: {
+  media: VoteCandidateMedia;
+}) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/50 p-3 text-center">
+      <ImageOff size={22} className="text-muted-foreground" />
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Preview unavailable
+      </p>
+      <a
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+        href={media.blob_url}
+        rel="noreferrer"
+        target="_blank"
+      >
+        <ExternalLink size={12} />
+        Open file
+      </a>
     </div>
   );
 }

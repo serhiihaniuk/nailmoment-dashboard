@@ -40,7 +40,7 @@ describe("audience vote route schemas", () => {
         window_end: "2026-05-08T11:00:00.000Z",
         window_start: "2026-05-08T12:00:00.000Z",
       })
-    ).toThrow("Window end must be after window start");
+    ).toThrow("Завершення має бути після початку");
   });
 });
 
@@ -97,14 +97,14 @@ describe("vote candidate route schemas", () => {
       createVoteCandidateClientSchema.parse({
         display_name: "",
       })
-    ).toThrow("Display name is required");
+    ).toThrow("Публічне ім’я обов’язкове");
 
     expect(() =>
       createVoteCandidateClientSchema.parse({
         display_name: "Candidate",
         internal_name: "x".repeat(161),
       })
-    ).toThrow("Internal name must be 160 characters or fewer");
+    ).toThrow("Внутрішня назва має бути не довшою за 160 символів");
   });
 });
 

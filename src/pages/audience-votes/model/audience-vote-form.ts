@@ -40,16 +40,16 @@ const createAudienceVoteApiErrorSchema = z.object({
 });
 
 const kindLabels: Record<AudienceVoteKind, string> = {
-  battle: "Battle",
-  final_battle: "Final battle",
-  speaker: "Speaker",
+  battle: "Батл",
+  final_battle: "Фінальний батл",
+  speaker: "Спікери",
 };
 
 const statusLabels: Record<AudienceVoteStatus, string> = {
-  closed: "Closed",
-  draft: "Draft",
-  open: "Open",
-  scheduled: "Scheduled",
+  closed: "Закрито",
+  draft: "Чернетка",
+  open: "Відкрито",
+  scheduled: "Заплановано",
 };
 
 export const audienceVoteKindOptions = [
@@ -63,7 +63,7 @@ export const createAudienceVoteStatusOptions = [
   { label: statusLabels.scheduled, value: "scheduled" },
 ] satisfies Array<{ label: string; value: CreateAudienceVoteStatus }>;
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+const dateTimeFormatter = new Intl.DateTimeFormat("uk-UA", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Europe/Warsaw",
@@ -101,7 +101,7 @@ export function parseCreateAudienceVoteApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not create audience vote." };
+    : { message: "Не вдалося створити голосування." };
 }
 
 export function mapCreateAudienceVoteApiErrors(
@@ -143,14 +143,14 @@ export function formatAudienceVoteWindow(vote: AudienceVote) {
   }
 
   if (vote.window_start) {
-    return `From ${formatAudienceVoteDate(vote.window_start)}`;
+    return `Від ${formatAudienceVoteDate(vote.window_start)}`;
   }
 
   if (vote.window_end) {
-    return `Until ${formatAudienceVoteDate(vote.window_end)}`;
+    return `До ${formatAudienceVoteDate(vote.window_end)}`;
   }
 
-  return "Not planned";
+  return "Не заплановано";
 }
 
 function mapCreateAudienceVoteIssues(

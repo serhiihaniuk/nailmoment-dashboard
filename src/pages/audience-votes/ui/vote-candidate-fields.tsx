@@ -31,28 +31,28 @@ export function VoteCandidateFields({
     <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
       <Field data-invalid={Boolean(errors.display_name)}>
         <FieldLabel htmlFor="vote-candidate-display-name">
-          Public display name
+          Публічне ім’я
         </FieldLabel>
         <Input
           aria-invalid={Boolean(errors.display_name)}
           disabled={disabled}
           id="vote-candidate-display-name"
           onChange={(event) => onChange("display_name", event.target.value)}
-          placeholder="Anonymous finalist 1"
+          placeholder="Анонімний фіналіст 1"
           value={draft.display_name}
         />
         <FieldError>{errors.display_name}</FieldError>
       </Field>
       <Field data-invalid={Boolean(errors.internal_name)}>
         <FieldLabel htmlFor="vote-candidate-internal-name">
-          Internal name
+          Внутрішня назва
         </FieldLabel>
         <Input
           aria-invalid={Boolean(errors.internal_name)}
           disabled={disabled}
           id="vote-candidate-internal-name"
           onChange={(event) => onChange("internal_name", event.target.value)}
-          placeholder="Operator note or real name"
+          placeholder="Нотатка оператора або справжнє ім’я"
           value={draft.internal_name}
         />
         <FieldError>{errors.internal_name}</FieldError>
@@ -62,7 +62,7 @@ export function VoteCandidateFields({
         data-invalid={Boolean(errors.caption)}
       >
         <FieldLabel htmlFor="vote-candidate-caption">
-          Public caption
+          Публічний підпис
         </FieldLabel>
         <Textarea
           aria-invalid={Boolean(errors.caption)}
@@ -70,7 +70,7 @@ export function VoteCandidateFields({
           id="vote-candidate-caption"
           maxRows={4}
           onChange={(event) => onChange("caption", event.target.value)}
-          placeholder="Shown in the Mini App"
+          placeholder="Показується в Mini App"
           value={draft.caption}
         />
         <FieldError>{errors.caption}</FieldError>

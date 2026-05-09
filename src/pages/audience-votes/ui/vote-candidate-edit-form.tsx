@@ -47,7 +47,7 @@ export function VoteCandidateEditForm({
           variant="outline"
         >
           <X aria-hidden="true" data-icon="inline-start" />
-          Cancel
+          Скасувати
         </Button>
         <Button disabled={isPending} size="sm" type="submit">
           {isRowPending ? (
@@ -59,7 +59,7 @@ export function VoteCandidateEditForm({
           ) : (
             <Save aria-hidden="true" data-icon="inline-start" />
           )}
-          Save
+          Зберегти
         </Button>
       </div>
     </form>

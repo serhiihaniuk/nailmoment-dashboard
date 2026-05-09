@@ -12,6 +12,11 @@ import {
   type CreateAudienceVoteFormValues,
 } from "../model/audience-vote-form";
 import {
+  parseAudienceVoteScheduleApiError,
+  type AudienceVoteScheduleApiError,
+  type AudienceVoteScheduleFormValues,
+} from "../model/audience-vote-schedule";
+import {
   parseAudienceVoteLifecycleApiError,
   type AudienceVoteLifecycleApiError,
 } from "../model/audience-vote-lifecycle";
@@ -34,7 +39,7 @@ export async function fetchAudienceVoteResults(
   );
 
   if (!response.ok) {
-    throw new Error("Could not load Audience Vote results.");
+    throw new Error("Не вдалося завантажити результати голосування.");
   }
 
   return parseAudienceVoteResults(await response.json());
@@ -53,6 +58,28 @@ export async function createAudienceVote(
 
   if (!response.ok) {
     throw parseCreateAudienceVoteApiError(json);
+  }
+
+  return parseAudienceVote(json);
+}
+
+export async function updateAudienceVoteSchedule(
+  voteId: AudienceVoteId,
+  body: AudienceVoteScheduleFormValues
+): Promise<AudienceVote> {
+  const response = await fetch(
+    `/api/audience-vote/${encodeURIComponent(voteId)}`,
+    {
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    }
+  );
+
+  const json: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw parseAudienceVoteScheduleApiError(json);
   }
 
   return parseAudienceVote(json);
@@ -87,5 +114,9 @@ async function updateAudienceVoteLifecycle(
   return parseAudienceVote(json);
 }
 
-export type { AudienceVoteLifecycleApiError, CreateAudienceVoteApiError };
+export type {
+  AudienceVoteLifecycleApiError,
+  AudienceVoteScheduleApiError,
+  CreateAudienceVoteApiError,
+};
 

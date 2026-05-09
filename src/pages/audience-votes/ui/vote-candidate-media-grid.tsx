@@ -30,10 +30,10 @@ export function VoteCandidateMediaGrid({
           <EmptyMedia variant="icon">
             <Images aria-hidden="true" />
           </EmptyMedia>
-          <EmptyTitle>No active media</EmptyTitle>
+          <EmptyTitle>Немає активних медіа</EmptyTitle>
           <EmptyDescription>
-            Upload at least one public photo or video before this Audience Vote
-            opens.
+            Завантажте щонайменше одне публічне фото або відео перед
+            відкриттям голосування.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

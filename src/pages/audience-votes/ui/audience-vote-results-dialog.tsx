@@ -41,7 +41,7 @@ export function AudienceVoteResultsDialog({ vote }: { vote: AudienceVote }) {
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <BarChart3 aria-hidden="true" data-icon="inline-start" />
-          Results
+          Результати
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[95vh] sm:max-h-[90vh] overflow-y-auto w-[95vw] sm:w-[85vw] sm:max-w-4xl lg:max-w-5xl p-0 gap-0">
@@ -51,7 +51,7 @@ export function AudienceVoteResultsDialog({ vote }: { vote: AudienceVote }) {
             <div className="min-w-0">
               <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-                Voting Results
+                Результати голосування
               </DialogTitle>
               <DialogDescription className="mt-1 sm:mt-1.5 flex items-center gap-1.5 sm:gap-2 flex-wrap text-[12px] sm:text-sm">
                 <span className="font-medium text-foreground truncate">{vote.title}</span>
@@ -76,7 +76,7 @@ export function AudienceVoteResultsDialog({ vote }: { vote: AudienceVote }) {
 
           {state.isError ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              Could not load results: {state.error.message}
+              Не вдалося завантажити результати: {state.error.message}
             </div>
           ) : null}
 
@@ -107,22 +107,24 @@ function AudienceVoteResultsPanel({
           <span className="text-2xl font-bold tabular-nums text-foreground">
             {results.total_votes}
           </span>
-          <span className="text-sm text-muted-foreground">total votes</span>
+          <span className="text-sm text-muted-foreground">
+            голосів загалом
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="rounded-md">
-            {results.results.length} candidates
+            {results.results.length} кандидатів
           </Badge>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span>Updated {formatAudienceVoteDate(results.generated_at)}</span>
+          <span>Оновлено {formatAudienceVoteDate(results.generated_at)}</span>
           {isRefreshing ? (
             <span className="inline-flex items-center gap-1.5 text-primary">
               <RefreshCw
                 aria-hidden="true"
                 className="animate-spin w-3 h-3"
               />
-              Refreshing
+              Оновлення
             </span>
           ) : null}
         </div>
@@ -134,9 +136,9 @@ function AudienceVoteResultsPanel({
             <EmptyMedia variant="icon">
               <BarChart3 aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>No votes recorded yet</EmptyTitle>
+            <EmptyTitle>Голосів ще немає</EmptyTitle>
             <EmptyDescription>
-              Results will appear after active candidates receive votes.
+              Результати з’являться, коли активні кандидати отримають голоси.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

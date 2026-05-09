@@ -12,6 +12,17 @@ import {
 } from "lucide-react";
 
 import type { VoteCandidateMedia } from "@/entities/audience-vote";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
@@ -73,7 +84,7 @@ export function VoteCandidateMediaTile({
           </span>
           {media.archived ? (
             <Badge className="rounded-md" variant="outline">
-              Archived
+              В архіві
             </Badge>
           ) : null}
         </div>
@@ -124,22 +135,22 @@ function MediaPreviewFallback({ media }: { media: VoteCandidateMedia }) {
     <div className="flex aspect-4/5 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/30 p-4 text-center">
       <ImageOff aria-hidden="true" className="size-8 text-muted-foreground" />
       <div>
-        <p className="text-sm font-medium">Preview unavailable</p>
+        <p className="text-sm font-medium">Попередній перегляд недоступний</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {media.content_type} can still be opened directly.
+          {media.content_type} все ще можна відкрити напряму.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <Button asChild size="sm" variant="outline">
           <a href={media.blob_url} rel="noreferrer" target="_blank">
             <ExternalLink aria-hidden="true" data-icon="inline-start" />
-            Open
+            Відкрити
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
           <a href={media.blob_download_url} rel="noreferrer" target="_blank">
             <Download aria-hidden="true" data-icon="inline-start" />
-            Download
+            Завантажити
           </a>
         </Button>
       </div>
@@ -164,7 +175,7 @@ function MediaTileActions({
     <div className="flex items-center gap-1">
       <Button asChild size="icon-sm" variant="ghost">
         <a
-          aria-label="Open media"
+          aria-label="Відкрити медіа"
           href={media.blob_url}
           rel="noreferrer"
           target="_blank"
@@ -173,20 +184,43 @@ function MediaTileActions({
         </a>
       </Button>
       {!isArchived ? (
-        <Button
-          aria-label="Soft-delete media"
-          disabled={!canSoftDelete || isDeleting}
-          onClick={() => onSoftDelete(media)}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          {isDeleting ? (
-            <Loader2 aria-hidden="true" className="animate-spin" />
-          ) : (
-            <Trash2 aria-hidden="true" />
-          )}
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              aria-label="Приховати медіа"
+              disabled={!canSoftDelete || isDeleting}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              {isDeleting ? (
+                <Loader2 aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Trash2 aria-hidden="true" />
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Видалити медіа?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Це медіа буде приховано з активного списку кандидата. Дію можна
+                виконувати лише до відкриття голосування.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                Скасувати
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeleting}
+                onClick={() => onSoftDelete(media)}
+              >
+                Видалити
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
     </div>
   );

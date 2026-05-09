@@ -39,13 +39,13 @@ const audienceVoteBroadcastApiErrorSchema = z.object({
 });
 
 const broadcastStatusLabels: Record<AudienceVoteBroadcastStatus, string> = {
-  canary_operator_pending: "Operator canary pending",
-  canary_operator_sent: "Operator canary sent",
-  canary_voters_sent: "Voter canary sent",
-  completed: "Completed",
-  failed: "Failed",
-  interrupted: "Interrupted",
-  ready: "Delivering",
+  canary_operator_pending: "Тест оператору очікує",
+  canary_operator_sent: "Тест оператору надіслано",
+  canary_voters_sent: "Тест виборцям надіслано",
+  completed: "Завершено",
+  failed: "Помилка",
+  interrupted: "Зупинено",
+  ready: "Доставка",
 };
 
 export function createAudienceVoteBroadcastDefaultDraft(
@@ -85,7 +85,7 @@ export function parseAudienceVoteBroadcastApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not update Audience Vote Broadcast." };
+    : { message: "Не вдалося оновити розсилку голосування." };
 }
 
 export function mapAudienceVoteBroadcastApiErrors(
@@ -120,36 +120,36 @@ export function formatAudienceVoteBroadcastNextStep(
   now = new Date()
 ) {
   if (broadcast.status === "canary_operator_pending") {
-    return "Sending Operator canary now";
+    return "Надсилаємо тест оператору";
   }
 
   if (broadcast.status === "canary_operator_sent") {
     return broadcast.next_stage_at <= now
-      ? "Sending 25-voter canary now"
-      : `25-voter canary after ${formatAudienceVoteDate(broadcast.next_stage_at)}`;
+      ? "Надсилаємо тест 25 виборцям"
+      : `Тест 25 виборцям після ${formatAudienceVoteDate(broadcast.next_stage_at)}`;
   }
 
   if (broadcast.status === "canary_voters_sent") {
     return broadcast.next_stage_at <= now
-      ? "Ready for normal delivery now"
-      : `Normal delivery after ${formatAudienceVoteDate(broadcast.next_stage_at)}`;
+      ? "Готово до основної доставки"
+      : `Основна доставка після ${formatAudienceVoteDate(broadcast.next_stage_at)}`;
   }
 
   if (broadcast.status === "ready") {
     return broadcast.delivery_counts.normal.pending > 0
-      ? "Normal delivery in progress"
-      : "Normal delivery finishing";
+      ? "Основна доставка триває"
+      : "Основна доставка завершується";
   }
 
   if (broadcast.status === "completed") {
-    return "Delivery complete";
+    return "Доставку завершено";
   }
 
   if (broadcast.status === "interrupted") {
-    return "Stopped by Operator";
+    return "Зупинено оператором";
   }
 
-  return "Canary failed";
+  return "Тестову доставку не вдалося виконати";
 }
 
 export function isAudienceVoteBroadcastCanaryActive(

@@ -13,7 +13,10 @@ import {
   fetchAudienceVoteUpdateScreen,
   updateAudienceVoteUpdateScreen,
 } from "./audience-vote-update-screen-client";
-import { fetchAudienceVoteResults } from "./audience-votes-client";
+import {
+  fetchAudienceVoteResults,
+  updateAudienceVoteSchedule,
+} from "./audience-votes-client";
 
 describe("audience votes API client", () => {
   afterEach(() => {
@@ -67,7 +70,7 @@ describe("audience votes API client", () => {
 
     await expect(
       fetchAudienceVoteResults(audienceVoteIdSchema.parse("vote_1"))
-    ).rejects.toThrow("Could not load Audience Vote results.");
+    ).rejects.toThrow("Не вдалося завантажити результати голосування.");
   });
 
   test("previews a broadcast and parses active recipient estimates", async () => {
@@ -168,6 +171,35 @@ describe("audience votes API client", () => {
     );
     expect(updateScreen.message).toBe("Check back soon");
   });
+
+  test("updates a draft vote schedule and parses the updated vote", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        makeVoteResponse({
+          status: "scheduled",
+          window_end: "2026-05-09T13:00:00.000Z",
+          window_start: "2026-05-09T12:00:00.000Z",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const vote = await updateAudienceVoteSchedule(
+      audienceVoteIdSchema.parse("vote_1"),
+      {
+        status: "scheduled",
+        window_end: new Date("2026-05-09T13:00:00.000Z"),
+        window_start: new Date("2026-05-09T12:00:00.000Z"),
+      }
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/audience-vote/vote_1",
+      expect.objectContaining({ method: "PATCH" })
+    );
+    expect(vote.status).toBe("scheduled");
+    expect(vote.window_start).toBeInstanceOf(Date);
+  });
 });
 
 function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
@@ -199,6 +231,21 @@ function makeUpdateScreenResponse(overrides: Record<string, unknown> = {}) {
     message: "No active vote",
     title: "Voting soon",
     updated_at: "2026-05-08T16:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeVoteResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    archived: false,
+    created_at: "2026-05-08T16:00:00.000Z",
+    id: "vote_1",
+    kind: "speaker",
+    status: "draft",
+    title: "Dev smoke vote",
+    updated_at: "2026-05-08T16:00:00.000Z",
+    window_end: null,
+    window_start: null,
     ...overrides,
   };
 }

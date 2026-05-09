@@ -22,7 +22,7 @@ export function parseAudienceVoteLifecycleApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not update Audience Vote." };
+    : { message: "Не вдалося оновити голосування." };
 }
 
 export function formatAudienceVoteLifecycleApiError(

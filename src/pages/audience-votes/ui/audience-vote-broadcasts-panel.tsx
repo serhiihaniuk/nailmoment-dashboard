@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CircleStop, Loader2, Radio, Send } from "lucide-react";
+import {
+  AlertCircle,
+  CircleStop,
+  History,
+  Loader2,
+  Radio,
+  Send,
+} from "lucide-react";
 
 import type {
   AudienceVote,
@@ -32,6 +39,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/shared/ui/empty";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/shared/ui/dialog";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
   fetchAudienceVoteBroadcasts,
@@ -106,6 +121,23 @@ export function AudienceVoteBroadcastsPanel({
   const dueBroadcast = broadcasts?.find((broadcast) =>
     isAudienceVoteBroadcastDue(broadcast)
   );
+  const orderedBroadcasts = useMemo(
+    () =>
+      [...(broadcasts ?? [])].sort(
+        (first, second) =>
+          second.created_at.getTime() - first.created_at.getTime()
+      ),
+    [broadcasts]
+  );
+  const featuredBroadcast =
+    orderedBroadcasts.find((broadcast) =>
+      isAudienceVoteBroadcastInterruptible(broadcast.status)
+    ) ??
+    orderedBroadcasts[0] ??
+    null;
+  const isFeaturedBroadcastRunning = featuredBroadcast
+    ? isAudienceVoteBroadcastInterruptible(featuredBroadcast.status)
+    : false;
   const processBroadcast = processMutation.mutate;
   const isProcessingBroadcast = processMutation.isPending;
 
@@ -119,27 +151,43 @@ export function AudienceVoteBroadcastsPanel({
 
   const mutationError =
     processMutation.error?.message ?? interruptMutation.error?.message ?? null;
+  const canViewAll = orderedBroadcasts.length > 0;
 
   return (
     <section>
       <Card className="gap-0 overflow-hidden shadow-surface">
         <CardHeader className="border-b border-border/60">
-          <CardTitle>Broadcasts</CardTitle>
+          <CardTitle>
+            {isFeaturedBroadcastRunning ? "Активна розсилка" : "Остання розсилка"}
+          </CardTitle>
           <CardDescription>
-            Canary checks, delivery progress, and Operator interrupt.
+            {isFeaturedBroadcastRunning
+              ? "Поточна доставка з можливістю скасування оператором."
+              : "Останній запуск розсилки та короткий стан доставки."}
           </CardDescription>
-        {isProcessingBroadcast ? (
-          <CardAction className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 aria-hidden="true" className="animate-spin" />
-            <span>Processing</span>
+          <CardAction className="flex flex-wrap items-center justify-end gap-2">
+            {isProcessingBroadcast ? (
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 aria-hidden="true" className="animate-spin" />
+                Обробка
+              </span>
+            ) : null}
+            <BroadcastHistoryDialog
+              broadcasts={orderedBroadcasts}
+              interruptDisabled={interruptMutation.isPending}
+              onInterrupt={(broadcastId) =>
+                interruptMutation.mutate(broadcastId)
+              }
+              openDisabled={!canViewAll}
+              voteTitles={voteTitles}
+            />
           </CardAction>
-        ) : null}
         </CardHeader>
         <CardContent className="flex flex-col gap-3 p-4">
           {isError ? (
             <Alert variant="destructive">
               <AlertCircle aria-hidden="true" />
-              <AlertTitle>Could not load broadcasts</AlertTitle>
+              <AlertTitle>Не вдалося завантажити розсилки</AlertTitle>
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : null}
@@ -147,7 +195,7 @@ export function AudienceVoteBroadcastsPanel({
           {mutationError ? (
             <Alert variant="destructive">
               <AlertCircle aria-hidden="true" />
-              <AlertTitle>Broadcast action failed</AlertTitle>
+              <AlertTitle>Дія з розсилкою не вдалася</AlertTitle>
               <AlertDescription>{mutationError}</AlertDescription>
             </Alert>
           ) : null}
@@ -160,27 +208,26 @@ export function AudienceVoteBroadcastsPanel({
                 <EmptyMedia variant="icon">
                   <Send aria-hidden="true" />
                 </EmptyMedia>
-                <EmptyTitle>No broadcasts yet</EmptyTitle>
+                <EmptyTitle>Ще немає розсилок</EmptyTitle>
                 <EmptyDescription>
-                  Create one when voters need a Telegram reminder.
+                  Створіть розсилку, коли виборцям потрібне нагадування в
+                  Telegram.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : null}
 
-          {!isLoading && broadcasts && broadcasts.length > 0 ? (
+          {!isLoading && featuredBroadcast ? (
             <div className="overflow-hidden rounded-lg border border-border/70">
-              {broadcasts.map((broadcast) => (
-                <BroadcastRow
-                  broadcast={broadcast}
-                  interruptDisabled={interruptMutation.isPending}
-                  key={broadcast.id}
-                  onInterrupt={() => interruptMutation.mutate(broadcast.id)}
-                  voteTitle={
-                    voteTitles.get(broadcast.audience_vote_id) ?? "Vote"
-                  }
-                />
-              ))}
+              <BroadcastRow
+                broadcast={featuredBroadcast}
+                interruptDisabled={interruptMutation.isPending}
+                onInterrupt={() => interruptMutation.mutate(featuredBroadcast.id)}
+                voteTitle={
+                  voteTitles.get(featuredBroadcast.audience_vote_id) ??
+                  "Голосування"
+                }
+              />
             </div>
           ) : null}
         </CardContent>
@@ -189,14 +236,63 @@ export function AudienceVoteBroadcastsPanel({
   );
 }
 
+function BroadcastHistoryDialog({
+  broadcasts,
+  interruptDisabled,
+  onInterrupt,
+  openDisabled,
+  voteTitles,
+}: {
+  broadcasts: AudienceVoteBroadcast[];
+  interruptDisabled: boolean;
+  onInterrupt: (broadcastId: AudienceVoteBroadcastId) => void;
+  openDisabled: boolean;
+  voteTitles: ReadonlyMap<AudienceVote["id"], string>;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button disabled={openDisabled} size="sm" variant="outline">
+          <History aria-hidden="true" data-icon="inline-start" />
+          Усі розсилки
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Усі розсилки</DialogTitle>
+          <DialogDescription>
+            Повна історія розсилок із текстом повідомлення та станом доставки.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-hidden rounded-lg border border-border/70">
+          {broadcasts.map((broadcast) => (
+            <BroadcastRow
+              broadcast={broadcast}
+              interruptDisabled={interruptDisabled}
+              key={broadcast.id}
+              messagePreview="full"
+              onInterrupt={() => onInterrupt(broadcast.id)}
+              voteTitle={
+                voteTitles.get(broadcast.audience_vote_id) ?? "Голосування"
+              }
+            />
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BroadcastRow({
   broadcast,
   interruptDisabled,
+  messagePreview = "compact",
   onInterrupt,
   voteTitle,
 }: {
   broadcast: AudienceVoteBroadcast;
   interruptDisabled: boolean;
+  messagePreview?: "compact" | "full";
   onInterrupt: () => void;
   voteTitle: string;
 }) {
@@ -221,15 +317,21 @@ function BroadcastRow({
           {broadcast.include_open_button ? (
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Radio aria-hidden="true" size={12} />
-              Mini App button
+              Кнопка Mini App
             </span>
           ) : null}
         </div>
-        <p className="mt-2 max-h-16 overflow-hidden whitespace-pre-wrap text-sm text-foreground">
+        <p
+          className={
+            messagePreview === "compact"
+              ? "mt-2 max-h-16 overflow-hidden whitespace-pre-wrap text-sm text-foreground"
+              : "mt-2 whitespace-pre-wrap text-sm text-foreground"
+          }
+        >
           {broadcast.message_text}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Created {formatAudienceVoteDate(broadcast.created_at)}
+          Створено {formatAudienceVoteDate(broadcast.created_at)}
         </p>
       </div>
 
@@ -238,17 +340,18 @@ function BroadcastRow({
           <span className="font-medium text-foreground">
             {broadcast.estimated_recipient_count}
           </span>{" "}
-          active voters targeted
+          активних виборців у цілі
         </p>
         <p>
-          Canary sent {canarySent}
-          {canaryFailed > 0 ? ` / failed ${canaryFailed}` : ""}
+          Тестова хвиля: надіслано {canarySent}
+          {canaryFailed > 0 ? ` / помилок ${canaryFailed}` : ""}
         </p>
         <p>
-          Normal sent {broadcast.delivery_counts.normal.sent} / pending{" "}
+          Основна доставка: надіслано {broadcast.delivery_counts.normal.sent} /
+          очікує{" "}
           {broadcast.delivery_counts.normal.pending}
           {broadcast.delivery_counts.normal.failed > 0
-            ? ` / failed ${broadcast.delivery_counts.normal.failed}`
+            ? ` / помилок ${broadcast.delivery_counts.normal.failed}`
             : ""}
         </p>
         <p>{formatAudienceVoteBroadcastNextStep(broadcast)}</p>
@@ -263,7 +366,7 @@ function BroadcastRow({
             variant="destructive"
           >
             <CircleStop aria-hidden="true" data-icon="inline-start" />
-            Interrupt
+            Скасувати
           </Button>
         ) : null}
       </div>

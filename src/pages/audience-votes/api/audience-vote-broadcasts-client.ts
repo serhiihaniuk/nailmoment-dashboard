@@ -18,7 +18,7 @@ export async function fetchAudienceVoteBroadcasts(): Promise<
   const response = await fetch("/api/audience-vote/broadcasts");
 
   if (!response.ok) {
-    throw new Error("Could not load Audience Vote Broadcasts.");
+    throw new Error("Не вдалося завантажити розсилки голосування.");
   }
 
   return parseAudienceVoteBroadcastList(await response.json());

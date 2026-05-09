@@ -77,16 +77,16 @@ export function VoteCandidateRow({
             <div className="font-medium">{candidate.display_name}</div>
           </TableCell>
           <TableCell className="align-top text-muted-foreground">
-            {candidate.internal_name ?? "None"}
+            {candidate.internal_name ?? "Немає"}
           </TableCell>
           <TableCell className="align-top text-muted-foreground">
-            {candidate.caption ?? "None"}
+            {candidate.caption ?? "Немає"}
           </TableCell>
           <TableCell className="align-top">
             <div className="flex justify-end">
               <VoteCandidateIconButton
                 disabled={isEditing || isPending}
-                label="Manage candidate media"
+                label="Керувати медіа кандидата"
                 onClick={() => onOpenMedia(candidate)}
               >
                 <Images aria-hidden="true" />

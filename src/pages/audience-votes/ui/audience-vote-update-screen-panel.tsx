@@ -12,16 +12,15 @@ import {
 } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/shared/ui/dialog";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -45,6 +44,22 @@ import {
   type AudienceVoteUpdateScreenFormValues,
 } from "../model/audience-vote-update-screen";
 
+export function AudienceVoteUpdateScreenDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Smartphone aria-hidden="true" data-icon="inline-start" />
+          Екран очікування
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
+        <AudienceVoteUpdateScreenPanel />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AudienceVoteUpdateScreenPanel() {
   const queryClient = useQueryClient();
   const [draftOverride, setDraftOverride] =
@@ -59,7 +74,6 @@ export function AudienceVoteUpdateScreenPanel() {
     data: updateScreen,
     error,
     isError,
-    isFetching,
     isLoading,
   } = useQuery<AudienceVoteUpdateScreen, AudienceVoteUpdateScreenApiError>({
     queryKey: audienceVoteUpdateScreenQueryKey,
@@ -98,9 +112,9 @@ export function AudienceVoteUpdateScreenPanel() {
   const isSchemaMissing =
     isError && error.code === "missing_database_table";
 
-  function updateDraft<Field extends keyof AudienceVoteUpdateScreenFormDraft>(
-    field: Field,
-    value: AudienceVoteUpdateScreenFormDraft[Field]
+  function updateDraft<FieldName extends keyof AudienceVoteUpdateScreenFormDraft>(
+    field: FieldName,
+    value: AudienceVoteUpdateScreenFormDraft[FieldName]
   ) {
     setDraftOverride((current) => ({
       ...(current ?? draft),
@@ -135,151 +149,109 @@ export function AudienceVoteUpdateScreenPanel() {
   const isDisabled = isLoading || isPending || isSchemaMissing;
 
   return (
-    <section>
-      <Card className="gap-0 overflow-hidden shadow-surface">
-        <CardHeader className="border-b border-border/60">
-          <CardTitle>Mini App update screen</CardTitle>
-          <CardDescription>
-            Public fallback shown when no Audience Vote is open.
-          </CardDescription>
-        {isFetching && !isLoading ? (
-          <CardAction className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 aria-hidden="true" className="animate-spin" />
-            <span>Refreshing</span>
-          </CardAction>
-        ) : null}
-        </CardHeader>
-        <CardContent className="grid gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="flex min-w-0 flex-col gap-3">
-            {isSchemaMissing ? (
-              <Alert variant="destructive">
-                <AlertCircle aria-hidden="true" />
-                <AlertTitle>Database migration required</AlertTitle>
-                <AlertDescription>
-                  Apply drizzle/0029_audience_vote_update_screen.sql before
-                  editing this screen.
-                </AlertDescription>
-              </Alert>
-            ) : isError ? (
-              <Alert variant="destructive">
-                <AlertCircle aria-hidden="true" />
-                <AlertTitle>Could not load update screen</AlertTitle>
-                <AlertDescription>{error.message}</AlertDescription>
-              </Alert>
-            ) : null}
+    <div className="flex flex-col gap-5">
+      <DialogHeader>
+        <DialogTitle>Екран очікування Mini App</DialogTitle>
+        <DialogDescription>
+          Текст, який бачать виборці, коли немає відкритого голосування.
+        </DialogDescription>
+      </DialogHeader>
 
-            {formError ? (
-              <Alert variant="destructive">
-                <AlertCircle aria-hidden="true" />
-                <AlertTitle>Could not save update screen</AlertTitle>
-                <AlertDescription>{formError}</AlertDescription>
-              </Alert>
-            ) : null}
+      {isSchemaMissing ? (
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Потрібна міграція бази даних</AlertTitle>
+          <AlertDescription>
+            Застосуйте drizzle/0029_audience_vote_update_screen.sql перед
+            редагуванням цього екрана.
+          </AlertDescription>
+        </Alert>
+      ) : isError ? (
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Не вдалося завантажити екран очікування</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      ) : null}
 
-            {savedAt ? (
-              <Alert>
-                <CheckCircle2 aria-hidden="true" />
-                <AlertTitle>Update screen saved</AlertTitle>
-                <AlertDescription>
-                  Saved {formatAudienceVoteDate(savedAt)}.
-                </AlertDescription>
-              </Alert>
-            ) : null}
+      {formError ? (
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Не вдалося зберегти екран очікування</AlertTitle>
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      ) : null}
 
-            {isLoading ? (
-              <Skeleton className="h-72 w-full rounded-lg" />
-            ) : (
-              <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-                <FieldGroup className="gap-4">
-                  <Field data-invalid={Boolean(errors.title)}>
-                    <FieldLabel htmlFor="audience-vote-update-screen-title">
-                      Title
-                    </FieldLabel>
-                    <Input
-                      aria-invalid={errors.title ? true : undefined}
-                      disabled={isDisabled}
-                      id="audience-vote-update-screen-title"
-                      onChange={(event) =>
-                        updateDraft("title", event.target.value)
-                      }
-                      value={draft.title}
-                    />
-                    <FieldError>{errors.title}</FieldError>
-                  </Field>
+      {savedAt ? (
+        <Alert>
+          <CheckCircle2 aria-hidden="true" />
+          <AlertTitle>Екран очікування збережено</AlertTitle>
+          <AlertDescription>
+            Збережено {formatAudienceVoteDate(savedAt)}.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-                  <Field data-invalid={Boolean(errors.message)}>
-                    <FieldLabel htmlFor="audience-vote-update-screen-message">
-                      Message
-                    </FieldLabel>
-                    <Textarea
-                      aria-invalid={errors.message ? true : undefined}
-                      disabled={isDisabled}
-                      id="audience-vote-update-screen-message"
-                      maxRows={7}
-                      onChange={(event) =>
-                        updateDraft("message", event.target.value)
-                      }
-                      value={draft.message}
-                    />
-                    <FieldDescription>
-                      Ukrainian-only text shown inside Telegram Mini App.
-                    </FieldDescription>
-                    <FieldError>{errors.message}</FieldError>
-                  </Field>
-                </FieldGroup>
+      {isLoading ? (
+        <Skeleton className="h-56 w-full rounded-lg" />
+      ) : (
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <FieldGroup className="gap-4">
+            <Field data-invalid={Boolean(errors.title)}>
+              <FieldLabel htmlFor="audience-vote-update-screen-title">
+                Заголовок
+              </FieldLabel>
+              <Input
+                aria-invalid={errors.title ? true : undefined}
+                disabled={isDisabled}
+                id="audience-vote-update-screen-title"
+                onChange={(event) => updateDraft("title", event.target.value)}
+                value={draft.title}
+              />
+              <FieldError>{errors.title}</FieldError>
+            </Field>
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    {savedAt
-                      ? `Saved ${formatAudienceVoteDate(savedAt)}`
-                      : updateScreen
-                        ? `Last updated ${formatAudienceVoteDate(updateScreen.updated_at)}`
-                        : "Not saved yet"}
-                  </p>
-                  <Button disabled={isDisabled} type="submit">
-                    {isPending ? (
-                      <Loader2
-                        aria-hidden="true"
-                        className="animate-spin"
-                        data-icon="inline-start"
-                      />
-                    ) : (
-                      <Save aria-hidden="true" data-icon="inline-start" />
-                    )}
-                    Save
-                  </Button>
-                </div>
-              </form>
-            )}
+            <Field data-invalid={Boolean(errors.message)}>
+              <FieldLabel htmlFor="audience-vote-update-screen-message">
+                Повідомлення
+              </FieldLabel>
+              <Textarea
+                aria-invalid={errors.message ? true : undefined}
+                disabled={isDisabled}
+                id="audience-vote-update-screen-message"
+                maxRows={7}
+                onChange={(event) =>
+                  updateDraft("message", event.target.value)
+                }
+                value={draft.message}
+              />
+              <FieldError>{errors.message}</FieldError>
+            </Field>
+          </FieldGroup>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {savedAt
+                ? `Збережено ${formatAudienceVoteDate(savedAt)}`
+                : updateScreen
+                  ? `Оновлено ${formatAudienceVoteDate(updateScreen.updated_at)}`
+                  : "Ще не збережено"}
+            </p>
+            <Button disabled={isDisabled} type="submit">
+              {isPending ? (
+                <Loader2
+                  aria-hidden="true"
+                  className="animate-spin"
+                  data-icon="inline-start"
+                />
+              ) : (
+                <Save aria-hidden="true" data-icon="inline-start" />
+              )}
+              Зберегти
+            </Button>
           </div>
-
-          <MiniAppUpdateScreenPreview draft={draft} />
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
-
-function MiniAppUpdateScreenPreview({
-  draft,
-}: {
-  draft: AudienceVoteUpdateScreenFormDraft;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Smartphone aria-hidden="true" />
-        Public preview
-      </div>
-      <div className="rounded-lg border border-border/70 bg-background p-4 shadow-xs">
-        <p className="text-sm font-semibold">{draft.title}</p>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-          {draft.message}
-        </p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        This is the quiet waiting state voters see before the next vote opens.
-      </p>
+        </form>
+      )}
     </div>
   );
 }

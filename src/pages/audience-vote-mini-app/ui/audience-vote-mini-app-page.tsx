@@ -26,7 +26,7 @@ import {
   saveAudienceVoteMiniAppVote,
 } from "../api/mini-app-client";
 import {
-  getTelegramWebApp,
+  prepareTelegramMiniAppViewport,
   readTelegramInitData,
 } from "../model/telegram-web-app";
 
@@ -50,9 +50,7 @@ export default function AudienceVoteMiniAppPage() {
     let cancelled = false;
 
     async function loadFeed() {
-      const webApp = getTelegramWebApp();
-      webApp?.ready?.();
-      webApp?.expand?.();
+      prepareTelegramMiniAppViewport();
 
       const initData = readTelegramInitData();
       if (!initData) {
@@ -94,7 +92,7 @@ export default function AudienceVoteMiniAppPage() {
 
   return (
     <main className="min-h-svh bg-neutral-950 text-white">
-      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col">
+      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col sm:max-w-xl lg:max-w-2xl">
         <MiniAppHeader loadState={loadState} />
         <div className="flex-1 px-3 py-4">
           <MiniAppBody

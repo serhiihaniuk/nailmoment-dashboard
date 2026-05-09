@@ -23,7 +23,11 @@ import {
   insertAudienceVoteSchema,
   insertVoteCandidateMediaSchema,
   insertVoteCandidateSchema,
+  patchAudienceVoteScheduleClientSchema,
+  patchVoteCandidateMediaClientSchema,
   patchVoteCandidateClientSchema,
+  type PatchAudienceVoteScheduleClientOutput,
+  type PatchVoteCandidateMediaClientInput,
   type PatchVoteCandidateClientInput,
   updateAudienceVoteUpdateScreenClientSchema,
   type UpdateAudienceVoteUpdateScreenClientOutput,
@@ -199,6 +203,14 @@ export interface IAudienceVoteService {
     id: string,
     candidateData: PatchVoteCandidateClientInput
   ) => Promise<VoteCandidate | undefined>;
+  updateVoteCandidateMedia: (
+    id: string,
+    mediaData: PatchVoteCandidateMediaClientInput
+  ) => Promise<VoteCandidateMedia | undefined>;
+  updateAudienceVoteSchedule: (
+    id: string,
+    input: PatchAudienceVoteScheduleClientOutput
+  ) => Promise<AudienceVote | undefined>;
   openAudienceVote: (id: string) => Promise<AudienceVote | undefined>;
   upsertAudienceVoteUpdateScreen: (
     input: UpdateAudienceVoteUpdateScreenClientOutput
@@ -656,6 +668,49 @@ export function createAudienceVoteService(
     return closedVote;
   };
 
+  const updateAudienceVoteSchedule = async (
+    id: string,
+    input: PatchAudienceVoteScheduleClientOutput
+  ): Promise<AudienceVote | undefined> => {
+    const currentVote = await getAudienceVote(id);
+
+    if (!currentVote || currentVote.archived) {
+      return undefined;
+    }
+
+    if (currentVote.status === "open" || currentVote.status === "closed") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "schedule_locked",
+            message:
+              "Schedule can only be edited before an Audience Vote is opened.",
+          },
+        ],
+        message: "Audience Vote schedule cannot be updated.",
+        status: 409,
+      });
+    }
+
+    const validatedData = patchAudienceVoteScheduleClientSchema.parse(input);
+    const [updatedVote] = await db
+      .update(audienceVoteTable)
+      .set(validatedData)
+      .where(
+        and(
+          eq(audienceVoteTable.id, id),
+          eq(audienceVoteTable.archived, false),
+          or(
+            eq(audienceVoteTable.status, "draft"),
+            eq(audienceVoteTable.status, "scheduled")
+          )
+        )
+      )
+      .returning();
+
+    return updatedVote;
+  };
+
   const saveCurrentVote = async ({
     audienceVoteId,
     candidateId,
@@ -826,6 +881,25 @@ export function createAudienceVoteService(
     }
 
     return getVoteCandidate(id);
+  };
+
+  const updateVoteCandidateMedia = async (
+    id: string,
+    mediaData: PatchVoteCandidateMediaClientInput
+  ): Promise<VoteCandidateMedia | undefined> => {
+    const currentMedia = await getVoteCandidateMedia(id);
+    if (!currentMedia || currentMedia.archived) {
+      return undefined;
+    }
+
+    const validatedData = patchVoteCandidateMediaClientSchema.parse(mediaData);
+    await reorderActiveCandidateMedia(
+      currentMedia.candidate_id,
+      id,
+      validatedData.display_order
+    );
+
+    return getVoteCandidateMedia(id);
   };
 
   const softDeleteVoteCandidate = async (
@@ -1076,13 +1150,38 @@ export function createAudienceVoteService(
     }
   }
 
-  async function reorderActiveCandidateMedia(candidateId: string) {
+  async function reorderActiveCandidateMedia(
+    candidateId: string,
+    movedMediaId?: string,
+    targetOrder?: number
+  ) {
     const mediaList = await getVoteCandidateMediaList({
       archived: false,
       candidateId,
     });
 
-    for (const [index, media] of mediaList.entries()) {
+    const orderedMedia = [...mediaList];
+
+    if (movedMediaId && targetOrder !== undefined) {
+      const currentIndex = orderedMedia.findIndex(
+        (media) => media.id === movedMediaId
+      );
+
+      if (currentIndex >= 0) {
+        const removedMedia = orderedMedia.splice(currentIndex, 1);
+        const movedMedia = removedMedia[0];
+
+        if (movedMedia) {
+          const targetIndex = Math.min(
+            Math.max(targetOrder - 1, 0),
+            orderedMedia.length
+          );
+          orderedMedia.splice(targetIndex, 0, movedMedia);
+        }
+      }
+    }
+
+    for (const [index, media] of orderedMedia.entries()) {
       const nextOrder = index + 1;
 
       if (media.display_order === nextOrder) {
@@ -1115,7 +1214,9 @@ export function createAudienceVoteService(
     saveCurrentVote,
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
+    updateAudienceVoteSchedule,
     updateVoteCandidate,
+    updateVoteCandidateMedia,
     upsertAudienceVoteUpdateScreen,
     upsertTelegramVoter,
   };

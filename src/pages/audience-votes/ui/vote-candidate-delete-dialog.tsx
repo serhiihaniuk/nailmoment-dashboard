@@ -27,22 +27,22 @@ export function VoteCandidateDeleteDialog({
     <AlertDialog open={Boolean(candidate)} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Soft-delete candidate?</AlertDialogTitle>
+          <AlertDialogTitle>Приховати кандидата?</AlertDialogTitle>
           <AlertDialogDescription>
             {candidate
-              ? `${candidate.display_name} will be hidden from active candidate lists.`
-              : "This candidate will be hidden from active candidate lists."}
+              ? `${candidate.display_name} буде приховано зі списків активних кандидатів.`
+              : "Цього кандидата буде приховано зі списків активних кандидатів."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={disabled}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={disabled}>Скасувати</AlertDialogCancel>
           <AlertDialogAction
             disabled={disabled || !candidate}
             onClick={() => {
               if (candidate) onConfirm(candidate);
             }}
           >
-            Soft-delete
+            Приховати
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

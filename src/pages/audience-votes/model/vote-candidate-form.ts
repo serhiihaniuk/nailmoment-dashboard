@@ -77,7 +77,7 @@ export function parseVoteCandidateApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not update vote candidates." };
+    : { message: "Не вдалося оновити кандидатів." };
 }
 
 export function mapVoteCandidateApiErrors(

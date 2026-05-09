@@ -22,11 +22,13 @@ import {
   formatAudienceVoteKind,
   formatAudienceVoteStatus,
   formatAudienceVoteDate,
+  formatAudienceVoteWindow,
 } from "../model/audience-vote-form";
 import { fetchAudienceVoteResults } from "../api/audience-votes-client";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteResultsDialog } from "./audience-vote-results-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
+import { AudienceVoteScheduleDialog } from "./audience-vote-schedule-dialog";
 
 type BadgeVariant =
   | "default"
@@ -62,10 +64,12 @@ export function VoteCard({ vote }: VoteCardProps) {
               </Badge>
             </div>
             
-            <div className="flex items-center gap-2 mt-2 text-[12px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-[12px] text-muted-foreground">
               <span>{formatAudienceVoteKind(vote.kind)}</span>
               <span className="text-border">·</span>
-              <span>Created {formatAudienceVoteDate(vote.created_at)}</span>
+              <span>Створено {formatAudienceVoteDate(vote.created_at)}</span>
+              <span className="text-border">·</span>
+              <span>{formatAudienceVoteWindow(vote)}</span>
             </div>
           </div>
 
@@ -77,6 +81,7 @@ export function VoteCard({ vote }: VoteCardProps) {
 
         {/* Action buttons row */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <AudienceVoteScheduleDialog vote={vote} />
           <AudienceVoteCandidatesDialog vote={vote} />
           <AudienceVoteResultsDialog vote={vote} />
           
@@ -90,8 +95,12 @@ export function VoteCard({ vote }: VoteCardProps) {
             )}
           >
             <BarChart3 size={14} className="shrink-0" />
-            <span className="hidden sm:inline">{expanded ? "Hide Preview" : "Quick Preview"}</span>
-            <span className="sm:hidden">{expanded ? "Hide" : "Preview"}</span>
+            <span className="hidden sm:inline">
+              {expanded ? "Сховати перегляд" : "Швидкий перегляд"}
+            </span>
+            <span className="sm:hidden">
+              {expanded ? "Сховати" : "Перегляд"}
+            </span>
             {expanded ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
           </button>
         </div>
@@ -122,7 +131,7 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
   if (vote.status === "draft" || vote.status === "scheduled") {
     return (
       <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-        Results available after the vote is opened.
+        Результати з’являться після відкриття голосування.
       </div>
     );
   }
@@ -138,7 +147,7 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
   if (isError) {
     return (
       <div className="text-sm text-destructive py-4">
-        Could not load results: {error.message}
+        Не вдалося завантажити результати: {error.message}
       </div>
     );
   }
@@ -146,7 +155,7 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
   if (!data || data.results.length === 0) {
     return (
       <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-        No votes yet.
+        Голосів ще немає.
       </div>
     );
   }
@@ -159,10 +168,10 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
       {/* Stats row */}
       <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span className="font-semibold text-foreground tabular-nums">
-          {data.total_votes} total votes
+          {data.total_votes} голосів загалом
         </span>
         <div className="flex items-center gap-2">
-          <span>Updated {formatAudienceVoteDate(data.generated_at)}</span>
+          <span>Оновлено {formatAudienceVoteDate(data.generated_at)}</span>
           {isFetching && !isLoading && (
             <RefreshCw size={12} className="animate-spin" />
           )}
@@ -193,7 +202,7 @@ function VoteResultsInline({ vote }: { vote: AudienceVote }) {
 
       {hasMore && (
         <p className="text-[11px] text-muted-foreground text-center pt-1">
-          +{data.results.length - 5} more candidates
+          +{data.results.length - 5} кандидатів ще
         </p>
       )}
     </div>

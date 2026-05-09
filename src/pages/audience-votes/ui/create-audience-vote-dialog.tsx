@@ -47,29 +47,29 @@ export function CreateAudienceVoteDialog() {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus aria-hidden="true" size={14} />
-          New vote
+          Нове голосування
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-120">
         <DialogHeader>
-          <DialogTitle>Create Audience Vote</DialogTitle>
+          <DialogTitle>Створити голосування</DialogTitle>
           <DialogDescription>
-            Prepare a draft or scheduled voting stage for the Mini App.
+            Підготуйте чернетку або запланований етап голосування для Mini App.
           </DialogDescription>
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          <Field label="Public title" message={errors.title}>
+          <Field label="Публічна назва" message={errors.title}>
             <Input
               disabled={isPending}
               onChange={(event) => updateDraft("title", event.target.value)}
-              placeholder="Main stage speaker vote"
+              placeholder="Голосування за спікера головної сцени"
               value={draft.title}
             />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Kind" message={errors.kind}>
+            <Field label="Тип" message={errors.kind}>
               <Select
                 disabled={isPending}
                 onValueChange={updateKind}
@@ -88,7 +88,7 @@ export function CreateAudienceVoteDialog() {
               </Select>
             </Field>
 
-            <Field label="Status" message={errors.status}>
+            <Field label="Статус" message={errors.status}>
               <Select
                 disabled={isPending}
                 onValueChange={updateStatus}
@@ -109,7 +109,7 @@ export function CreateAudienceVoteDialog() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Window start" message={errors.window_start}>
+            <Field label="Початок" message={errors.window_start}>
               <div className="relative">
                 <CalendarClock
                   aria-hidden="true"
@@ -128,7 +128,7 @@ export function CreateAudienceVoteDialog() {
               </div>
             </Field>
 
-            <Field label="Window end" message={errors.window_end}>
+            <Field label="Завершення" message={errors.window_end}>
               <div className="relative">
                 <CalendarClock
                   aria-hidden="true"
@@ -157,7 +157,7 @@ export function CreateAudienceVoteDialog() {
               {isPending ? (
                 <Loader2 aria-hidden="true" className="animate-spin" />
               ) : null}
-              Create vote
+              Створити
             </Button>
           </DialogFooter>
         </form>

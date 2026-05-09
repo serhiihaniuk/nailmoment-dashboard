@@ -48,7 +48,7 @@ export function VoteCandidateMediaPanel({
               <Images className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-base font-semibold">Manage Media</h3>
+              <h3 className="text-base font-semibold">Керування медіа</h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">
                 {candidate.display_name}
               </p>
@@ -56,17 +56,17 @@ export function VoteCandidateMediaPanel({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <Badge className="rounded-md bg-emerald-100 text-emerald-700 border-emerald-200/50">
-              {state.activeMedia.length} active
+              {state.activeMedia.length} активних
             </Badge>
             {state.archivedMedia.length > 0 && (
               <Badge className="rounded-md" variant="outline">
-                {state.archivedMedia.length} archived
+                {state.archivedMedia.length} в архіві
               </Badge>
             )}
           </div>
         </div>
         <Button
-          aria-label="Close media panel"
+          aria-label="Закрити панель медіа"
           onClick={onClose}
           size="icon-sm"
           type="button"
@@ -84,9 +84,9 @@ export function VoteCandidateMediaPanel({
           {state.isClosed ? (
             <Alert className="border-amber-200 bg-amber-50/50">
               <Lock aria-hidden="true" className="text-amber-600" />
-              <AlertTitle className="text-amber-800">Media locked</AlertTitle>
+              <AlertTitle className="text-amber-800">Медіа заблоковано</AlertTitle>
               <AlertDescription className="text-amber-700">
-                Media management is locked for closed Audience Votes.
+                Керування медіа заблоковано для закритих голосувань.
               </AlertDescription>
             </Alert>
           ) : (
@@ -110,7 +110,7 @@ export function VoteCandidateMediaPanel({
           {state.formError ? (
             <Alert variant="destructive">
               <AlertCircle aria-hidden="true" />
-              <AlertTitle>Media update failed</AlertTitle>
+              <AlertTitle>Не вдалося оновити медіа</AlertTitle>
               <AlertDescription>{state.formError}</AlertDescription>
             </Alert>
           ) : null}
@@ -120,7 +120,7 @@ export function VoteCandidateMediaPanel({
               <CheckCircle2 aria-hidden="true" className="text-emerald-600" />
               <AlertTitle className="text-emerald-800">{state.successMessage}</AlertTitle>
               <AlertDescription className="text-emerald-700">
-                The candidate media list has been refreshed.
+                Список медіа кандидата оновлено.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -130,9 +130,9 @@ export function VoteCandidateMediaPanel({
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h4 className="text-sm font-semibold">Media Library</h4>
+              <h4 className="text-sm font-semibold">Медіатека</h4>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                Active files appear in voter-facing order
+                Активні файли показуються виборцям у цьому порядку
               </p>
             </div>
           </div>
@@ -140,9 +140,9 @@ export function VoteCandidateMediaPanel({
           {state.isQueryError ? (
             <Alert variant="destructive">
               <AlertCircle aria-hidden="true" />
-              <AlertTitle>Could not load media</AlertTitle>
+              <AlertTitle>Не вдалося завантажити медіа</AlertTitle>
               <AlertDescription>
-                {state.queryError?.message ?? "Refresh the media panel."}
+                {state.queryError?.message ?? "Оновіть панель медіа."}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -156,8 +156,12 @@ export function VoteCandidateMediaPanel({
               {state.activeMedia.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border/60 rounded-lg bg-muted/20">
                   <Images className="w-10 h-10 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm font-medium text-muted-foreground">No media uploaded</p>
-                  <p className="text-[12px] text-muted-foreground/70 mt-1">Upload images or videos for this candidate</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Медіа ще не завантажено
+                  </p>
+                  <p className="text-[12px] text-muted-foreground/70 mt-1">
+                    Завантажте фото або відео для цього кандидата
+                  </p>
                 </div>
               ) : (
                 <VoteCandidateMediaGrid
@@ -214,7 +218,7 @@ function ArchivedMediaSection({
         variant="outline"
       >
         <Archive aria-hidden="true" data-icon="inline-start" />
-        {showArchived ? "Hide archived" : `Show archived (${media.length})`}
+        {showArchived ? "Сховати архів" : `Показати архів (${media.length})`}
       </Button>
       {showArchived ? (
         <VoteCandidateMediaGrid

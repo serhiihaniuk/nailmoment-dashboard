@@ -67,10 +67,10 @@ export function VoteCandidatesTable({
     return (
       <Empty className="border border-border/70">
         <EmptyHeader>
-          <EmptyTitle>No Vote Candidates yet</EmptyTitle>
+          <EmptyTitle>Кандидатів ще немає</EmptyTitle>
           <EmptyDescription>
-            Add at least two active candidates before opening this Audience
-            Vote.
+            Додайте щонайменше двох активних кандидатів перед відкриттям
+            голосування.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -101,12 +101,12 @@ export function VoteCandidatesTable({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-16">Order</TableHead>
-              <TableHead>Public display</TableHead>
-              <TableHead>Internal</TableHead>
-              <TableHead>Caption</TableHead>
-              <TableHead className="w-28 text-right">Media</TableHead>
-              <TableHead className="w-36 text-right">Actions</TableHead>
+              <TableHead className="w-16">Порядок</TableHead>
+              <TableHead>Публічна назва</TableHead>
+              <TableHead>Внутрішня назва</TableHead>
+              <TableHead>Підпис</TableHead>
+              <TableHead className="w-28 text-right">Медіа</TableHead>
+              <TableHead className="w-36 text-right">Дії</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

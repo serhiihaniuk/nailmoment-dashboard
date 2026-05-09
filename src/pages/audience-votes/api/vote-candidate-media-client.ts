@@ -151,4 +151,32 @@ export async function deleteVoteCandidateMedia({
   return { id: mediaId };
 }
 
+export async function updateVoteCandidateMedia({
+  candidateId,
+  displayOrder,
+  mediaId,
+  voteId,
+}: {
+  candidateId: VoteCandidateId;
+  displayOrder: number;
+  mediaId: VoteCandidateMediaId;
+  voteId: AudienceVoteId;
+}): Promise<VoteCandidateMedia> {
+  const response = await fetch(
+    singleVoteCandidateMediaUrl({ candidateId, mediaId, voteId }),
+    {
+      body: JSON.stringify({ display_order: displayOrder }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    }
+  );
+  const json = await readJson(response);
+
+  if (!response.ok) {
+    throw parseVoteCandidateMediaApiError(json);
+  }
+
+  return parseVoteCandidateMedia(json);
+}
+
 export type { VoteCandidateMediaApiError };

@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: "/finance", label: "Фінанси" },
   { href: "/battle", label: "Батл" },
   { href: "/speaker_vote", label: "Спікери" },
-  { href: "/audience-votes", label: "Votes" },
+  { href: "/audience-votes", label: "Голосування" },
   { href: "/info", label: "Допомога" },
   { href: "/cookie-analytics", label: "Згоди" },
 ];

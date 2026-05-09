@@ -171,7 +171,7 @@ describe("audience vote parsing", () => {
         mediaId: "media_1",
         sizeBytes: 21 * 1024 * 1024,
       })
-    ).toThrow("Photos must be 20 MB or less");
+    ).toThrow("Фото має бути до 20 MB");
   });
 
   test("validates the ready-to-open ballot rules", () => {

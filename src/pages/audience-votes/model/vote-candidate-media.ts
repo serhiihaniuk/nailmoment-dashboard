@@ -39,7 +39,7 @@ export function parseVoteCandidateMediaApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not update Vote Candidate Media." };
+    : { message: "Не вдалося оновити медіа кандидата." };
 }
 
 export function resolveVoteCandidateMediaFile(
@@ -51,7 +51,7 @@ export function resolveVoteCandidateMediaFile(
 
   if (!parsedContentType.success) {
     return {
-      message: "Use JPG, PNG, WebP, HEIC, MP4, MOV, or WebM media.",
+      message: "Використайте медіа у форматі JPG, PNG, WebP, HEIC, MP4, MOV або WebM.",
       ok: false,
     };
   }
@@ -63,8 +63,8 @@ export function resolveVoteCandidateMediaFile(
     return {
       message:
         getVoteCandidateMediaTypeForContentType(contentType) === "photo"
-          ? "Photos must be 20 MB or less."
-          : "Videos must be 100 MB or less.",
+          ? "Фото має бути до 20 MB."
+          : "Відео має бути до 100 MB.",
       ok: false,
     };
   }
@@ -87,7 +87,7 @@ export function formatVoteCandidateMediaFileSize(bytes: number): string {
 export function formatVoteCandidateMediaType(
   mediaType: VoteCandidateMediaType
 ): string {
-  return mediaType === "photo" ? "Photo" : "Video";
+  return mediaType === "photo" ? "Фото" : "Відео";
 }
 
 export function canBrowserPreviewVoteCandidateMedia({

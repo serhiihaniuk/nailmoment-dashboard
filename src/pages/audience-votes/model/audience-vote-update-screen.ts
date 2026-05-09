@@ -72,7 +72,7 @@ export function parseAudienceVoteUpdateScreenApiError(
 
   return parsed.success
     ? parsed.data
-    : { message: "Could not update Audience Vote Update Screen." };
+    : { message: "Не вдалося оновити екран очікування голосування." };
 }
 
 export function mapAudienceVoteUpdateScreenApiErrors(

@@ -344,8 +344,8 @@ export const voteCandidateMediaUploadPayloadSchema = z
     fileName: z
       .string()
       .trim()
-      .min(1, "File name is required")
-      .max(255, "File name must be 255 characters or fewer"),
+      .min(1, "Назва файлу обов’язкова")
+      .max(255, "Назва файлу має бути не довшою за 255 символів"),
     mediaId: voteCandidateMediaIdSchema,
     replacesMediaId: voteCandidateMediaIdSchema.nullable().optional(),
     sizeBytes: z.number().int().min(1).max(VOTE_CANDIDATE_VIDEO_MAX_BYTES),
@@ -358,8 +358,8 @@ export const voteCandidateMediaUploadPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message:
           getVoteCandidateMediaTypeForContentType(value.contentType) === "photo"
-            ? "Photos must be 20 MB or less"
-            : "Videos must be 100 MB or less",
+            ? "Фото має бути до 20 MB"
+            : "Відео має бути до 100 MB",
         path: ["sizeBytes"],
       });
     }
@@ -577,45 +577,45 @@ export function validateAudienceVoteOpenReadiness({
   if (vote.title.trim().length === 0) {
     issues.push({
       code: "missing_title",
-      message: "Audience Vote title is required before opening.",
+      message: "Назва голосування обов’язкова перед відкриттям.",
     });
   }
 
   if (!audienceVoteKindSchema.safeParse(vote.kind).success) {
     issues.push({
       code: "missing_kind",
-      message: "Audience Vote kind is required before opening.",
+      message: "Тип голосування обов’язковий перед відкриттям.",
     });
   }
 
   if (vote.status === "closed") {
     issues.push({
       code: "closed_final",
-      message: "Closed Audience Votes cannot be reopened.",
+      message: "Закриті голосування не можна відкрити повторно.",
     });
   } else if (vote.status === "open") {
     issues.push({
       code: "already_open",
-      message: "This Audience Vote is already open.",
+      message: "Це голосування вже відкрите.",
     });
   } else if (vote.status !== "draft" && vote.status !== "scheduled") {
     issues.push({
       code: "not_openable_status",
-      message: "Only draft or scheduled Audience Votes can be opened.",
+      message: "Відкрити можна лише чернетку або заплановане голосування.",
     });
   }
 
   if (otherOpenVote && otherOpenVote.id !== vote.id) {
     issues.push({
       code: "another_vote_open",
-      message: `Another Audience Vote is already open: ${otherOpenVote.title}.`,
+      message: `Інше голосування вже відкрите: ${otherOpenVote.title}.`,
     });
   }
 
   if (activeCandidates.length < 2) {
     issues.push({
       code: "not_enough_candidates",
-      message: "At least two active Vote Candidates are required before opening.",
+      message: "Перед відкриттям потрібно щонайменше двоє активних кандидатів.",
     });
   }
 
@@ -627,7 +627,7 @@ export function validateAudienceVoteOpenReadiness({
       issues.push({
         candidateId: candidate.id,
         code: "missing_candidate_media",
-        message: `${candidate.display_name} needs at least one active media item before opening.`,
+        message: `${candidate.display_name} потребує щонайменше одне активне медіа перед відкриттям.`,
       });
     }
   }

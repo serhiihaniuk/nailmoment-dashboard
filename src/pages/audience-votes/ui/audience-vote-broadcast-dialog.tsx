@@ -65,19 +65,19 @@ export function AudienceVoteBroadcastDialog({
       <DialogTrigger asChild>
         <Button disabled={disabled} size="sm" variant="outline">
           <Radio aria-hidden="true" size={14} />
-          New broadcast
+          Нова розсилка
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create Audience Vote Broadcast</DialogTitle>
+          <DialogTitle>Створити розсилку голосування</DialogTitle>
           <DialogDescription>
-            Preview and confirm before any Telegram delivery rows are created.
+            Перевірте повідомлення перед створенням доставок у Telegram.
           </DialogDescription>
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handlePreview}>
-          <Field label="Audience Vote" message={errors.audience_vote_id}>
+          <Field label="Голосування" message={errors.audience_vote_id}>
             <Select
               disabled={isPending}
               onValueChange={(value) =>
@@ -86,7 +86,7 @@ export function AudienceVoteBroadcastDialog({
               value={draft.audience_vote_id}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose vote" />
+                <SelectValue placeholder="Оберіть голосування" />
               </SelectTrigger>
               <SelectContent>
                 {votes.map((vote) => (
@@ -99,23 +99,25 @@ export function AudienceVoteBroadcastDialog({
             </Select>
           </Field>
 
-          <Field label="Message text" message={errors.message_text}>
+          <Field label="Текст повідомлення" message={errors.message_text}>
             <Textarea
               className="min-h-36 resize-y"
               disabled={isPending}
               onChange={(event) =>
                 updateDraft("message_text", event.target.value)
               }
-              placeholder="Ukrainian Telegram message"
+              placeholder="Повідомлення українською для Telegram"
               value={draft.message_text}
             />
           </Field>
 
           <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
             <div>
-              <Label htmlFor="broadcast-open-button">Open-voting button</Label>
+              <Label htmlFor="broadcast-open-button">
+                Кнопка відкриття голосування
+              </Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Adds the Mini App button to the Telegram message.
+                Додає кнопку Mini App до повідомлення в Telegram.
               </p>
             </div>
             <Switch
@@ -131,9 +133,9 @@ export function AudienceVoteBroadcastDialog({
           {preview ? (
             <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/30 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">Preview</p>
+                <p className="text-sm font-medium">Попередній перегляд</p>
                 <p className="text-sm text-muted-foreground">
-                  {preview.estimated_recipient_count} active voters
+                  {preview.estimated_recipient_count} активних виборців
                 </p>
               </div>
               <p className="whitespace-pre-wrap rounded-md bg-white p-3 text-sm text-foreground shadow-xs">
@@ -141,7 +143,7 @@ export function AudienceVoteBroadcastDialog({
               </p>
               {preview.include_open_button ? (
                 <p className="text-xs font-medium text-muted-foreground">
-                  Includes Mini App open-voting button.
+                  Кнопка відкриття Mini App буде додана.
                 </p>
               ) : null}
             </div>
@@ -156,7 +158,7 @@ export function AudienceVoteBroadcastDialog({
               {isPreviewing ? (
                 <Loader2 aria-hidden="true" className="animate-spin" />
               ) : null}
-              Preview
+              Переглянути
             </Button>
             <Button
               disabled={!preview || isPending}
@@ -168,7 +170,7 @@ export function AudienceVoteBroadcastDialog({
               ) : (
                 <Send aria-hidden="true" data-icon="inline-start" />
               )}
-              Confirm
+              Підтвердити
             </Button>
           </DialogFooter>
         </form>

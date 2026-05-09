@@ -24,17 +24,17 @@ import { audienceVotesQueryKey } from "../model/use-create-audience-vote-dialog"
 import { AudienceVoteBroadcastDialog } from "./audience-vote-broadcast-dialog";
 import { CreateAudienceVoteDialog } from "./create-audience-vote-dialog";
 import { AudienceVoteBroadcastsPanel } from "./audience-vote-broadcasts-panel";
-import { AudienceVoteUpdateScreenPanel } from "./audience-vote-update-screen-panel";
+import { AudienceVoteUpdateScreenDialog } from "./audience-vote-update-screen-panel";
 import { VoteCard } from "./vote-card";
 
 type StatusFilter = "all" | AudienceVoteStatus;
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "draft", label: "Draft" },
-  { value: "closed", label: "Closed" },
+  { value: "all", label: "Усі" },
+  { value: "open", label: "Відкриті" },
+  { value: "scheduled", label: "Заплановані" },
+  { value: "draft", label: "Чернетки" },
+  { value: "closed", label: "Закриті" },
 ];
 
 export default function AudienceVotesPage() {
@@ -78,12 +78,14 @@ export default function AudienceVotesPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-heading-1">Audience Votes</h1>
+          <h1 className="text-heading-1">Голосування аудиторії</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Mini App voting stages, broadcasts, and voter-facing fallback text.
+            Етапи голосування в Mini App, розсилки та резервний текст для
+            виборців.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <AudienceVoteUpdateScreenDialog />
           <AudienceVoteBroadcastDialog votes={votes ?? []} />
           <CreateAudienceVoteDialog />
         </div>
@@ -96,7 +98,7 @@ export default function AudienceVotesPage() {
       {isError ? (
         <Alert variant="destructive">
           <FileText aria-hidden="true" />
-          <AlertTitle>Could not load audience votes</AlertTitle>
+          <AlertTitle>Не вдалося завантажити голосування</AlertTitle>
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
       ) : null}
@@ -124,13 +126,13 @@ export default function AudienceVotesPage() {
                 </EmptyMedia>
                 <EmptyTitle>
                   {statusFilter === "all"
-                    ? "No voting stages yet"
-                    : `No ${statusFilter} votes`}
+                    ? "Ще немає голосувань"
+                    : "Немає голосувань у цьому статусі"}
                 </EmptyTitle>
                 <EmptyDescription>
                   {statusFilter === "all"
-                    ? "Create the first speaker or battle vote before the event starts."
-                    : "Try selecting a different filter."}
+                    ? "Створіть перше голосування за спікера або батл до старту події."
+                    : "Спробуйте вибрати інший фільтр."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -143,8 +145,6 @@ export default function AudienceVotesPage() {
           )}
 
           <AudienceVoteBroadcastsPanel votes={votes} />
-
-          <AudienceVoteUpdateScreenPanel />
         </>
       ) : null}
     </div>
@@ -161,29 +161,31 @@ interface StatsBarProps {
 function StatsBar({ stats, isRefreshing }: StatsBarProps) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap text-[12px] text-muted-foreground">
-      <span>{stats.total} total</span>
+      <span>{stats.total} усього</span>
       {stats.open > 0 && (
         <>
           <span className="text-border">·</span>
-          <span className="text-success font-medium">{stats.open} open</span>
+          <span className="text-success font-medium">
+            {stats.open} відкрито
+          </span>
         </>
       )}
       {stats.scheduled > 0 && (
         <>
           <span className="text-border">·</span>
-          <span>{stats.scheduled} scheduled</span>
+          <span>{stats.scheduled} заплановано</span>
         </>
       )}
       {stats.draft > 0 && (
         <>
           <span className="text-border">·</span>
-          <span>{stats.draft} draft</span>
+          <span>{stats.draft} чернеток</span>
         </>
       )}
       {stats.closed > 0 && (
         <>
           <span className="text-border">·</span>
-          <span>{stats.closed} closed</span>
+          <span>{stats.closed} закрито</span>
         </>
       )}
       {isRefreshing && (
@@ -191,7 +193,7 @@ function StatsBar({ stats, isRefreshing }: StatsBarProps) {
           <span className="text-border">·</span>
           <span className="flex items-center gap-1">
             <Loader2 size={11} className="animate-spin" />
-            Refreshing
+            Оновлення
           </span>
         </>
       )}

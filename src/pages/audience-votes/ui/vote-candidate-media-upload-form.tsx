@@ -130,15 +130,15 @@ export function VoteCandidateMediaUploadForm({
   return (
     <FieldSet className="gap-4 rounded-lg border border-border/70 bg-background p-4">
       <div>
-        <FieldLegend className="mb-1">Upload media</FieldLegend>
+        <FieldLegend className="mb-1">Завантажити медіа</FieldLegend>
         <p className="text-sm text-muted-foreground">
-          Add photos or videos for {candidate.display_name}.
+          Додайте фото або відео для {candidate.display_name}.
         </p>
       </div>
 
       <FieldGroup className="gap-4">
         <Field data-disabled={isUploading ? true : undefined}>
-          <FieldLabel htmlFor={inputId}>Media file</FieldLabel>
+          <FieldLabel htmlFor={inputId}>Медіафайл</FieldLabel>
           <label
             className={cn(
               "flex min-h-48 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center transition-colors",
@@ -173,9 +173,9 @@ export function VoteCandidateMediaUploadForm({
                   <UploadCloud aria-hidden="true" className="size-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Choose a file</p>
+                  <p className="text-sm font-medium">Оберіть файл</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    JPG, PNG, WebP, HEIC, MP4, MOV, or WebM
+                    JPG, PNG, WebP, HEIC, MP4, MOV або WebM
                   </p>
                 </div>
               </div>
@@ -184,12 +184,12 @@ export function VoteCandidateMediaUploadForm({
           <FieldDescription>
             {file
               ? `${file.name} / ${formatVoteCandidateMediaFileSize(file.size)}`
-              : "Photos up to 20 MB. Videos up to 100 MB."}
+              : "Фото до 20 MB. Відео до 100 MB."}
           </FieldDescription>
         </Field>
         <FieldGroup className="gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <Field data-disabled={isUploadModeDisabled ? true : undefined}>
-            <FieldLabel>Upload mode</FieldLabel>
+            <FieldLabel>Режим завантаження</FieldLabel>
             <Select
               disabled={isUploadModeDisabled}
               onValueChange={onReplaceMediaChange}
@@ -201,11 +201,11 @@ export function VoteCandidateMediaUploadForm({
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value={addNewMediaSelectValue}>
-                    Add as new media
+                    Додати як нове медіа
                   </SelectItem>
                   {activeMedia.map((media) => (
                     <SelectItem key={media.id} value={media.id}>
-                      Replace #{media.display_order} {media.file_name}
+                      Замінити #{media.display_order} {media.file_name}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -227,14 +227,14 @@ export function VoteCandidateMediaUploadForm({
             ) : (
               <FileUp aria-hidden="true" data-icon="inline-start" />
             )}
-            Upload
+            Завантажити
           </Button>
         </FieldGroup>
       </FieldGroup>
       {uploadProgress !== null ? (
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>Uploading</span>
+            <span>Завантаження</span>
             <span>{Math.round(uploadProgress)}%</span>
           </div>
           <Progress value={uploadProgress} />
@@ -269,7 +269,7 @@ function SelectedFilePreview({
           {formatVoteCandidateMediaType(mediaType)}
         </Badge>
         <Button
-          aria-label="Clear selected file"
+          aria-label="Очистити вибраний файл"
           onClick={(event) => {
             event.preventDefault();
             onClear();
@@ -310,7 +310,8 @@ function SelectedFilePreview({
           )}
           <p className="text-sm font-medium">{file.name}</p>
           <p className="text-xs text-muted-foreground">
-            This file can be uploaded, but this browser may not preview it.
+            Файл можна завантажити, але цей браузер може не показати його
+            попередній перегляд.
           </p>
         </div>
       )}

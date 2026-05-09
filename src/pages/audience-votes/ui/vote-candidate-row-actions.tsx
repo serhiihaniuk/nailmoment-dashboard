@@ -30,7 +30,7 @@ export function VoteCandidateRowActions({
     <div className="flex justify-end gap-1">
       <VoteCandidateIconButton
         disabled={isEditing || isLocked || isPending || index === 0}
-        label="Move candidate up"
+        label="Перемістити кандидата вище"
         onClick={() => onMove(candidate, candidate.display_order - 1)}
       >
         <ArrowUp aria-hidden="true" />
@@ -39,21 +39,21 @@ export function VoteCandidateRowActions({
         disabled={
           isEditing || isLocked || isPending || index === candidatesCount - 1
         }
-        label="Move candidate down"
+        label="Перемістити кандидата нижче"
         onClick={() => onMove(candidate, candidate.display_order + 1)}
       >
         <ArrowDown aria-hidden="true" />
       </VoteCandidateIconButton>
       <VoteCandidateIconButton
         disabled={isEditing || isLocked || isPending}
-        label="Edit candidate"
+        label="Редагувати кандидата"
         onClick={() => onStartEdit(candidate)}
       >
         <Pencil aria-hidden="true" />
       </VoteCandidateIconButton>
       <VoteCandidateIconButton
         disabled={isEditing || isLocked || isPending}
-        label="Soft-delete candidate"
+        label="Приховати кандидата"
         onClick={() => onRequestDelete(candidate)}
       >
         <Trash2 aria-hidden="true" />

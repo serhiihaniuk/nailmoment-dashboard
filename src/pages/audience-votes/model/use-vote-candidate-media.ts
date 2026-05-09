@@ -13,6 +13,7 @@ import {
 import {
   deleteVoteCandidateMedia,
   fetchVoteCandidateMedia,
+  updateVoteCandidateMedia,
   uploadVoteCandidateMedia,
   type VoteCandidateMediaApiError,
 } from "../api/vote-candidate-media-client";
@@ -81,8 +82,10 @@ export function useVoteCandidateMedia({
         voteId: vote.id,
       }),
     onError: (error) => {
+      resetFileInput();
       setFormError(error.message);
       setSuccessMessage(null);
+      setUploadProgress(null);
     },
     onSuccess: async (uploadedMedia, variables) => {
       const queryKey = audienceVoteCandidateMediaQueryKey({
@@ -99,7 +102,7 @@ export function useVoteCandidateMedia({
       await queryClient.invalidateQueries({ queryKey });
       resetFileInput();
       setFormError(null);
-      setSuccessMessage("Media uploaded.");
+      setSuccessMessage("Медіа завантажено.");
       setReplaceMediaId(null);
       setUploadProgress(null);
     },
@@ -128,7 +131,35 @@ export function useVoteCandidateMedia({
         }),
       });
       setFormError(null);
-      setSuccessMessage("Media archived.");
+      setSuccessMessage("Медіа переміщено в архів.");
+    },
+  });
+
+  const updateMutation = useMutation<
+    VoteCandidateMedia,
+    VoteCandidateMediaApiError,
+    { displayOrder: number; mediaId: VoteCandidateMediaId }
+  >({
+    mutationFn: ({ displayOrder, mediaId }) =>
+      updateVoteCandidateMedia({
+        candidateId: candidate.id,
+        displayOrder,
+        mediaId,
+        voteId: vote.id,
+      }),
+    onError: (error) => {
+      setFormError(error.message);
+      setSuccessMessage(null);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: audienceVoteCandidateMediaQueryKey({
+          candidateId: candidate.id,
+          voteId: vote.id,
+        }),
+      });
+      setFormError(null);
+      setSuccessMessage(null);
     },
   });
 
@@ -150,6 +181,11 @@ export function useVoteCandidateMedia({
 
     setFile(selectedFile);
     setFormError(null);
+    setReplaceMediaId(null);
+
+    if (!isClosed && !uploadMutation.isPending) {
+      uploadMutation.mutate({ file: selectedFile, replacesMediaId: null });
+    }
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -186,6 +222,17 @@ export function useVoteCandidateMedia({
     deleteMutation.mutate(media.id);
   }
 
+  function moveMedia(media: VoteCandidateMedia, displayOrder: number) {
+    if (!canSoftDelete || updateMutation.isPending) {
+      return;
+    }
+
+    updateMutation.mutate({
+      displayOrder,
+      mediaId: media.id,
+    });
+  }
+
   function resetFileInput() {
     setFile(null);
     setFileInputKey((current) => current + 1);
@@ -208,13 +255,18 @@ export function useVoteCandidateMedia({
     isDeleting: deleteMutation.isPending,
     isLoading: mediaQuery.isLoading,
     isQueryError: mediaQuery.isError,
+    isReordering: updateMutation.isPending,
     isUploading: uploadMutation.isPending,
+    moveMedia,
+    pendingMediaId:
+      updateMutation.variables?.mediaId ?? deleteMutation.variables ?? null,
     queryError: mediaQuery.error,
     replaceMediaId,
     replaceMediaSelectValue,
     resetFileInput,
     selectFile,
     setShowArchived,
+    shouldShowManualUpload: false,
     showArchived,
     softDeleteMedia,
     successMessage,
