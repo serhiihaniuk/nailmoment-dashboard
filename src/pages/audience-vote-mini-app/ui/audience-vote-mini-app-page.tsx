@@ -131,7 +131,7 @@ function MiniAppHeader({ loadState }: { loadState: LoadState }) {
       : "Nail Moment";
 
   return (
-    <header className="tg-mini-app-sticky-top sticky z-10 border-b border-white/10 bg-neutral-950/95 px-4 py-3 backdrop-blur">
+    <header className="tg-mini-app-sticky-top sticky z-10 border-b border-white/10 bg-neutral-950 px-4 pb-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">

@@ -196,8 +196,8 @@
   }
 
   .tg-mini-app-safe-top {
-    padding-top: max(
-      0.75rem,
+    --tg-mini-app-safe-area-top: max(
+      0px,
       var(--tg-safe-area-inset-top, 0px),
       var(--tg-content-safe-area-inset-top, 0px),
       env(safe-area-inset-top, 0px)
@@ -205,12 +205,8 @@
   }
 
   .tg-mini-app-sticky-top {
-    top: max(
-      0px,
-      var(--tg-safe-area-inset-top, 0px),
-      var(--tg-content-safe-area-inset-top, 0px),
-      env(safe-area-inset-top, 0px)
-    );
+    top: 0;
+    padding-top: calc(var(--tg-mini-app-safe-area-top, 0px) + 15px);
   }
 
   .tg-mini-app-no-select,
