@@ -167,11 +167,11 @@ function ChartStatsList({
   total: number;
 }) {
   return (
-    <div className="grid w-full gap-2 sm:grid-cols-3">
+    <div className="grid w-full gap-y-3 sm:grid-cols-3 sm:gap-x-12">
       {items.map((item) => (
         <div
           key={item.key}
-          className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm"
+          className="grid grid-cols-[1fr_auto] items-center gap-6 text-sm"
         >
           <div className="flex min-w-0 items-center gap-2">
             <span
