@@ -101,6 +101,7 @@ export function AudienceVoteResultsDrawer({ vote }: { vote: AudienceVote }) {
             <AudienceVoteResultsPanel
               isRefreshing={state.isFetching && !state.isLoading}
               results={state.data}
+              vote={vote}
             />
           ) : null}
         </div>
@@ -112,9 +113,11 @@ export function AudienceVoteResultsDrawer({ vote }: { vote: AudienceVote }) {
 function AudienceVoteResultsPanel({
   isRefreshing,
   results,
+  vote,
 }: {
   isRefreshing: boolean;
   results: AudienceVoteResults;
+  vote: AudienceVote;
 }) {
   const leader = results.results[0] ?? null;
   const runnerUp = results.results[1] ?? null;
@@ -123,7 +126,7 @@ function AudienceVoteResultsPanel({
     : 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pt-2">
       <div className="grid gap-3 sm:grid-cols-3">
         <ResultStat
           label="Голосів"
@@ -175,7 +178,9 @@ function AudienceVoteResultsPanel({
               Розподіл голосів
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Компактний рейтинг усіх кандидатів.
+              {vote.status === "closed"
+                ? "Фінальний рейтинг усіх кандидатів."
+                : "Поточний рейтинг усіх кандидатів."}
             </p>
           </div>
           <div className="divide-y divide-border/50">
@@ -198,7 +203,7 @@ function AudienceVoteResultsPanel({
           <Insight label="Відрив лідера" value={formatVoteCount(winnerMargin)} />
           <Insight
             label="Активність"
-            value={getParticipationLabel(results.total_votes)}
+            value={getParticipationLabel(results.total_votes, vote.status)}
           />
         </div>
       </section>
@@ -322,7 +327,15 @@ function formatVoteCount(count: number) {
   return `${count} голосів`;
 }
 
-function getParticipationLabel(totalVotes: number) {
+function getParticipationLabel(
+  totalVotes: number,
+  status: AudienceVote["status"]
+) {
+  if (status === "closed") {
+    if (totalVotes === 0) return "завершено без голосів";
+    return "фінальні результати";
+  }
+
   if (totalVotes === 0) return "немає голосів";
   if (totalVotes === 1) return "дуже ранні результати";
   if (totalVotes < 10) return "низька";
