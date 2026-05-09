@@ -73,6 +73,10 @@ export default function AudienceVoteMiniAppPage() {
       try {
         const data = await fetchAudienceVoteMiniAppFeed(initData);
 
+        if (data.status === "open_vote") {
+          prepareTelegramMiniAppViewport({ fullscreen: true });
+        }
+
         if (!cancelled) {
           setLoadState({ data, initData, status: "loaded" });
         }
@@ -97,7 +101,7 @@ export default function AudienceVoteMiniAppPage() {
   }, [reloadCount]);
 
   return (
-    <main className="min-h-svh bg-neutral-950 text-white">
+    <main className="tg-mini-app-safe-top min-h-svh bg-neutral-950 text-white">
       <div className="mx-auto flex min-h-svh w-full max-w-md flex-col sm:max-w-xl lg:max-w-2xl">
         <MiniAppHeader loadState={loadState} />
         <div className="flex-1 px-3 py-4">
@@ -118,7 +122,7 @@ function MiniAppHeader({ loadState }: { loadState: LoadState }) {
       : "Nail Moment";
 
   return (
-    <header className="sticky top-0 z-10 border-b border-white/10 bg-neutral-950/95 px-4 py-3 backdrop-blur">
+    <header className="tg-mini-app-sticky-top sticky z-10 border-b border-white/10 bg-neutral-950/95 px-4 py-3 backdrop-blur">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">
@@ -417,12 +421,22 @@ function CandidateMedia({
 }) {
   if (media.media_type === "photo") {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        alt={`${candidateName}, медіа ${mediaNumber}`}
-        className="size-full object-cover"
-        src={media.blob_url}
-      />
+      <div className="relative size-full overflow-hidden bg-neutral-950">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt=""
+          aria-hidden="true"
+          className="absolute -inset-6 size-[calc(100%+3rem)] scale-110 object-cover opacity-65 blur-2xl"
+          src={media.blob_url}
+        />
+        <div className="absolute inset-0 bg-black/25" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt={`${candidateName}, медіа ${mediaNumber}`}
+          className="relative z-1 size-full object-contain"
+          src={media.blob_url}
+        />
+      </div>
     );
   }
 

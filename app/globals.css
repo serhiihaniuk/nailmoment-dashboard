@@ -195,6 +195,24 @@
     animation: scale-in 0.3s var(--ease-out-expo) both;
   }
 
+  .tg-mini-app-safe-top {
+    padding-top: max(
+      0.75rem,
+      var(--tg-safe-area-inset-top, 0px),
+      var(--tg-content-safe-area-inset-top, 0px),
+      env(safe-area-inset-top, 0px)
+    );
+  }
+
+  .tg-mini-app-sticky-top {
+    top: max(
+      0px,
+      var(--tg-safe-area-inset-top, 0px),
+      var(--tg-content-safe-area-inset-top, 0px),
+      env(safe-area-inset-top, 0px)
+    );
+  }
+
   /* Vercel-style layered shadow */
   .shadow-surface {
     box-shadow:

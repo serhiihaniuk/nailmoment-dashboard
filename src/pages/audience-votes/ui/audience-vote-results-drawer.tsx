@@ -58,7 +58,7 @@ export function AudienceVoteResultsDrawer({ vote }: { vote: AudienceVote }) {
         open={state.open}
         showCloseButton={false}
       >
-        <div className="space-y-5">
+        <div className="space-y-5 pt-8">
           <header className="flex items-start justify-between gap-4 border-b border-border/60 pb-5">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">

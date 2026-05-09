@@ -22,7 +22,11 @@ export function getTelegramWebApp(): TelegramWebApp | undefined {
   return (window as Window & TelegramWindow).Telegram?.WebApp;
 }
 
-export function prepareTelegramMiniAppViewport(): void {
+export function prepareTelegramMiniAppViewport({
+  fullscreen = false,
+}: {
+  fullscreen?: boolean;
+} = {}): void {
   const webApp = getTelegramWebApp();
   if (!webApp) {
     return;
@@ -36,7 +40,7 @@ export function prepareTelegramMiniAppViewport(): void {
     typeof webApp.requestFullscreen === "function" &&
     (webApp.isVersionAtLeast?.("8.0") ?? true);
 
-  if (supportsFullscreen && !webApp.isFullscreen) {
+  if (fullscreen && supportsFullscreen && !webApp.isFullscreen) {
     safeTelegramCall(() => webApp.requestFullscreen?.());
   }
 }
