@@ -361,7 +361,7 @@ function CandidateMediaCarousel({
 
   return (
     <Carousel
-      className="relative aspect-4/5 overflow-hidden bg-neutral-800"
+      className="relative aspect-4/5 overflow-hidden bg-neutral-800 **:data-[slot=carousel-content]:h-full **:data-[slot=carousel-item]:h-full"
       opts={{ align: "start", loop: hasMultipleMedia }}
       setApi={setApi}
     >

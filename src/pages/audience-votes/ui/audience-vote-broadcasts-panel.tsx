@@ -9,6 +9,7 @@ import {
   Loader2,
   Radio,
   Send,
+  Timer,
 } from "lucide-react";
 
 import type {
@@ -302,6 +303,7 @@ function BroadcastRow({
   const canaryFailed =
     broadcast.delivery_counts.operator_canary.failed +
     broadcast.delivery_counts.voter_canary.failed;
+  const nextStageTiming = formatBroadcastTiming(broadcast);
 
   return (
     <div className="grid gap-3 border-b border-border/60 p-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_18rem_auto] lg:items-start">
@@ -355,6 +357,20 @@ function BroadcastRow({
             : ""}
         </p>
         <p>{formatAudienceVoteBroadcastNextStep(broadcast)}</p>
+        {nextStageTiming ? (
+          <div className="mt-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-normal text-muted-foreground">
+              <Timer aria-hidden="true" className="size-3.5" />
+              Таймер
+            </div>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {nextStageTiming.label}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {nextStageTiming.detail}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex justify-start lg:justify-end">
@@ -372,6 +388,61 @@ function BroadcastRow({
       </div>
     </div>
   );
+}
+
+function formatBroadcastTiming(
+  broadcast: AudienceVoteBroadcast,
+  now = new Date()
+) {
+  if (!isAudienceVoteBroadcastInterruptible(broadcast.status)) {
+    return null;
+  }
+
+  if (broadcast.status === "ready") {
+    return {
+      detail: `Оновлено ${formatAudienceVoteDate(broadcast.updated_at)}`,
+      label:
+        broadcast.delivery_counts.normal.pending > 0
+          ? "Доставка триває"
+          : "Завершуємо доставку",
+    };
+  }
+
+  const remainingMs = broadcast.next_stage_at.getTime() - now.getTime();
+  const absoluteTime = formatAudienceVoteDate(broadcast.next_stage_at);
+
+  if (remainingMs <= 0) {
+    return {
+      detail: `Заплановано на ${absoluteTime}`,
+      label: `Час наступного кроку минув ${formatDuration(-remainingMs)} тому`,
+    };
+  }
+
+  return {
+    detail: `Наступний крок о ${absoluteTime}`,
+    label: `Наступний крок через ${formatDuration(remainingMs)}`,
+  };
+}
+
+function formatDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.ceil(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return remainingMinutes > 0
+      ? `${hours} год ${remainingMinutes} хв`
+      : `${hours} год`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes} хв ${seconds} с` : `${minutes} хв`;
+  }
+
+  return `${seconds} с`;
 }
 
 function getBroadcastStatusBadgeVariant(
