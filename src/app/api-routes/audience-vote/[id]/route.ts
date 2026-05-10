@@ -65,4 +65,37 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getDashboardSession();
+
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const parsedParams = await parseRouteParams(
+      params,
+      audienceVoteRouteParamsSchema
+    );
+    if (!parsedParams.ok) return parsedParams.response;
+
+    const deletedVote = await audienceVoteService.softDeleteDraftAudienceVote(
+      parsedParams.data.id
+    );
+
+    return deletedVote
+      ? NextResponse.json(deletedVote, { status: 200 })
+      : NextResponse.json({ message: "Not found" }, { status: 404 });
+  } catch (error) {
+    console.error("API Error deleting draft audience vote:", error);
+    return audienceVoteTransitionErrorResponse({
+      error,
+      fallbackMessage: "Could not delete Audience Vote.",
+    });
+  }
+}
+
 export const dynamic = "force-dynamic";
