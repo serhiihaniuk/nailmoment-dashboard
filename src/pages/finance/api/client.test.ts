@@ -71,7 +71,7 @@ describe("finance API client", () => {
     expect(ticket.finance_summary.remaining_total).toBe("100.00");
   });
 
-  test("creates initial payments from the discounted and fee-adjusted payable total", async () => {
+  test("creates initial payments from the discounted payable total", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ ticket: { id: "ticket-1" } }))
@@ -148,7 +148,7 @@ describe("finance API client", () => {
       3,
       "/api/ticket/ticket-1/payments",
       expect.objectContaining({
-        body: expect.stringContaining('"amount":"190.00"'),
+        body: expect.stringContaining('"amount":"200.00"'),
       })
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -162,7 +162,7 @@ describe("finance API client", () => {
       4,
       "/api/ticket/ticket-1/payments",
       expect.objectContaining({
-        body: expect.stringContaining('"amount":"190.00"'),
+        body: expect.stringContaining('"amount":"200.00"'),
       })
     );
   });

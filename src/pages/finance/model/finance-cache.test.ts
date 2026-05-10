@@ -114,7 +114,7 @@ describe("finance optimistic cache helpers", () => {
     const ticket = readTicket(result);
     expect(ticket.name).toBe("New Name");
     expect(ticket.updated_grade).toBe("vip");
-    expect(ticket.finance_summary.remaining_total).toBe("80.00");
+    expect(ticket.finance_summary.remaining_total).toBe("100.00");
   });
 
   test("patches finance fields and recalculates the summary", () => {
@@ -126,12 +126,12 @@ describe("finance optimistic cache helpers", () => {
     const ticket = readTicket(result);
     expect(ticket.finance?.gross_total).toBe("90.00");
     expect(ticket.finance?.tax_amount).toBe("18.00");
-    expect(ticket.finance_summary.gross_total).toBe("72.00");
-    expect(ticket.finance_summary.remaining_total).toBe("72.00");
+    expect(ticket.finance_summary.gross_total).toBe("90.00");
+    expect(ticket.finance_summary.remaining_total).toBe("90.00");
     expect(ticket.finance_summary.payment_status).toBe("unpaid");
   });
 
-  test("applies finance discounts and fees when recalculating the summary", () => {
+  test("applies finance discounts without subtracting fees when recalculating the summary", () => {
     const result = patchTicketFinanceInCache([makeTicket()], "ticket-1", {
       discount_amount: "25",
       gross_total: "100",
@@ -140,11 +140,11 @@ describe("finance optimistic cache helpers", () => {
     const ticket = readTicket(result);
     expect(ticket.finance?.gross_total).toBe("100.00");
     expect(ticket.finance?.discount_amount).toBe("25.00");
-    expect(ticket.finance_summary.gross_total).toBe("55.00");
-    expect(ticket.finance_summary.remaining_total).toBe("55.00");
+    expect(ticket.finance_summary.gross_total).toBe("75.00");
+    expect(ticket.finance_summary.remaining_total).toBe("75.00");
   });
 
-  test("matches Ticket domain totals for discounted fee-adjusted cache updates", () => {
+  test("matches Ticket domain totals for discounted cache updates with separate net total", () => {
     const result = patchTicketFinanceInCache(
       [
         makeTicket({
@@ -179,16 +179,16 @@ describe("finance optimistic cache helpers", () => {
       buildTicketFinanceSummary(ticket.finance, ticket.payments)
     );
     expect(ticket.finance_summary).toMatchObject({
-      gross_total: "370.00",
+      gross_total: "400.00",
       paid_total: "150.00",
       payment_status: "partial",
-      remaining_total: "220.00",
+      remaining_total: "250.00",
     });
     expect(calculateTicketFinanceTotals(ticket.finance)).toMatchObject({
       discountTotal: 100,
       grossTotal: 500,
       netTotal: 370,
-      payableTotal: 370,
+      payableTotal: 400,
       taxTotal: 30,
     });
   });
@@ -204,7 +204,7 @@ describe("finance optimistic cache helpers", () => {
     expect(ticket.payments[0]?.is_paid).toBe(true);
     expect(ticket.payments[0]?.paid_date).toEqual(paidDate);
     expect(ticket.finance_summary.paid_total).toBe("40.00");
-    expect(ticket.finance_summary.remaining_total).toBe("40.00");
+    expect(ticket.finance_summary.remaining_total).toBe("60.00");
     expect(ticket.finance_summary.payment_status).toBe("partial");
   });
 
@@ -215,12 +215,12 @@ describe("finance optimistic cache helpers", () => {
 
     const ticket = readTicket(result);
     expect(calculateTicketPaymentCoverage(ticket.finance, ticket.payments)).toEqual({
-      missingScheduledTotal: 5,
+      missingScheduledTotal: 25,
       overScheduledTotal: 0,
       paidTotal: 0,
-      payableTotal: 80,
+      payableTotal: 100,
       pendingScheduledTotal: 75,
-      scheduledDifference: -5,
+      scheduledDifference: -25,
       scheduledTotal: 75,
       status: "under_scheduled",
     });

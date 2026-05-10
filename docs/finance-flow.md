@@ -114,15 +114,15 @@ payment status, invoice status, or due dates.
 ## Finance Formula
 
 ```txt
-gross_total - discount_amount - tax_amount = payableTotal
-payableTotal                               = netTotal
+gross_total - discount_amount              = payableTotal
+payableTotal - tax_amount                  = netTotal
 sum(payment.amount where is_paid)          = paidTotal
 payableTotal - paidTotal                   = remainingTotal
 ```
 
 `tax_amount` is a legacy storage name. In the dashboard UI this is the
-commission/fee adjustment, and it reduces the payable total the same way a
-discount does.
+commission/fee adjustment. It reduces the net total received, but it does not
+reduce the amount the customer owes.
 
 The domain owner is:
 
