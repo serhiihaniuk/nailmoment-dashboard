@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Lock, Play } from "lucide-react";
+import { Loader2, Lock, Play, Trash2 } from "lucide-react";
 
 import type { AudienceVote } from "@/entities/audience-vote";
 import {
@@ -26,12 +26,21 @@ export function AudienceVoteLifecycleActions({
 
   return (
     <div className="flex min-w-0 flex-col items-start gap-1.5 lg:min-w-32 lg:items-end">
-      <div className="flex justify-start gap-1.5 lg:justify-end">
+      <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
         {vote.status === "draft" || vote.status === "scheduled" ? (
           <OpenVoteAction
             disabled={state.isPending}
             isOpening={state.isOpening}
             onOpen={state.openVote}
+            vote={vote}
+          />
+        ) : null}
+
+        {vote.status === "draft" ? (
+          <DeleteDraftVoteAction
+            disabled={state.isPending}
+            isDeleting={state.isDeleting}
+            onDelete={state.deleteDraftVote}
             vote={vote}
           />
         ) : null}
@@ -58,6 +67,57 @@ export function AudienceVoteLifecycleActions({
         </p>
       ) : null}
     </div>
+  );
+}
+
+function DeleteDraftVoteAction({
+  disabled,
+  isDeleting,
+  onDelete,
+  vote,
+}: {
+  disabled: boolean;
+  isDeleting: boolean;
+  onDelete: () => void;
+  vote: AudienceVote;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          disabled={disabled}
+          size="sm"
+          variant="outline"
+        >
+          {isDeleting ? (
+            <Loader2 aria-hidden="true" className="animate-spin" />
+          ) : (
+            <Trash2 aria-hidden="true" data-icon="inline-start" />
+          )}
+          Видалити
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Видалити чернетку?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {vote.title} буде приховано з дашборда. Це м’яке видалення:
+            голосування не видаляється з бази даних.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Скасувати</AlertDialogCancel>
+          <AlertDialogAction
+            className={buttonVariants({ variant: "destructive" })}
+            onClick={onDelete}
+          >
+            <Trash2 aria-hidden="true" data-icon="inline-start" />
+            Видалити чернетку
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   updateAudienceVoteUpdateScreen,
 } from "./audience-vote-update-screen-client";
 import {
+  deleteDraftAudienceVote,
   fetchAudienceVoteResults,
   updateAudienceVoteSchedule,
 } from "./audience-votes-client";
@@ -267,6 +268,22 @@ describe("audience votes API client", () => {
     expect(vote.opening_broadcast_message_text).toBe(
       "Voting starts in Telegram"
     );
+  });
+
+  test("soft-deletes a draft vote by id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({ id: "vote_1" })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const deletedId = await deleteDraftAudienceVote(
+      audienceVoteIdSchema.parse("vote_1")
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/vote_1", {
+      method: "DELETE",
+    });
+    expect(deletedId).toBe("vote_1");
   });
 });
 

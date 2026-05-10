@@ -220,6 +220,9 @@ export interface IAudienceVoteService {
   softDeleteVoteCandidate: (
     id: string
   ) => Promise<{ id: string } | undefined>;
+  softDeleteDraftAudienceVote: (
+    id: string
+  ) => Promise<{ id: string } | undefined>;
   saveCurrentVote: (
     input: SaveCurrentVoteInput
   ) => Promise<SaveCurrentVoteResult>;
@@ -746,6 +749,56 @@ export function createAudienceVoteService(
     }
 
     return closedVote;
+  };
+
+  const softDeleteDraftAudienceVote = async (
+    id: string
+  ): Promise<{ id: string } | undefined> => {
+    const currentVote = await getAudienceVote(id);
+
+    if (!currentVote || currentVote.archived) {
+      return undefined;
+    }
+
+    if (currentVote.status !== "draft") {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "not_draft",
+            message: "Only draft Audience Votes can be deleted.",
+          },
+        ],
+        message: "Audience Vote cannot be deleted.",
+        status: 409,
+      });
+    }
+
+    const [deletedVote] = await db
+      .update(audienceVoteTable)
+      .set({ archived: true, updated_at: new Date() })
+      .where(
+        and(
+          eq(audienceVoteTable.id, id),
+          eq(audienceVoteTable.archived, false),
+          eq(audienceVoteTable.status, "draft")
+        )
+      )
+      .returning({ id: audienceVoteTable.id });
+
+    if (!deletedVote) {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "not_draft",
+            message: "Only draft Audience Votes can be deleted.",
+          },
+        ],
+        message: "Audience Vote cannot be deleted.",
+        status: 409,
+      });
+    }
+
+    return deletedVote;
   };
 
   const closeExpiredOpenAudienceVotes = async (
@@ -1486,6 +1539,7 @@ export function createAudienceVoteService(
     getVoteCandidates,
     openAudienceVote,
     saveCurrentVote,
+    softDeleteDraftAudienceVote,
     softDeleteVoteCandidateMedia,
     softDeleteVoteCandidate,
     updateAudienceVoteSchedule,

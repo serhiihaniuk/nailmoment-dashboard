@@ -3,6 +3,7 @@ import {
   parseAudienceVoteList,
   parseAudienceVoteResults,
   type AudienceVote,
+  audienceVoteIdSchema,
   type AudienceVoteId,
   type AudienceVoteResults,
 } from "@/entities/audience-vote";
@@ -95,6 +96,27 @@ export async function closeAudienceVote(
   voteId: AudienceVoteId
 ): Promise<AudienceVote> {
   return updateAudienceVoteLifecycle(voteId, "close");
+}
+
+export async function deleteDraftAudienceVote(
+  voteId: AudienceVoteId
+): Promise<AudienceVoteId> {
+  const response = await fetch(
+    `/api/audience-vote/${encodeURIComponent(voteId)}`,
+    { method: "DELETE" }
+  );
+  const json: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw parseAudienceVoteLifecycleApiError(json);
+  }
+
+  const deletedId =
+    typeof json === "object" && json !== null && "id" in json
+      ? json.id
+      : undefined;
+
+  return audienceVoteIdSchema.parse(deletedId);
 }
 
 async function updateAudienceVoteLifecycle(
