@@ -15,6 +15,7 @@ import {
 import { nanoid } from "nanoid";
 
 import type { DrizzleDB } from "@/shared/db";
+import { doTimeWindowsOverlap, type TimeWindow } from "@/shared/lib/time-window";
 import {
   audienceVoteTable,
   audienceVoteBotSettingsTable,
@@ -531,6 +532,12 @@ export function createAudienceVoteService(
   ): Promise<AudienceVote> => {
     const validatedData = insertAudienceVoteSchema.parse(voteData);
 
+    await assertAudienceVoteScheduleDoesNotOverlap({
+      status: validatedData.status ?? "draft",
+      windowEnd: validatedData.window_end ?? null,
+      windowStart: validatedData.window_start ?? null,
+    });
+
     const [newAudienceVote] = await db
       .insert(audienceVoteTable)
       .values(validatedData)
@@ -825,7 +832,28 @@ export function createAudienceVoteService(
             window_end: validatedData.window_end,
             window_start: currentVote.window_start,
           }
-        : validatedData;
+        : {
+            status: validatedData.status,
+            window_end: validatedData.window_end,
+            window_start: validatedData.window_start,
+            ...("opening_broadcast" in validatedData
+              ? {
+                  opening_broadcast_include_open_button:
+                    validatedData.opening_broadcast?.include_open_button ??
+                    true,
+                  opening_broadcast_message_text:
+                    validatedData.opening_broadcast?.message_text ?? null,
+                }
+              : {}),
+          };
+
+    await assertAudienceVoteScheduleDoesNotOverlap({
+      excludeId: id,
+      status: updateData.status,
+      windowEnd: updateData.window_end,
+      windowStart: updateData.window_start,
+    });
+
     const [updatedVote] = await db
       .update(audienceVoteTable)
       .set(updateData)
@@ -1198,6 +1226,74 @@ export function createAudienceVoteService(
     }
   }
 
+  async function assertAudienceVoteScheduleDoesNotOverlap({
+    excludeId,
+    status,
+    windowEnd,
+    windowStart,
+  }: {
+    excludeId?: string | undefined;
+    status: AudienceVote["status"];
+    windowEnd: Date | null;
+    windowStart: Date | null;
+  }) {
+    await closeExpiredOpenAudienceVotes();
+
+    const now = new Date();
+    const scheduleWindow = getReservedAudienceVoteWindow(
+      {
+        status,
+        window_end: windowEnd,
+        window_start: windowStart,
+      },
+      now
+    );
+
+    if (!scheduleWindow) {
+      return;
+    }
+
+    const existingVotes = await db
+      .select()
+      .from(audienceVoteTable)
+      .where(
+        excludeId
+          ? and(
+              eq(audienceVoteTable.archived, false),
+              ne(audienceVoteTable.status, "closed"),
+              ne(audienceVoteTable.id, excludeId)
+            )
+          : and(
+              eq(audienceVoteTable.archived, false),
+              ne(audienceVoteTable.status, "closed")
+            )
+      );
+
+    const conflictingVote = existingVotes.find((vote) => {
+      const voteWindow = getReservedAudienceVoteWindow(vote, now);
+
+      return voteWindow
+        ? doTimeWindowsOverlap(scheduleWindow, voteWindow)
+        : false;
+    });
+
+    if (conflictingVote) {
+      const conflictMessage =
+        formatAudienceVoteScheduleConflictMessage(conflictingVote);
+
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "schedule_overlap",
+            message: conflictMessage,
+          },
+        ],
+        message: conflictMessage,
+        status: 409,
+      });
+    }
+  }
+
   async function insertCurrentVoteIfOpen({
     audienceVoteId,
     candidateId,
@@ -1416,5 +1512,30 @@ function isOneOpenVoteConstraintError(error: unknown): boolean {
     (typeof maybeError.message === "string" &&
       maybeError.message.includes("audience_vote_one_open_active_idx"))
   );
+}
+
+function getReservedAudienceVoteWindow(
+  vote: Pick<AudienceVote, "status" | "window_end" | "window_start">,
+  now: Date
+): TimeWindow | null {
+  if (vote.status === "scheduled") {
+    return vote.window_start
+      ? { end: vote.window_end, start: vote.window_start }
+      : null;
+  }
+
+  if (vote.status === "open") {
+    return { end: vote.window_end, start: vote.window_start ?? now };
+  }
+
+  return null;
+}
+
+function formatAudienceVoteScheduleConflictMessage(vote: AudienceVote) {
+  if (!vote.window_end) {
+    return `Audience Vote has no end time: ${vote.title}. Its schedule is treated as open-ended, so another start cannot be scheduled until it is closed or given an end time.`;
+  }
+
+  return `Selected time overlaps with another Audience Vote: ${vote.title}. Choose another time.`;
 }
 

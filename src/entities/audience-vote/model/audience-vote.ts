@@ -15,6 +15,7 @@ const nullableDateSchema = z.preprocess(
   (value) => (value === null ? null : value),
   z.coerce.date().nullable()
 );
+const nullableTextSchema = z.string().nullable();
 
 export const audienceVoteIdSchema =
   nonEmptyStringSchema.brand<"AudienceVoteId">();
@@ -172,6 +173,8 @@ export const audienceVoteSchema = z.object({
   created_at: dateSchema,
   id: audienceVoteIdSchema,
   kind: audienceVoteKindSchema,
+  opening_broadcast_include_open_button: z.boolean(),
+  opening_broadcast_message_text: nullableTextSchema,
   status: audienceVoteStatusSchema,
   title: nonEmptyStringSchema,
   updated_at: dateSchema,
@@ -238,8 +241,6 @@ export type AudienceVoteBroadcastList = z.infer<
 export type AudienceVoteBroadcastPreview = z.infer<
   typeof audienceVoteBroadcastPreviewSchema
 >;
-
-const nullableTextSchema = z.string().nullable();
 
 export const voteCandidateSchema = z.object({
   archived: z.boolean(),

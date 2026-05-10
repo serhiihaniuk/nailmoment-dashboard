@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { CalendarClock, Loader2, Plus } from "lucide-react";
 
+import type { AudienceVote } from "@/entities/audience-vote";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -15,6 +16,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import {
   Select,
   SelectContent,
@@ -28,7 +30,11 @@ import {
 } from "../model/audience-vote-form";
 import { useCreateAudienceVoteDialog } from "../model/use-create-audience-vote-dialog";
 
-export function CreateAudienceVoteDialog() {
+export function CreateAudienceVoteDialog({
+  votes,
+}: {
+  votes: AudienceVote[];
+}) {
   const {
     draft,
     errors,
@@ -40,7 +46,8 @@ export function CreateAudienceVoteDialog() {
     updateDraft,
     updateKind,
     updateStatus,
-  } = useCreateAudienceVoteDialog();
+  } = useCreateAudienceVoteDialog(votes);
+  const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({ votes });
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -56,6 +63,11 @@ export function CreateAudienceVoteDialog() {
           <DialogDescription>
             Підготуйте чернетку або запланований етап голосування для Mini App.
           </DialogDescription>
+          {openEndedVoteNotice ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              {openEndedVoteNotice}
+            </p>
+          ) : null}
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -110,14 +122,14 @@ export function CreateAudienceVoteDialog() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Початок" message={errors.window_start}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={isPending}
                   onChange={(event) =>
                     updateDraft("window_start", event.target.value)
@@ -129,14 +141,14 @@ export function CreateAudienceVoteDialog() {
             </Field>
 
             <Field label="Завершення" message={errors.window_end}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={isPending}
                   onChange={(event) =>
                     updateDraft("window_end", event.target.value)

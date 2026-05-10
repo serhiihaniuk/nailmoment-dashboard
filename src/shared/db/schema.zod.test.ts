@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   createAudienceVoteClientSchema,
   createVoteCandidateClientSchema,
+  insertAudienceVoteSchema,
   insertVoteCandidateSchema,
   patchAudienceVoteScheduleClientSchema,
   patchVoteCandidateClientSchema,
@@ -43,6 +44,34 @@ describe("audience vote route schemas", () => {
         window_start: "2026-05-08T12:00:00.000Z",
       })
     ).toThrow("Завершення має бути після початку");
+  });
+
+  test("defaults omitted opening broadcast fields on DB insert", () => {
+    const parsed = insertAudienceVoteSchema.parse({
+      id: "vote_1",
+      kind: "speaker",
+      status: "draft",
+      title: "Speaker vote",
+      window_end: "",
+      window_start: "",
+    });
+
+    expect(parsed.opening_broadcast_include_open_button).toBe(true);
+    expect(parsed.opening_broadcast_message_text).toBeNull();
+  });
+
+  test("normalizes blank opening broadcast text on DB insert", () => {
+    const parsed = insertAudienceVoteSchema.parse({
+      id: "vote_1",
+      kind: "speaker",
+      opening_broadcast_message_text: "   ",
+      status: "draft",
+      title: "Speaker vote",
+      window_end: "",
+      window_start: "",
+    });
+
+    expect(parsed.opening_broadcast_message_text).toBeNull();
   });
 });
 
@@ -102,6 +131,23 @@ describe("vote candidate route schemas", () => {
 
     expect(parsed.status).toBe("open");
     expect(parsed.window_end).toBeInstanceOf(Date);
+  });
+
+  test("parses scheduled opening broadcast updates", () => {
+    const parsed = patchAudienceVoteScheduleClientSchema.parse({
+      opening_broadcast: {
+        include_open_button: false,
+        message_text: "  Voting starts now  ",
+      },
+      status: "scheduled",
+      window_end: "2026-05-09T20:00:00.000Z",
+      window_start: "2026-05-09T19:00:00.000Z",
+    });
+
+    expect(parsed.opening_broadcast).toEqual({
+      include_open_button: false,
+      message_text: "Voting starts now",
+    });
   });
 
   test("parses media reorder and restore patches", () => {

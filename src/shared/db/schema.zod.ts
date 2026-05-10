@@ -184,6 +184,10 @@ const audienceVoteBroadcastMessageSchema = z
   .trim()
   .min(1, "Текст повідомлення обов’язковий")
   .max(4096, "Текст повідомлення має бути не довшим за 4096 символів");
+const audienceVoteOpeningBroadcastClientSchema = z.object({
+  include_open_button: z.coerce.boolean().default(true),
+  message_text: audienceVoteBroadcastMessageSchema,
+});
 const audienceVoteBotStartMessageSchema = z
   .string()
   .trim()
@@ -224,6 +228,15 @@ function nullableTrimmedTextSchema(max: number, message: string) {
   );
 }
 
+function defaultNullableTrimmedTextSchema(max: number, message: string) {
+  return z
+    .preprocess(
+      normalizeOptionalText,
+      z.string().max(max, message).nullable().optional()
+    )
+    .transform((value) => value ?? null);
+}
+
 function optionalNullableTrimmedTextSchema(max: number, message: string) {
   return z.preprocess(
     normalizeOptionalText,
@@ -238,6 +251,11 @@ export const insertAudienceVoteSchema = createInsertSchema(
   {
     id: z.string().trim().min(1, "ID обов’язковий"),
     kind: z.enum(audienceVoteKindEnum.enumValues),
+    opening_broadcast_include_open_button: z.coerce.boolean().default(true),
+    opening_broadcast_message_text: defaultNullableTrimmedTextSchema(
+      4096,
+      "Текст повідомлення має бути не довшим за 4096 символів"
+    ),
     status: z.enum(audienceVoteStatusEnum.enumValues),
     title: audienceVoteTitleSchema,
     window_start: optionalDateInputSchema,
@@ -260,6 +278,9 @@ export const patchAudienceVoteScheduleClientSchema = z
     status: z.enum(["draft", "scheduled", "open"]),
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
+    opening_broadcast: audienceVoteOpeningBroadcastClientSchema
+      .nullable()
+      .optional(),
   })
   .superRefine(validateAudienceVoteWindow);
 

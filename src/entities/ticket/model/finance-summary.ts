@@ -111,13 +111,13 @@ export function calculateTicketFinanceTotals(
     toMoneyNumber(finance?.tax_amount),
     totalAfterDiscount
   );
-  const payableTotal = Math.max(totalAfterDiscount - taxTotal, 0);
+  const netTotal = Math.max(totalAfterDiscount - taxTotal, 0);
 
   return {
     discountTotal,
     grossTotal,
-    netTotal: payableTotal,
-    payableTotal,
+    netTotal,
+    payableTotal: totalAfterDiscount,
     taxTotal,
   };
 }

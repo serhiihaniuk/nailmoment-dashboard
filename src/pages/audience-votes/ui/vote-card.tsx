@@ -20,6 +20,7 @@ import {
 } from "../model/audience-vote-form";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
 import { AudienceVoteLifecycleActions } from "./audience-vote-lifecycle-actions";
+import { AudienceVoteOpeningMessageDialog } from "./audience-vote-opening-message-dialog";
 import { AudienceVoteResultsDrawer } from "./audience-vote-results-drawer";
 import { AudienceVoteScheduleDialog } from "./audience-vote-schedule-dialog";
 
@@ -32,9 +33,10 @@ type BadgeVariant =
 
 interface VoteCardProps {
   vote: AudienceVote;
+  votes: AudienceVote[];
 }
 
-export function VoteCard({ vote }: VoteCardProps) {
+export function VoteCard({ vote, votes }: VoteCardProps) {
   return (
     <article className="overflow-hidden rounded-xl border border-border/60 bg-white shadow-surface">
       <div className="px-4 py-4 sm:px-5">
@@ -70,7 +72,8 @@ export function VoteCard({ vote }: VoteCardProps) {
         <VoteResultSummary vote={vote} />
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <AudienceVoteScheduleDialog vote={vote} />
+          <AudienceVoteScheduleDialog vote={vote} votes={votes} />
+          <AudienceVoteOpeningMessageDialog vote={vote} />
           <AudienceVoteCandidatesDialog vote={vote} />
           <AudienceVoteResultsDrawer vote={vote} />
         </div>

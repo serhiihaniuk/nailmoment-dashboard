@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -71,6 +71,8 @@ type BadgeVariant =
   | "secondary"
   | "success";
 
+const BROADCASTS_REFETCH_INTERVAL_MS = 10_000;
+
 export function AudienceVoteBroadcastsPanel({
   votes,
 }: {
@@ -83,15 +85,17 @@ export function AudienceVoteBroadcastsPanel({
   );
   const {
     data: broadcasts,
+    dataUpdatedAt,
     error,
     isError,
     isLoading,
   } = useQuery<AudienceVoteBroadcast[], Error>({
     queryKey: audienceVoteBroadcastsQueryKey,
     queryFn: fetchAudienceVoteBroadcasts,
-    refetchInterval: 10_000,
+    refetchInterval: BROADCASTS_REFETCH_INTERVAL_MS,
     staleTime: 5_000,
   });
+  const now = useSyncedNow(dataUpdatedAt);
 
   const processMutation = useMutation<
     AudienceVoteBroadcast,
@@ -120,7 +124,7 @@ export function AudienceVoteBroadcastsPanel({
   });
 
   const dueBroadcast = broadcasts?.find((broadcast) =>
-    isAudienceVoteBroadcastDue(broadcast)
+    isAudienceVoteBroadcastDue(broadcast, now)
   );
   const orderedBroadcasts = useMemo(
     () =>
@@ -176,6 +180,7 @@ export function AudienceVoteBroadcastsPanel({
             <BroadcastHistoryDialog
               broadcasts={orderedBroadcasts}
               interruptDisabled={interruptMutation.isPending}
+              now={now}
               onInterrupt={(broadcastId) =>
                 interruptMutation.mutate(broadcastId)
               }
@@ -223,6 +228,7 @@ export function AudienceVoteBroadcastsPanel({
               <BroadcastRow
                 broadcast={featuredBroadcast}
                 interruptDisabled={interruptMutation.isPending}
+                now={now}
                 onInterrupt={() => interruptMutation.mutate(featuredBroadcast.id)}
                 voteTitle={
                   voteTitles.get(featuredBroadcast.audience_vote_id) ??
@@ -240,12 +246,14 @@ export function AudienceVoteBroadcastsPanel({
 function BroadcastHistoryDialog({
   broadcasts,
   interruptDisabled,
+  now,
   onInterrupt,
   openDisabled,
   voteTitles,
 }: {
   broadcasts: AudienceVoteBroadcast[];
   interruptDisabled: boolean;
+  now: Date;
   onInterrupt: (broadcastId: AudienceVoteBroadcastId) => void;
   openDisabled: boolean;
   voteTitles: ReadonlyMap<AudienceVote["id"], string>;
@@ -272,6 +280,7 @@ function BroadcastHistoryDialog({
               interruptDisabled={interruptDisabled}
               key={broadcast.id}
               messagePreview="full"
+              now={now}
               onInterrupt={() => onInterrupt(broadcast.id)}
               voteTitle={
                 voteTitles.get(broadcast.audience_vote_id) ?? "Голосування"
@@ -288,12 +297,14 @@ function BroadcastRow({
   broadcast,
   interruptDisabled,
   messagePreview = "compact",
+  now,
   onInterrupt,
   voteTitle,
 }: {
   broadcast: AudienceVoteBroadcast;
   interruptDisabled: boolean;
   messagePreview?: "compact" | "full";
+  now: Date;
   onInterrupt: () => void;
   voteTitle: string;
 }) {
@@ -303,7 +314,7 @@ function BroadcastRow({
   const canaryFailed =
     broadcast.delivery_counts.operator_canary.failed +
     broadcast.delivery_counts.voter_canary.failed;
-  const nextStageTiming = formatBroadcastTiming(broadcast);
+  const nextStageTiming = formatBroadcastTiming(broadcast, now);
 
   return (
     <div className="grid gap-3 border-b border-border/60 p-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_18rem_auto] lg:items-start">
@@ -356,7 +367,7 @@ function BroadcastRow({
             ? ` / помилок ${broadcast.delivery_counts.normal.failed}`
             : ""}
         </p>
-        <p>{formatAudienceVoteBroadcastNextStep(broadcast)}</p>
+        <p>{formatAudienceVoteBroadcastNextStep(broadcast, now)}</p>
         {nextStageTiming ? (
           <div className="mt-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-normal text-muted-foreground">
@@ -443,6 +454,20 @@ function formatDuration(durationMs: number) {
   }
 
   return `${seconds} с`;
+}
+
+function useSyncedNow(syncKey: number) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [syncKey]);
+
+  return new Date(Math.max(nowMs, syncKey));
 }
 
 function getBroadcastStatusBadgeVariant(

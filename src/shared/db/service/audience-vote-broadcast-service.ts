@@ -56,6 +56,7 @@ export type AudienceVoteBroadcastSummary = AudienceVoteBroadcast & {
 
 export interface CreateAudienceVoteBroadcastInput
   extends CreateAudienceVoteBroadcastClientOutput {
+  broadcastId?: string;
   operatorTelegramUserIds: number[];
   now?: Date;
 }
@@ -217,6 +218,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
 
   const createAudienceVoteBroadcast = async ({
     audience_vote_id,
+    broadcastId: requestedBroadcastId,
     include_open_button,
     message_text,
     now = new Date(),
@@ -251,7 +253,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       0,
       AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT
     );
-    const broadcastId = nanoid(12);
+    const broadcastId = requestedBroadcastId ?? nanoid(12);
     const broadcastData = insertAudienceVoteBroadcastSchema.parse({
       audience_vote_id,
       canary_voter_limit: AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT,
@@ -267,12 +269,19 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     const [broadcast] = await db
       .insert(audienceVoteBroadcastTable)
       .values(broadcastData)
+      .onConflictDoNothing({ target: audienceVoteBroadcastTable.id })
       .returning();
 
     if (!broadcast) {
-      throw new Error(
-        "Audience Vote Broadcast insertion failed to return the record."
+      const existingSummary = await getAudienceVoteBroadcastSummary(
+        broadcastId
       );
+
+      if (existingSummary) {
+        return existingSummary;
+      }
+
+      throw new Error("Audience Vote Broadcast insertion failed to return.");
     }
 
     await insertDeliveryRows(
@@ -733,6 +742,10 @@ export function isAudienceVoteBroadcastInterruptible(
   status: AudienceVoteBroadcastStatus
 ) {
   return interruptibleBroadcastStatuses.includes(status);
+}
+
+export function buildAudienceVoteOpeningBroadcastId(audienceVoteId: string) {
+  return `opening_${audienceVoteId}`;
 }
 
 export function buildAudienceVoteBroadcastDeliveryRows({

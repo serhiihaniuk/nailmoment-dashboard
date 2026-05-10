@@ -94,6 +94,7 @@ speaker names.
 Operators can:
 
 - create draft or scheduled Audience Votes;
+- attach an opening broadcast message while scheduling a vote;
 - manage Vote Candidates and media;
 - open a vote only when validation passes;
 - close a vote with confirmation;
@@ -176,6 +177,12 @@ production voting bot.
 An **Audience Vote Broadcast** targets all active Telegram Voters who have
 opened the voting bot. Broadcasts contain message text and may include an
 open-voting button.
+
+Opening broadcasts can be configured on draft or scheduled Audience Votes.
+They are not sent when saved; they are converted into a normal durable
+broadcast with id `opening_<audience_vote_id>` when the vote actually opens.
+Manual opening and scheduled lifecycle opening use the same path, and cron can
+recover the broadcast for an already open vote if an earlier attempt failed.
 
 Broadcast safety flow:
 

@@ -16,13 +16,24 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedule-dialog";
 
-export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
-  const state = useAudienceVoteScheduleDialog(vote);
+export function AudienceVoteScheduleDialog({
+  vote,
+  votes,
+}: {
+  vote: AudienceVote;
+  votes: AudienceVote[];
+}) {
+  const state = useAudienceVoteScheduleDialog({ vote, votes });
   const isOpenVote = vote.status === "open";
   const isEditable =
     vote.status === "draft" || vote.status === "scheduled" || isOpenVote;
+  const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({
+    currentVoteId: vote.id,
+    votes,
+  });
 
   if (!isEditable) {
     return null;
@@ -48,19 +59,24 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
               Голосування вже відкрите. Можна змінити лише час завершення.
             </p>
           ) : null}
+          {openEndedVoteNotice ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              {openEndedVoteNotice}
+            </p>
+          ) : null}
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={state.handleSubmit}>
           <div className="grid gap-4">
             <Field label="Початок" message={state.errors.window_start}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={state.isPending || isOpenVote}
                   onChange={(event) =>
                     state.updateDraft("window_start", event.target.value)
@@ -72,14 +88,14 @@ export function AudienceVoteScheduleDialog({ vote }: { vote: AudienceVote }) {
             </Field>
 
             <Field label="Завершення" message={state.errors.window_end}>
-              <div className="relative min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
                 <CalendarClock
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   size={14}
                 />
                 <Input
-                  className="min-w-0 w-full pl-9 pr-10"
+                  className="block min-w-0 max-w-full min-inline-0 max-inline-full appearance-none overflow-hidden pl-9 pr-3 inline-full"
                   disabled={state.isPending}
                   onChange={(event) =>
                     state.updateDraft("window_end", event.target.value)

@@ -82,7 +82,7 @@ function readHydratedTicket(tickets: TicketWithFinance[]): TicketWithFinance {
 }
 
 describe("ticket service finance hydration", () => {
-  test("uses the public Ticket domain summary for paid fee-adjusted reads", () => {
+  test("uses the public Ticket domain summary for paid commission-adjusted reads", () => {
     const finance = makeFinance({
       discount_amount: "0.00",
       gross_total: "200.00",
@@ -111,7 +111,7 @@ describe("ticket service finance hydration", () => {
       buildTicketFinanceSummary(finance, payments)
     );
     expect(hydratedTicket.finance_summary).toMatchObject({
-      gross_total: "170.00",
+      gross_total: "200.00",
       paid_total: "200.00",
       payment_status: "paid",
       remaining_total: "0.00",
@@ -119,7 +119,7 @@ describe("ticket service finance hydration", () => {
     expect(calculateTicketFinanceTotals(hydratedTicket.finance)).toMatchObject({
       grossTotal: 200,
       netTotal: 170,
-      payableTotal: 170,
+      payableTotal: 200,
       taxTotal: 30,
     });
     expect(parseTicketWithFinance(hydratedTicket).finance_summary).toEqual(
@@ -155,16 +155,16 @@ describe("ticket service finance hydration", () => {
       buildTicketFinanceSummary(finance, payments)
     );
     expect(hydratedTicket.finance_summary).toMatchObject({
-      gross_total: "380.00",
+      gross_total: "400.00",
       paid_total: "150.00",
       payment_status: "partial",
-      remaining_total: "230.00",
+      remaining_total: "250.00",
     });
     expect(calculateTicketFinanceTotals(hydratedTicket.finance)).toMatchObject({
       discountTotal: 100,
       grossTotal: 500,
       netTotal: 380,
-      payableTotal: 380,
+      payableTotal: 400,
       taxTotal: 20,
     });
     expect(parseTicketWithFinance(hydratedTicket).finance_summary).toEqual(

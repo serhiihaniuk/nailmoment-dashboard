@@ -103,7 +103,7 @@ describe("finance API error parsing", () => {
 });
 
 describe("finance payment amount defaults", () => {
-  test("suggests new payments from payable total after fee adjustments", () => {
+  test("suggests new payments from discounted payable total", () => {
     expect(
       suggestedPaymentAmount(
         makeTicket({
@@ -111,7 +111,7 @@ describe("finance payment amount defaults", () => {
         }),
         1
       )
-    ).toBe("200.00");
+    ).toBe("250.00");
   });
 
   test("keeps manual add-payment remainder anchored to payable total", () => {
@@ -136,6 +136,6 @@ describe("finance payment amount defaults", () => {
       ],
     });
 
-    expect(getUnscheduledGrossPaymentAmount(ticket)).toBe("0.00");
+    expect(getUnscheduledGrossPaymentAmount(ticket)).toBe("100.00");
   });
 });

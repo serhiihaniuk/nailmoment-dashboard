@@ -49,22 +49,22 @@ function makePayment(
 }
 
 describe("ticket finance totals", () => {
-  test("applies discount and fee before payable and net totals", () => {
+  test("keeps commission out of payable total and applies it to net total", () => {
     expect(calculateTicketFinanceTotals(makeFinance())).toMatchObject({
       discountTotal: 100,
       grossTotal: 500,
       netTotal: 380,
-      payableTotal: 380,
+      payableTotal: 400,
       taxTotal: 20,
     });
   });
 
-  test("summarizes payment status against discounted and fee-adjusted payable total", () => {
+  test("summarizes payment status against discounted payable total", () => {
     const summary = buildTicketFinanceSummary(makeFinance(), [makePayment()]);
 
-    expect(summary.gross_total).toBe("380.00");
+    expect(summary.gross_total).toBe("400.00");
     expect(summary.paid_total).toBe("200.00");
-    expect(summary.remaining_total).toBe("180.00");
+    expect(summary.remaining_total).toBe("200.00");
     expect(summary.payment_status).toBe("partial");
   });
 
@@ -74,7 +74,7 @@ describe("ticket finance totals", () => {
     ]);
 
     expect(summary.paid_total).toBe("0.00");
-    expect(summary.remaining_total).toBe("380.00");
+    expect(summary.remaining_total).toBe("400.00");
     expect(summary.payment_status).toBe("unpaid");
   });
 
@@ -107,12 +107,12 @@ describe("ticket finance totals", () => {
     ]);
 
     expect(coverage).toEqual({
-      missingScheduledTotal: 1,
+      missingScheduledTotal: 21,
       overScheduledTotal: 0,
       paidTotal: 200,
-      payableTotal: 380,
+      payableTotal: 400,
       pendingScheduledTotal: 179,
-      scheduledDifference: -1,
+      scheduledDifference: -21,
       scheduledTotal: 379,
       status: "under_scheduled",
     });
@@ -132,9 +132,9 @@ describe("ticket finance totals", () => {
 
     expect(coverage).toMatchObject({
       missingScheduledTotal: 0,
-      overScheduledTotal: 70,
+      overScheduledTotal: 50,
       pendingScheduledTotal: 200,
-      scheduledDifference: 70,
+      scheduledDifference: 50,
       scheduledTotal: 450,
       status: "over_scheduled",
     });
@@ -149,7 +149,7 @@ describe("ticket finance totals", () => {
           makePayment({ amount: "200.00", is_paid: true }),
           makePayment({
             id: "payment-2",
-            amount: "180.00",
+            amount: "200.00",
             installment_number: 2,
             is_paid: false,
             paid_date: null,
@@ -160,10 +160,10 @@ describe("ticket finance totals", () => {
       expect(coverage).toMatchObject({
         missingScheduledTotal: 0,
         overScheduledTotal: 0,
-        payableTotal: 380,
-        pendingScheduledTotal: 180,
+        payableTotal: 400,
+        pendingScheduledTotal: 200,
         scheduledDifference: 0,
-        scheduledTotal: 380,
+        scheduledTotal: 400,
         status: "balanced",
       });
     }

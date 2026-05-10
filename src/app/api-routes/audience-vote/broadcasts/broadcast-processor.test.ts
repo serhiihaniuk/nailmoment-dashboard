@@ -10,7 +10,10 @@ import type {
   AudienceVoteBroadcastStatus,
   AudienceVoteBroadcastSummary,
 } from "@/shared/db/service/audience-vote-broadcast-service";
-import { buildAudienceVoteBroadcastDeliveryRows } from "@/shared/db/service/audience-vote-broadcast-service";
+import {
+  buildAudienceVoteBroadcastDeliveryRows,
+  buildAudienceVoteOpeningBroadcastId,
+} from "@/shared/db/service/audience-vote-broadcast-service";
 import {
   isTelegramBroadcastBlockedError,
   processAudienceVoteBroadcast,
@@ -22,6 +25,12 @@ import {
 const now = new Date("2026-05-08T16:00:00.000Z");
 
 describe("Audience Vote Broadcast processor", () => {
+  test("builds deterministic opening broadcast ids", () => {
+    expect(buildAudienceVoteOpeningBroadcastId("vote_1")).toBe(
+      "opening_vote_1"
+    );
+  });
+
   test("builds canary deliveries without sending canary voters again in normal delivery", () => {
     const rows = buildAudienceVoteBroadcastDeliveryRows({
       activeTelegramUserIds: [299445418, 111, 222, 333],

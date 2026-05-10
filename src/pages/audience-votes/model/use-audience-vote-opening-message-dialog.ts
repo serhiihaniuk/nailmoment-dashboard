@@ -9,40 +9,38 @@ import {
   type AudienceVoteScheduleApiError,
 } from "../api/audience-votes-client";
 import {
-  createAudienceVoteScheduleDraft,
-  findAudienceVoteScheduleConflict,
-  mapAudienceVoteScheduleApiErrors,
-  mapAudienceVoteScheduleConflictToFieldErrors,
-  parseAudienceVoteScheduleDraft,
-  type AudienceVoteScheduleFieldErrors,
-  type AudienceVoteScheduleDraft,
-  type AudienceVoteScheduleFormValues,
-} from "./audience-vote-schedule";
+  createAudienceVoteOpeningMessageDraft,
+  mapAudienceVoteOpeningMessageApiErrors,
+  parseAudienceVoteOpeningMessageDraft,
+  type AudienceVoteOpeningMessageDraft,
+  type AudienceVoteOpeningMessageFieldErrors,
+  type AudienceVoteOpeningMessageFormValues,
+} from "./audience-vote-opening-message";
 import { audienceVotesQueryKey } from "./use-create-audience-vote-dialog";
 
-export function useAudienceVoteScheduleDialog({
+export function useAudienceVoteOpeningMessageDialog({
   vote,
-  votes,
 }: {
   vote: AudienceVote;
-  votes: AudienceVote[];
 }) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<AudienceVoteScheduleDraft>(() =>
-    createAudienceVoteScheduleDraft(vote)
+  const [draft, setDraft] = useState<AudienceVoteOpeningMessageDraft>(() =>
+    createAudienceVoteOpeningMessageDraft(vote)
   );
-  const [errors, setErrors] = useState<AudienceVoteScheduleFieldErrors>({});
+  const [errors, setErrors] = useState<AudienceVoteOpeningMessageFieldErrors>(
+    {}
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   const mutation = useMutation<
     AudienceVote,
     AudienceVoteScheduleApiError,
-    AudienceVoteScheduleFormValues
+    AudienceVoteOpeningMessageFormValues
   >({
     mutationFn: (body) => updateAudienceVoteSchedule(vote.id, body),
     onError: (error) => {
-      const fieldErrors = mapAudienceVoteScheduleApiErrors(error);
+      const fieldErrors = mapAudienceVoteOpeningMessageApiErrors(error);
       setErrors(fieldErrors);
 
       if (Object.keys(fieldErrors).length === 0) {
@@ -57,27 +55,23 @@ export function useAudienceVoteScheduleDialog({
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-
-    if (nextOpen) {
-      setDraft(createAudienceVoteScheduleDraft(vote));
-    }
-
+    setDraft(createAudienceVoteOpeningMessageDraft(vote));
     setErrors({});
     setFormError(null);
     mutation.reset();
   }
 
-  function updateDraft<Field extends keyof AudienceVoteScheduleDraft>(
+  function updateDraft<Field extends keyof AudienceVoteOpeningMessageDraft>(
     field: Field,
-    value: AudienceVoteScheduleDraft[Field]
+    value: AudienceVoteOpeningMessageDraft[Field]
   ) {
     setDraft((current) => ({ ...current, [field]: value }));
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
 
-      if (field === "opening_broadcast_enabled") {
-        delete next.opening_broadcast_message_text;
+      if (field === "enabled") {
+        delete next.message_text;
       }
 
       return next;
@@ -90,31 +84,15 @@ export function useAudienceVoteScheduleDialog({
     setErrors({});
     setFormError(null);
 
-    const nextStatus =
-      vote.status === "open"
-        ? "open"
-        : draft.window_start || draft.window_end
-          ? "scheduled"
-          : "draft";
-    const parsed = parseAudienceVoteScheduleDraft({
-      ...draft,
-      status: nextStatus,
-    });
+    const parsed = parseAudienceVoteOpeningMessageDraft({ draft, vote });
 
     if (!parsed.ok) {
       setErrors(parsed.errors);
-      return;
-    }
 
-    const conflict = findAudienceVoteScheduleConflict({
-      excludeVoteId: vote.id,
-      schedule: parsed.data,
-      votes,
-    });
+      if (Object.keys(parsed.errors).length === 0) {
+        setFormError("Не вдалося зберегти стартове повідомлення.");
+      }
 
-    if (conflict) {
-      setErrors(mapAudienceVoteScheduleConflictToFieldErrors(conflict));
-      setFormError(conflict.message);
       return;
     }
 
