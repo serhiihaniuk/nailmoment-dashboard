@@ -1,5 +1,7 @@
 import type Stripe from "stripe";
 import { TICKET_TYPE_LIST, type TicketGrade } from "@/entities/ticket";
+import { db } from "@/shared/db";
+import { createTicketAttributionService } from "@/shared/db/service/ticket-attribution-service";
 import { runStripeCheckoutFulfillmentClaimLifecycle } from "../checkout-fulfillment-claim";
 import { createStripeCheckoutFulfillmentClaimStore } from "../checkout-fulfillment-claim-store";
 import { logStripe, logStripeStep } from "../log";
@@ -142,6 +144,17 @@ export function resolveCheckoutSession(
 
 const stripeCheckoutFulfillmentClaimStore =
   createStripeCheckoutFulfillmentClaimStore();
+const ticketAttributionService = createTicketAttributionService(db);
+
+function getAttributionClientReferenceId(session: Stripe.Checkout.Session) {
+  const clientReferenceId = session.client_reference_id?.trim();
+
+  if (!clientReferenceId?.startsWith("attr_")) {
+    return null;
+  }
+
+  return clientReferenceId;
+}
 
 /**
  * Main entry point used by the Stripe webhook route.
@@ -262,6 +275,32 @@ export async function handleCheckoutSessionCompleted(
                 session,
                 ticketGrade: resolution.ticketGrade,
               });
+            const clientReferenceId = getAttributionClientReferenceId(session);
+
+            if (clientReferenceId) {
+              const attribution =
+                await ticketAttributionService.attachCheckoutAttributionToTicket(
+                  {
+                    clientReferenceId,
+                    stripeSessionId,
+                    ticketId: fulfillmentResult.ticketId,
+                  }
+                );
+
+              logStripeStep(
+                attribution ? "info" : "warn",
+                "ATTRIBUTION",
+                attribution
+                  ? "Attached checkout attribution by client_reference_id"
+                  : "Checkout attribution reference was not found",
+                {
+                  ...eventContext,
+                  clientReferenceId,
+                  ticketId: fulfillmentResult.ticketId,
+                }
+              );
+            }
+
             return {
               claimStatusReason:
                 fulfillmentResult.kind === "created"

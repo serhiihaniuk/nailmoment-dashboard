@@ -7,15 +7,36 @@ import {
   ticketTable,
   type TicketAttribution,
 } from "../schema";
-import type { CheckoutAttributionClientInput } from "../schema.zod";
+import type {
+  CheckoutAttributionClientInput,
+  CheckoutAttributionStartClientInput,
+} from "../schema.zod";
 
 export type UpsertCheckoutAttributionInput =
   CheckoutAttributionClientInput;
+export type CreateCheckoutAttributionStartInput =
+  CheckoutAttributionStartClientInput;
+
+export type AttachCheckoutAttributionInput = {
+  clientReferenceId: string;
+  stripeSessionId: string;
+  ticketId: string;
+};
 
 export interface ITicketAttributionService {
+  attachCheckoutAttributionToTicket: (
+    input: AttachCheckoutAttributionInput
+  ) => Promise<TicketAttribution | null>;
+  createCheckoutAttributionStart: (
+    input: CreateCheckoutAttributionStartInput
+  ) => Promise<TicketAttribution>;
   upsertCheckoutAttribution: (
     input: UpsertCheckoutAttributionInput
   ) => Promise<TicketAttribution>;
+}
+
+function createClientReferenceId() {
+  return `attr_${nanoid(24)}`;
 }
 
 export function createTicketAttributionService(
@@ -34,6 +55,49 @@ export function createTicketAttributionService(
   };
 
   return {
+    async attachCheckoutAttributionToTicket(input) {
+      const now = new Date();
+      const [attribution] = await db
+        .update(ticketAttributionTable)
+        .set({
+          stripe_session_id: sql`coalesce(${ticketAttributionTable.stripe_session_id}, ${input.stripeSessionId})`,
+          ticket_id: sql`coalesce(${ticketAttributionTable.ticket_id}, ${input.ticketId})`,
+          updated_at: now,
+        })
+        .where(eq(ticketAttributionTable.client_reference_id, input.clientReferenceId))
+        .returning();
+
+      return attribution ?? null;
+    },
+    async createCheckoutAttributionStart(input) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const clientReferenceId = createClientReferenceId();
+        const [attribution] = await db
+          .insert(ticketAttributionTable)
+          .values({
+            client_reference_id: clientReferenceId,
+            id: nanoid(16),
+            landing_page: input.landingPage,
+            referrer: input.referrer,
+            source: "stripe_client_reference_id",
+            utm_campaign: input.utm.utm_campaign ?? null,
+            utm_content: input.utm.utm_content ?? null,
+            utm_medium: input.utm.utm_medium ?? null,
+            utm_source: input.utm.utm_source ?? null,
+            utm_term: input.utm.utm_term ?? null,
+          })
+          .onConflictDoNothing({
+            target: ticketAttributionTable.client_reference_id,
+          })
+          .returning();
+
+        if (attribution) {
+          return attribution;
+        }
+      }
+
+      throw new Error("Ticket attribution reference creation failed.");
+    },
     async upsertCheckoutAttribution(input) {
       const ticketId = await findTicketIdByStripeSessionId(input.sessionId);
       const now = new Date();
@@ -54,15 +118,15 @@ export function createTicketAttributionService(
         })
         .onConflictDoUpdate({
           set: {
-            landing_page: sql`coalesce(excluded.landing_page, ${ticketAttributionTable.landing_page})`,
-            referrer: sql`coalesce(excluded.referrer, ${ticketAttributionTable.referrer})`,
-            ticket_id: sql`coalesce(excluded.ticket_id, ${ticketAttributionTable.ticket_id})`,
+            landing_page: sql`coalesce(${ticketAttributionTable.landing_page}, excluded.landing_page)`,
+            referrer: sql`coalesce(${ticketAttributionTable.referrer}, excluded.referrer)`,
+            ticket_id: sql`coalesce(${ticketAttributionTable.ticket_id}, excluded.ticket_id)`,
             updated_at: now,
-            utm_campaign: sql`coalesce(excluded.utm_campaign, ${ticketAttributionTable.utm_campaign})`,
-            utm_content: sql`coalesce(excluded.utm_content, ${ticketAttributionTable.utm_content})`,
-            utm_medium: sql`coalesce(excluded.utm_medium, ${ticketAttributionTable.utm_medium})`,
-            utm_source: sql`coalesce(excluded.utm_source, ${ticketAttributionTable.utm_source})`,
-            utm_term: sql`coalesce(excluded.utm_term, ${ticketAttributionTable.utm_term})`,
+            utm_campaign: sql`coalesce(${ticketAttributionTable.utm_campaign}, excluded.utm_campaign)`,
+            utm_content: sql`coalesce(${ticketAttributionTable.utm_content}, excluded.utm_content)`,
+            utm_medium: sql`coalesce(${ticketAttributionTable.utm_medium}, excluded.utm_medium)`,
+            utm_source: sql`coalesce(${ticketAttributionTable.utm_source}, excluded.utm_source)`,
+            utm_term: sql`coalesce(${ticketAttributionTable.utm_term}, excluded.utm_term)`,
           },
           target: ticketAttributionTable.stripe_session_id,
         })
