@@ -174,6 +174,22 @@ export const ticketSchema = z.object({
   updated_grade: ticketGradeOrUnknownSchema.nullable(),
 });
 
+export const ticketAttributionSchema = z.object({
+  created_at: dateSchema,
+  id: z.string(),
+  landing_page: z.string().nullable(),
+  referrer: z.string().nullable(),
+  source: z.string(),
+  stripe_session_id: z.string(),
+  ticket_id: z.string().nullable(),
+  updated_at: dateSchema,
+  utm_campaign: z.string().nullable(),
+  utm_content: z.string().nullable(),
+  utm_medium: z.string().nullable(),
+  utm_source: z.string().nullable(),
+  utm_term: z.string().nullable(),
+});
+
 export const ticketFinanceSchema = z.object({
   created_at: dateSchema,
   discount_amount: moneyStringSchema,
@@ -217,6 +233,7 @@ export const ticketFinanceSummarySchema = z.object({
 });
 
 export const ticketWithFinanceSchema = ticketSchema.extend({
+  attribution: ticketAttributionSchema.nullable().default(null),
   finance: ticketFinanceSchema.nullable(),
   finance_summary: ticketFinanceSummarySchema,
   payments: z.array(paymentInstallmentSchema),
@@ -225,6 +242,7 @@ export const ticketWithFinanceSchema = ticketSchema.extend({
 export const ticketWithFinanceListSchema = z.array(ticketWithFinanceSchema);
 
 export type Ticket = z.infer<typeof ticketSchema>;
+export type TicketAttribution = z.infer<typeof ticketAttributionSchema>;
 export type TicketFinance = z.infer<typeof ticketFinanceSchema>;
 export type PaymentInstallment = z.infer<typeof paymentInstallmentSchema>;
 export type TicketFinanceSummary = z.infer<typeof ticketFinanceSummarySchema>;

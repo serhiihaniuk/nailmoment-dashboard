@@ -92,6 +92,21 @@ import { DiscountCombobox } from './discount-combobox';
 
 const PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE = "Payment plan is updating.";
 
+const UTM_DISPLAY_FIELDS = [
+  { key: "utm_source", label: "UTM source" },
+  { key: "utm_medium", label: "UTM medium" },
+  { key: "utm_campaign", label: "UTM campaign" },
+  { key: "utm_content", label: "UTM content" },
+  { key: "utm_term", label: "UTM term" },
+] as const;
+
+function getAttributionItems(attribution: TicketWithFinance["attribution"]) {
+  return UTM_DISPLAY_FIELDS.map((field) => ({
+    label: field.label,
+    value: attribution?.[field.key] ?? "—",
+  }));
+}
+
 export function PaymentsPanel({
   ticket,
   open,
@@ -269,6 +284,7 @@ export function PaymentsPanel({
       )}
     </div>
   );
+  const attributionItems = getAttributionItems(ticket.attribution);
 
   return (
     <SlidePanel open={open} onClose={onClose} footer={footerContent}>
@@ -450,6 +466,16 @@ export function PaymentsPanel({
                 {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
               </span>
             </div>
+          </div>
+          <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[12px]">
+            {attributionItems.map((item) => (
+              <div key={item.label} className="min-w-0">
+                <span className="text-muted-foreground">{item.label}: </span>
+                <span className="font-medium" title={item.value}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
           </div>
           <PaymentField label="Дата">
             <Input

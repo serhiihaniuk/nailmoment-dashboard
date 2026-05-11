@@ -232,6 +232,46 @@ export const ticketTable = pgTable(
   })
 );
 
+export const ticketAttributionTable = pgTable(
+  "ticket_attribution",
+  {
+    id: text("id").primaryKey(),
+    ticket_id: text("ticket_id").references(() => ticketTable.id, {
+      onDelete: "cascade",
+    }),
+    stripe_session_id: text("stripe_session_id").notNull(),
+    source: text("source").notNull().default("stripe_success_redirect"),
+    utm_source: text("utm_source"),
+    utm_medium: text("utm_medium"),
+    utm_campaign: text("utm_campaign"),
+    utm_content: text("utm_content"),
+    utm_term: text("utm_term"),
+    landing_page: text("landing_page"),
+    referrer: text("referrer"),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    ticketAttributionStripeSessionIdUnique: uniqueIndex(
+      "ticket_attribution_stripe_session_id_unique"
+    ).on(table.stripe_session_id),
+    ticketAttributionTicketIdUnique: uniqueIndex(
+      "ticket_attribution_ticket_id_unique"
+    ).on(table.ticket_id),
+  })
+);
+
 export const ticketFinanceTable = pgTable(
   "ticket_finance",
   {
@@ -588,6 +628,9 @@ export type InsertBattleTicket = typeof battleTicketTable.$inferInsert;
 export type Ticket = typeof ticketTable.$inferSelect;
 export type InsertTicket = typeof ticketTable.$inferInsert;
 
+export type TicketAttribution = typeof ticketAttributionTable.$inferSelect;
+export type InsertTicketAttribution = typeof ticketAttributionTable.$inferInsert;
+
 export type TicketFinance = typeof ticketFinanceTable.$inferSelect;
 export type InsertTicketFinance = typeof ticketFinanceTable.$inferInsert;
 
@@ -613,6 +656,7 @@ export interface TicketFinanceSummary {
 }
 
 export type TicketWithFinance = Ticket & {
+  attribution?: TicketAttribution | null;
   finance: TicketFinance | null;
   payments: PaymentInstallment[];
   finance_summary: TicketFinanceSummary;

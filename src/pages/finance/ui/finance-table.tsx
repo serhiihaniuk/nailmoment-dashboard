@@ -47,6 +47,39 @@ import {
 
 const discountOptionsQueryKey = ["finance", "discount-options", "percent-notes"] as const;
 
+function getFinanceAttributionSummary(
+  attribution: TicketWithFinance["attribution"]
+) {
+  if (!attribution) return null;
+
+  return (
+    [attribution.utm_source, attribution.utm_campaign]
+      .filter((part): part is string => Boolean(part))
+      .join(" / ") ||
+    attribution.utm_medium ||
+    attribution.utm_content ||
+    attribution.utm_term ||
+    null
+  );
+}
+
+function getFinanceAttributionTitle(
+  attribution: TicketWithFinance["attribution"]
+) {
+  if (!attribution) return "";
+
+  return [
+    ["UTM source", attribution.utm_source],
+    ["UTM medium", attribution.utm_medium],
+    ["UTM campaign", attribution.utm_campaign],
+    ["UTM content", attribution.utm_content],
+    ["UTM term", attribution.utm_term],
+  ]
+    .filter(([, value]) => Boolean(value))
+    .map(([label, value]) => `${label}: ${value}`)
+    .join(" / ");
+}
+
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
@@ -109,6 +142,11 @@ export function FinanceTable() {
         ticket.phone,
         ticket.instagram,
         ticket.finance?.nip,
+        ticket.attribution?.utm_source,
+        ticket.attribution?.utm_campaign,
+        ticket.attribution?.utm_medium,
+        ticket.attribution?.utm_content,
+        ticket.attribution?.utm_term,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery))
     );
   }, [data, query, statusFilter]);
@@ -360,6 +398,12 @@ export function FinanceTable() {
                     : paymentCoverage.status === "over_scheduled"
                       ? `+${formatZloty(paymentCoverageDifference)}`
                       : null;
+                const attributionSummary = getFinanceAttributionSummary(
+                  ticket.attribution
+                );
+                const attributionTitle = getFinanceAttributionTitle(
+                  ticket.attribution
+                );
 
                 return (
                   <TableRow
@@ -398,6 +442,19 @@ export function FinanceTable() {
                         {ticket.phone && (
                           <span className="text-[11px] text-muted-foreground/50 truncate max-w-60">
                             {ticket.phone}
+                          </span>
+                        )}
+                        {attributionSummary && (
+                          <span
+                            className="mt-1 flex w-fit max-w-60 items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                            title={attributionTitle}
+                          >
+                            <span className="text-muted-foreground/60">
+                              UTM
+                            </span>
+                            <span className="truncate">
+                              {attributionSummary}
+                            </span>
                           </span>
                         )}
                       </div>

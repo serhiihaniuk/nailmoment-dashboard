@@ -2,10 +2,12 @@ import { and, eq, inArray, type SQL } from "drizzle-orm";
 import type { DrizzleDB } from "../../db";
 import {
   paymentInstallmentTable,
+  ticketAttributionTable,
   ticketFinanceTable,
   ticketTable,
   type PaymentInstallment,
   type Ticket as DbTicket,
+  type TicketAttribution,
   type TicketFinance,
   type TicketFinanceSummary,
   type TicketWithFinance,
@@ -125,7 +127,11 @@ export function createTicketService(
     if (tickets.length === 0) return [];
 
     const ticketIds = tickets.map((ticket) => ticket.id);
-    const [finances, payments] = await Promise.all([
+    const stripeSessionIds = tickets
+      .map((ticket) => ticket.stripe_event_id)
+      .filter((stripeSessionId) => !stripeSessionId.startsWith("manual"));
+
+    const [finances, payments, attributions] = await Promise.all([
       db
         .select()
         .from(ticketFinanceTable)
@@ -135,13 +141,22 @@ export function createTicketService(
         .from(paymentInstallmentTable)
         .where(inArray(paymentInstallmentTable.ticket_id, ticketIds))
         .orderBy(paymentInstallmentTable.installment_number),
+      stripeSessionIds.length > 0
+        ? db
+            .select()
+            .from(ticketAttributionTable)
+            .where(
+              inArray(ticketAttributionTable.stripe_session_id, stripeSessionIds)
+            )
+        : Promise.resolve([]),
     ]);
 
     return hydrateTicketFinanceRows(
       tickets,
       finances,
       payments,
-      buildFinanceSummary
+      buildFinanceSummary,
+      attributions
     );
   }
 
@@ -158,10 +173,17 @@ export function hydrateTicketFinanceRows(
   tickets: DbTicket[],
   finances: TicketFinance[],
   payments: PaymentInstallment[],
-  buildFinanceSummary: BuildTicketFinanceSummary
+  buildFinanceSummary: BuildTicketFinanceSummary,
+  attributions: TicketAttribution[] = []
 ): TicketWithFinance[] {
   const financesByTicket = new Map(
     finances.map((finance) => [finance.ticket_id, finance])
+  );
+  const attributionsByStripeSession = new Map(
+    attributions.map((attribution) => [
+      attribution.stripe_session_id,
+      attribution,
+    ])
   );
   const paymentsByTicket = new Map<string, PaymentInstallment[]>();
 
@@ -177,6 +199,7 @@ export function hydrateTicketFinanceRows(
 
     return {
       ...ticket,
+      attribution: attributionsByStripeSession.get(ticket.stripe_event_id) ?? null,
       finance,
       payments: ticketPayments,
       finance_summary: buildFinanceSummary(finance, ticketPayments),
