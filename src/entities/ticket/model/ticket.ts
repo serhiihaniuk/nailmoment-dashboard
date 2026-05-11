@@ -180,7 +180,7 @@ export const ticketAttributionSchema = z.object({
   landing_page: z.string().nullable(),
   referrer: z.string().nullable(),
   source: z.string(),
-  stripe_session_id: z.string(),
+  stripe_session_id: z.string().nullable(),
   ticket_id: z.string().nullable(),
   updated_at: dateSchema,
   utm_campaign: z.string().nullable(),

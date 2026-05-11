@@ -48,6 +48,18 @@ const trackingUrlSchema = nullableTrackingValueSchema.pipe(
   z.string().max(2048).nullable()
 );
 
+const checkoutAttributionUtmSchema = z
+    .object({
+      utm_campaign: utmValueSchema,
+      utm_content: utmValueSchema,
+      utm_medium: utmValueSchema,
+      utm_source: utmValueSchema,
+      utm_term: utmValueSchema,
+    })
+    .partial()
+    .optional()
+    .default({});
+
 export const checkoutAttributionClientSchema = z.object({
   landingPage: trackingUrlSchema,
   referrer: trackingUrlSchema,
@@ -59,17 +71,13 @@ export const checkoutAttributionClientSchema = z.object({
     .refine((value) => value.startsWith("cs_"), {
       message: "Invalid Stripe Checkout Session ID",
     }),
-  utm: z
-    .object({
-      utm_campaign: utmValueSchema,
-      utm_content: utmValueSchema,
-      utm_medium: utmValueSchema,
-      utm_source: utmValueSchema,
-      utm_term: utmValueSchema,
-    })
-    .partial()
-    .optional()
-    .default({}),
+  utm: checkoutAttributionUtmSchema,
+});
+
+export const checkoutAttributionStartClientSchema = z.object({
+  landingPage: trackingUrlSchema,
+  referrer: trackingUrlSchema,
+  utm: checkoutAttributionUtmSchema,
 });
 
 export const insertTicketSchema = createInsertSchema(ticketTable, {
@@ -99,6 +107,9 @@ export type SelectTicketInput = z.input<typeof selectTicketSchema>;
 export type Ticket = z.output<typeof selectTicketSchema>;
 export type CheckoutAttributionClientInput = z.output<
   typeof checkoutAttributionClientSchema
+>;
+export type CheckoutAttributionStartClientInput = z.output<
+  typeof checkoutAttributionStartClientSchema
 >;
 
 export type InsertTicketInput = z.input<typeof insertTicketSchema>;

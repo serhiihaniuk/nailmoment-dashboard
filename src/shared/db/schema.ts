@@ -239,7 +239,8 @@ export const ticketAttributionTable = pgTable(
     ticket_id: text("ticket_id").references(() => ticketTable.id, {
       onDelete: "cascade",
     }),
-    stripe_session_id: text("stripe_session_id").notNull(),
+    stripe_session_id: text("stripe_session_id"),
+    client_reference_id: text("client_reference_id"),
     source: text("source").notNull().default("stripe_success_redirect"),
     utm_source: text("utm_source"),
     utm_medium: text("utm_medium"),
@@ -266,6 +267,9 @@ export const ticketAttributionTable = pgTable(
     ticketAttributionStripeSessionIdUnique: uniqueIndex(
       "ticket_attribution_stripe_session_id_unique"
     ).on(table.stripe_session_id),
+    ticketAttributionClientReferenceIdUnique: unique(
+      "ticket_attribution_client_reference_id_unique"
+    ).on(table.client_reference_id),
     ticketAttributionTicketIdUnique: uniqueIndex(
       "ticket_attribution_ticket_id_unique"
     ).on(table.ticket_id),
