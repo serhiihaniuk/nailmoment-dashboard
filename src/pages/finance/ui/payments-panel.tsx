@@ -92,20 +92,19 @@ import { DiscountCombobox } from './discount-combobox';
 
 const PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE = "Payment plan is updating.";
 
-function formatAttributionLabel(
-  attribution: TicketWithFinance["attribution"]
-) {
-  if (!attribution) return "—";
+const UTM_DISPLAY_FIELDS = [
+  { key: "utm_source", label: "UTM source" },
+  { key: "utm_medium", label: "UTM medium" },
+  { key: "utm_campaign", label: "UTM campaign" },
+  { key: "utm_content", label: "UTM content" },
+  { key: "utm_term", label: "UTM term" },
+] as const;
 
-  const parts = [
-    attribution.utm_source,
-    attribution.utm_medium,
-    attribution.utm_campaign,
-    attribution.utm_content,
-    attribution.utm_term,
-  ].filter((part): part is string => Boolean(part));
-
-  return parts.length > 0 ? parts.join(" / ") : "—";
+function getAttributionItems(attribution: TicketWithFinance["attribution"]) {
+  return UTM_DISPLAY_FIELDS.map((field) => ({
+    label: field.label,
+    value: attribution?.[field.key] ?? "—",
+  }));
 }
 
 export function PaymentsPanel({
@@ -285,7 +284,7 @@ export function PaymentsPanel({
       )}
     </div>
   );
-  const attributionLabel = formatAttributionLabel(ticket.attribution);
+  const attributionItems = getAttributionItems(ticket.attribution);
 
   return (
     <SlidePanel open={open} onClose={onClose} footer={footerContent}>
@@ -468,13 +467,15 @@ export function PaymentsPanel({
               </span>
             </div>
           </div>
-          <div className="col-span-2 flex items-center gap-4 pt-1 text-[12px]">
-            <div className="min-w-0">
-              <span className="text-muted-foreground">UTM: </span>
-              <span className="font-medium tabular-nums" title={attributionLabel}>
-                {attributionLabel}
-              </span>
-            </div>
+          <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[12px]">
+            {attributionItems.map((item) => (
+              <div key={item.label} className="min-w-0">
+                <span className="text-muted-foreground">{item.label}: </span>
+                <span className="font-medium" title={item.value}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
           </div>
           <PaymentField label="Дата">
             <Input
