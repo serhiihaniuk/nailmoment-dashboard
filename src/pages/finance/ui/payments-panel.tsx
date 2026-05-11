@@ -92,6 +92,22 @@ import { DiscountCombobox } from './discount-combobox';
 
 const PAYMENT_PLAN_UPDATE_DENIAL_MESSAGE = "Payment plan is updating.";
 
+function formatAttributionLabel(
+  attribution: TicketWithFinance["attribution"]
+) {
+  if (!attribution) return "—";
+
+  const parts = [
+    attribution.utm_source,
+    attribution.utm_medium,
+    attribution.utm_campaign,
+    attribution.utm_content,
+    attribution.utm_term,
+  ].filter((part): part is string => Boolean(part));
+
+  return parts.length > 0 ? parts.join(" / ") : "—";
+}
+
 export function PaymentsPanel({
   ticket,
   open,
@@ -269,6 +285,7 @@ export function PaymentsPanel({
       )}
     </div>
   );
+  const attributionLabel = formatAttributionLabel(ticket.attribution);
 
   return (
     <SlidePanel open={open} onClose={onClose} footer={footerContent}>
@@ -448,6 +465,14 @@ export function PaymentsPanel({
               <span className="text-muted-foreground">Залишок: </span>
               <span className="font-medium tabular-nums">
                 {formatZloty(toMoneyNumber(ticket.finance_summary.remaining_total))}
+              </span>
+            </div>
+          </div>
+          <div className="col-span-2 flex items-center gap-4 pt-1 text-[12px]">
+            <div className="min-w-0">
+              <span className="text-muted-foreground">UTM: </span>
+              <span className="font-medium tabular-nums" title={attributionLabel}>
+                {attributionLabel}
               </span>
             </div>
           </div>

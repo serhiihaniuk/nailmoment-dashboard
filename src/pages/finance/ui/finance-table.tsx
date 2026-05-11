@@ -109,6 +109,11 @@ export function FinanceTable() {
         ticket.phone,
         ticket.instagram,
         ticket.finance?.nip,
+        ticket.attribution?.utm_source,
+        ticket.attribution?.utm_campaign,
+        ticket.attribution?.utm_medium,
+        ticket.attribution?.utm_content,
+        ticket.attribution?.utm_term,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery))
     );
   }, [data, query, statusFilter]);

@@ -19,6 +19,7 @@ import {
   cookieConsentEventTable,
   cookieConsentSurfaceEnum,
   paymentInstallmentTable,
+  ticketAttributionTable,
   ticketFinanceTable,
   ticketTable,
   voteCandidateMediaTable,
@@ -27,6 +28,49 @@ import {
 import { TICKET_TYPE_LIST } from "./ticket-grade";
 
 export const selectTicketSchema = createSelectSchema(ticketTable);
+export const selectTicketAttributionSchema =
+  createSelectSchema(ticketAttributionTable);
+
+const nullableTrackingValueSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value) => {
+    if (typeof value !== "string") return null;
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  });
+
+const utmValueSchema = nullableTrackingValueSchema.pipe(
+  z.string().max(500).nullable()
+);
+
+const trackingUrlSchema = nullableTrackingValueSchema.pipe(
+  z.string().max(2048).nullable()
+);
+
+export const checkoutAttributionClientSchema = z.object({
+  landingPage: trackingUrlSchema,
+  referrer: trackingUrlSchema,
+  sessionId: z
+    .string()
+    .trim()
+    .min(4)
+    .max(255)
+    .refine((value) => value.startsWith("cs_"), {
+      message: "Invalid Stripe Checkout Session ID",
+    }),
+  utm: z
+    .object({
+      utm_campaign: utmValueSchema,
+      utm_content: utmValueSchema,
+      utm_medium: utmValueSchema,
+      utm_source: utmValueSchema,
+      utm_term: utmValueSchema,
+    })
+    .partial()
+    .optional()
+    .default({}),
+});
 
 export const insertTicketSchema = createInsertSchema(ticketTable, {
   email: z.string().email({ message: "Invalid email address" }),
@@ -53,6 +97,9 @@ export const insertTicketClientSchema = z.object({
 
 export type SelectTicketInput = z.input<typeof selectTicketSchema>;
 export type Ticket = z.output<typeof selectTicketSchema>;
+export type CheckoutAttributionClientInput = z.output<
+  typeof checkoutAttributionClientSchema
+>;
 
 export type InsertTicketInput = z.input<typeof insertTicketSchema>;
 export type InsertTicketOutput = z.output<typeof insertTicketSchema>;
