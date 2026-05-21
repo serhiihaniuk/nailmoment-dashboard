@@ -79,6 +79,7 @@ describe("audience votes API client", () => {
       Response.json({
         audience_vote_id: "vote_1",
         estimated_recipient_count: 30,
+        include_landing_button: true,
         include_open_button: true,
         message_text: "Public voting starts now",
       })
@@ -87,6 +88,7 @@ describe("audience votes API client", () => {
 
     const preview = await previewAudienceVoteBroadcast({
       audience_vote_id: "vote_1",
+      include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
     });
@@ -106,6 +108,7 @@ describe("audience votes API client", () => {
 
     const broadcast = await createAudienceVoteBroadcast({
       audience_vote_id: "vote_1",
+      include_landing_button: false,
       include_open_button: true,
       message_text: "Public voting starts now",
     });
@@ -224,6 +227,7 @@ describe("audience votes API client", () => {
       Response.json(
         makeVoteResponse({
           opening_broadcast_include_open_button: false,
+          opening_broadcast_include_landing_button: true,
           opening_broadcast_message_text: "Voting starts in Telegram",
           status: "scheduled",
           window_end: "2026-05-09T13:00:00.000Z",
@@ -237,6 +241,7 @@ describe("audience votes API client", () => {
       audienceVoteIdSchema.parse("vote_1"),
       {
         opening_broadcast: {
+          include_landing_button: true,
           include_open_button: false,
           message_text: "Voting starts in Telegram",
         },
@@ -260,10 +265,12 @@ describe("audience votes API client", () => {
     }
     expect(JSON.parse(String(requestInit.body))).toMatchObject({
       opening_broadcast: {
+        include_landing_button: true,
         include_open_button: false,
         message_text: "Voting starts in Telegram",
       },
     });
+    expect(vote.opening_broadcast_include_landing_button).toBe(true);
     expect(vote.opening_broadcast_include_open_button).toBe(false);
     expect(vote.opening_broadcast_message_text).toBe(
       "Voting starts in Telegram"
@@ -299,6 +306,7 @@ function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
     },
     estimated_recipient_count: 30,
     id: "broadcast_1",
+    include_landing_button: false,
     include_open_button: true,
     interrupted_at: null,
     message_text: "Public voting starts now",
@@ -326,6 +334,7 @@ function makeVoteResponse(overrides: Record<string, unknown> = {}) {
     created_at: "2026-05-08T16:00:00.000Z",
     id: "vote_1",
     kind: "speaker",
+    opening_broadcast_include_landing_button: false,
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",

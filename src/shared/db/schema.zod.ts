@@ -243,6 +243,7 @@ const audienceVoteBroadcastMessageSchema = z
   .min(1, "Текст повідомлення обов’язковий")
   .max(4096, "Текст повідомлення має бути не довшим за 4096 символів");
 const audienceVoteOpeningBroadcastClientSchema = z.object({
+  include_landing_button: z.coerce.boolean().default(false),
   include_open_button: z.coerce.boolean().default(true),
   message_text: audienceVoteBroadcastMessageSchema,
 });
@@ -309,6 +310,9 @@ export const insertAudienceVoteSchema = createInsertSchema(
   {
     id: z.string().trim().min(1, "ID обов’язковий"),
     kind: z.enum(audienceVoteKindEnum.enumValues),
+    opening_broadcast_include_landing_button: z.coerce
+      .boolean()
+      .default(false),
     opening_broadcast_include_open_button: z.coerce.boolean().default(true),
     opening_broadcast_message_text: defaultNullableTrimmedTextSchema(
       4096,
@@ -401,6 +405,7 @@ export const insertAudienceVoteBroadcastSchema = createInsertSchema(
     canary_voter_limit: z.number().int().min(0).max(25),
     estimated_recipient_count: z.number().int().min(0),
     id: z.string().trim().min(1, "ID обов’язковий"),
+    include_landing_button: z.coerce.boolean().default(false),
     message_text: audienceVoteBroadcastMessageSchema,
     operator_telegram_user_id: z
       .number()
@@ -428,6 +433,7 @@ export const insertAudienceVoteBroadcastDeliverySchema = createInsertSchema(
 
 export const createAudienceVoteBroadcastClientSchema = z.object({
   audience_vote_id: z.string().trim().min(1, "Голосування обов’язкове"),
+  include_landing_button: z.coerce.boolean().default(false),
   include_open_button: z.coerce.boolean().default(false),
   message_text: audienceVoteBroadcastMessageSchema,
 });

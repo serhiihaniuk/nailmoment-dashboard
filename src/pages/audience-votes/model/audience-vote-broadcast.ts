@@ -13,6 +13,7 @@ import { formatAudienceVoteDate } from "./audience-vote-form";
 
 export type CreateAudienceVoteBroadcastFormDraft = {
   audience_vote_id: string;
+  include_landing_button: boolean;
   include_open_button: boolean;
   message_text: string;
 };
@@ -58,6 +59,7 @@ export function createAudienceVoteBroadcastDefaultDraft(
 
   return {
     audience_vote_id: preferredVote?.id ?? "",
+    include_landing_button: false,
     include_open_button: true,
     message_text: "",
   };
@@ -202,6 +204,7 @@ function isAudienceVoteBroadcastField(
 ): value is keyof CreateAudienceVoteBroadcastFormDraft {
   return (
     value === "audience_vote_id" ||
+    value === "include_landing_button" ||
     value === "include_open_button" ||
     value === "message_text"
   );

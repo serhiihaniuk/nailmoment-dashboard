@@ -219,6 +219,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   const createAudienceVoteBroadcast = async ({
     audience_vote_id,
     broadcastId: requestedBroadcastId,
+    include_landing_button,
     include_open_button,
     message_text,
     now = new Date(),
@@ -259,6 +260,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       canary_voter_limit: AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT,
       estimated_recipient_count: activeVoters.length,
       id: broadcastId,
+      include_landing_button,
       include_open_button,
       message_text,
       next_stage_at: now,

@@ -105,12 +105,14 @@ describe("audience vote schedule", () => {
   test("creates a schedule draft with saved opening broadcast settings", () => {
     const draft = createAudienceVoteScheduleDraft(
       makeVote({
+        opening_broadcast_include_landing_button: true,
         opening_broadcast_include_open_button: false,
         opening_broadcast_message_text: "Voting starts now",
       })
     );
 
     expect(draft.opening_broadcast_enabled).toBe(true);
+    expect(draft.opening_broadcast_include_landing_button).toBe(true);
     expect(draft.opening_broadcast_include_open_button).toBe(false);
     expect(draft.opening_broadcast_message_text).toBe("Voting starts now");
   });
@@ -118,6 +120,7 @@ describe("audience vote schedule", () => {
   test("parses an enabled opening broadcast into the schedule payload", () => {
     const parsed = parseAudienceVoteScheduleDraft({
       opening_broadcast_enabled: true,
+      opening_broadcast_include_landing_button: true,
       opening_broadcast_include_open_button: false,
       opening_broadcast_message_text: "  Voting starts now  ",
       status: "scheduled",
@@ -129,6 +132,7 @@ describe("audience vote schedule", () => {
 
     if (parsed.ok) {
       expect(parsed.data.opening_broadcast).toEqual({
+        include_landing_button: true,
         include_open_button: false,
         message_text: "Voting starts now",
       });
@@ -138,6 +142,7 @@ describe("audience vote schedule", () => {
   test("maps opening broadcast validation to the message field", () => {
     const parsed = parseAudienceVoteScheduleDraft({
       opening_broadcast_enabled: true,
+      opening_broadcast_include_landing_button: false,
       opening_broadcast_include_open_button: true,
       opening_broadcast_message_text: "",
       status: "scheduled",
@@ -159,6 +164,7 @@ function makeVote(overrides: Partial<AudienceVote> = {}): AudienceVote {
     created_at: new Date("2026-05-09T10:00:00.000Z"),
     id: audienceVoteIdSchema.parse("vote_1"),
     kind: "speaker",
+    opening_broadcast_include_landing_button: false,
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "scheduled",

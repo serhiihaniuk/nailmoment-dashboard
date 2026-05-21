@@ -891,6 +891,9 @@ export function createAudienceVoteService(
             window_start: validatedData.window_start,
             ...("opening_broadcast" in validatedData
               ? {
+                  opening_broadcast_include_landing_button:
+                    validatedData.opening_broadcast?.include_landing_button ??
+                    false,
                   opening_broadcast_include_open_button:
                     validatedData.opening_broadcast?.include_open_button ??
                     true,

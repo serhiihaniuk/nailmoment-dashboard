@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CircleStop,
+  ExternalLink,
   History,
   Loader2,
   Radio,
@@ -331,6 +332,12 @@ function BroadcastRow({
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Radio aria-hidden="true" size={12} />
               Кнопка Mini App
+            </span>
+          ) : null}
+          {broadcast.include_landing_button ? (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <ExternalLink aria-hidden="true" size={12} />
+              Кнопка сайту
             </span>
           ) : null}
         </div>

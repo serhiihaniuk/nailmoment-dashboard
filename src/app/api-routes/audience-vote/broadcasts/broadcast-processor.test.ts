@@ -257,6 +257,39 @@ describe("Audience Vote Broadcast processor", () => {
     expect(telegramClient.sentTo).toEqual([299445418]);
   });
 
+  test("passes configured broadcast buttons to the Telegram client", async () => {
+    const service = new FakeBroadcastService({
+      broadcasts: [
+        makeBroadcast({
+          include_landing_button: true,
+          include_open_button: false,
+          status: "ready",
+        }),
+      ],
+      deliveries: [makeDelivery({ stage: "normal" })],
+    });
+    const sentButtons: Array<{
+      includeLandingButton: boolean;
+      includeOpenButton: boolean;
+    }> = [];
+    const telegramClient: AudienceVoteBroadcastTelegramClient = {
+      async sendMessage({ includeLandingButton, includeOpenButton }) {
+        sentButtons.push({ includeLandingButton, includeOpenButton });
+      },
+    };
+
+    await processAudienceVoteBroadcast({
+      broadcastId: "broadcast_1",
+      now,
+      service,
+      telegramClient,
+    });
+
+    expect(sentButtons).toEqual([
+      { includeLandingButton: true, includeOpenButton: false },
+    ]);
+  });
+
   test("detects Telegram block-style errors", () => {
     expect(
       isTelegramBroadcastBlockedError({
@@ -647,6 +680,7 @@ function makeBroadcast(
     created_at: now,
     estimated_recipient_count: 1,
     id: "broadcast_1",
+    include_landing_button: false,
     include_open_button: true,
     interrupted_at: null,
     message_text: "Public voting starts now",
