@@ -147,6 +147,12 @@ open button or the lifecycle processor. The generated broadcast id is
 still using the same canary, interrupt, delivery-row, and Telegram send path as
 manual broadcasts.
 
+Manual and opening broadcasts can include Telegram inline buttons for the
+Audience Vote Mini App and for the public Nail Moment landing page
+(`https://www.nailmoment.pl`). The button choices are persisted on the
+broadcast row so delayed canary and normal delivery batches send the same
+markup the Operator previewed.
+
 The processor checks the broadcast status from the database before each phase
 and before every recipient send. Setting a broadcast to `interrupted` is the
 DB-backed kill switch: future unsent deliveries are skipped, while already sent

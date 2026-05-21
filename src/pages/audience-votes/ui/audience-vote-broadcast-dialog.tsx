@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2, Radio, Send } from "lucide-react";
+import { ExternalLink, Loader2, Radio, Send } from "lucide-react";
 
 import type { AudienceVote } from "@/entities/audience-vote";
 import { Button } from "@/shared/ui/button";
@@ -103,6 +103,25 @@ export function AudienceVoteBroadcastDialog({
             />
           </div>
 
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+            <div>
+              <Label htmlFor="broadcast-landing-button">
+                Кнопка сайту Nail Moment
+              </Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Додає кнопку з посиланням на nailmoment.pl.
+              </p>
+            </div>
+            <Switch
+              checked={draft.include_landing_button}
+              disabled={isPending}
+              id="broadcast-landing-button"
+              onCheckedChange={(checked) =>
+                updateDraft("include_landing_button", checked)
+              }
+            />
+          </div>
+
           {preview ? (
             <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/30 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -117,6 +136,12 @@ export function AudienceVoteBroadcastDialog({
               {preview.include_open_button ? (
                 <p className="text-xs font-medium text-muted-foreground">
                   Кнопка відкриття Mini App буде додана.
+                </p>
+              ) : null}
+              {preview.include_landing_button ? (
+                <p className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <ExternalLink aria-hidden="true" size={12} />
+                  Кнопка сайту Nail Moment буде додана.
                 </p>
               ) : null}
             </div>

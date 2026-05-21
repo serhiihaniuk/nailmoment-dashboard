@@ -23,6 +23,7 @@ function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
     created_at: "2026-05-08T10:00:00.000Z",
     id: "vote_1",
     kind: "speaker",
+    opening_broadcast_include_landing_button: false,
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",
@@ -84,6 +85,7 @@ function makeAudienceVoteBroadcastResponse(
     },
     estimated_recipient_count: 30,
     id: "broadcast_1",
+    include_landing_button: false,
     include_open_button: true,
     interrupted_at: null,
     message_text: "Public voting starts now",
@@ -105,6 +107,7 @@ describe("audience vote parsing", () => {
     );
 
     expect(vote.created_at).toBeInstanceOf(Date);
+    expect(vote.opening_broadcast_include_landing_button).toBe(false);
     expect(vote.opening_broadcast_include_open_button).toBe(true);
     expect(vote.opening_broadcast_message_text).toBe("Voting starts now");
     expect(vote.window_start).toBeInstanceOf(Date);
@@ -327,11 +330,13 @@ describe("audience vote parsing", () => {
     const preview = parseAudienceVoteBroadcastPreview({
       audience_vote_id: "vote_1",
       estimated_recipient_count: 42,
+      include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
     });
 
     expect(preview.estimated_recipient_count).toBe(42);
+    expect(preview.include_landing_button).toBe(true);
     expect(preview.include_open_button).toBe(true);
   });
 

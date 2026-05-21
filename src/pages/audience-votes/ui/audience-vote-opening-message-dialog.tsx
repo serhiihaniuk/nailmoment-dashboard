@@ -34,6 +34,7 @@ export function AudienceVoteOpeningMessageDialog({
   const isConfigured = Boolean(vote.opening_broadcast_message_text);
   const isEditable = vote.status === "draft" || vote.status === "scheduled";
   const enabledSwitchId = `opening-message-enabled-${vote.id}`;
+  const landingButtonSwitchId = `opening-message-landing-button-${vote.id}`;
   const openButtonSwitchId = `opening-message-open-button-${vote.id}`;
 
   if (!isEditable) {
@@ -107,6 +108,25 @@ export function AudienceVoteOpeningMessageDialog({
                   id={openButtonSwitchId}
                   onCheckedChange={(checked) =>
                     state.updateDraft("include_open_button", checked)
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+                <div className="min-w-0">
+                  <Label htmlFor={landingButtonSwitchId}>
+                    Кнопка сайту Nail Moment
+                  </Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Додає кнопку з посиланням на nailmoment.pl.
+                  </p>
+                </div>
+                <Switch
+                  checked={state.draft.include_landing_button}
+                  disabled={state.isPending}
+                  id={landingButtonSwitchId}
+                  onCheckedChange={(checked) =>
+                    state.updateDraft("include_landing_button", checked)
                   }
                 />
               </div>

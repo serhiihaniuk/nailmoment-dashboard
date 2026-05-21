@@ -9,6 +9,7 @@ import {
 
 export type AudienceVoteScheduleDraft = {
   opening_broadcast_enabled: boolean;
+  opening_broadcast_include_landing_button: boolean;
   opening_broadcast_include_open_button: boolean;
   opening_broadcast_message_text: string;
   status: AudienceVoteStatus;
@@ -72,6 +73,8 @@ export function createAudienceVoteScheduleDraft(
 ): AudienceVoteScheduleDraft {
   return {
     opening_broadcast_enabled: vote.opening_broadcast_message_text !== null,
+    opening_broadcast_include_landing_button:
+      vote.opening_broadcast_include_landing_button,
     opening_broadcast_include_open_button:
       vote.opening_broadcast_include_open_button,
     opening_broadcast_message_text: vote.opening_broadcast_message_text ?? "",
@@ -87,6 +90,8 @@ export function parseAudienceVoteScheduleDraft(
   const parsed = patchAudienceVoteScheduleClientSchema.safeParse({
     opening_broadcast: draft.opening_broadcast_enabled
       ? {
+          include_landing_button:
+            draft.opening_broadcast_include_landing_button,
           include_open_button: draft.opening_broadcast_include_open_button,
           message_text: draft.opening_broadcast_message_text,
         }
@@ -240,6 +245,10 @@ function mapAudienceVoteScheduleIssuePath(
   const fieldName = path[0];
 
   if (fieldName === "opening_broadcast") {
+    if (path[1] === "include_landing_button") {
+      return "opening_broadcast_include_landing_button";
+    }
+
     return path[1] === "include_open_button"
       ? "opening_broadcast_include_open_button"
       : "opening_broadcast_message_text";
@@ -264,6 +273,10 @@ function mapAudienceVoteScheduleFieldName(
     return "opening_broadcast_message_text";
   }
 
+  if (value === "opening_broadcast.include_landing_button") {
+    return "opening_broadcast_include_landing_button";
+  }
+
   if (value === "opening_broadcast.include_open_button") {
     return "opening_broadcast_include_open_button";
   }
@@ -276,6 +289,7 @@ function isAudienceVoteScheduleField(
 ): value is keyof AudienceVoteScheduleDraft {
   return (
     value === "opening_broadcast_enabled" ||
+    value === "opening_broadcast_include_landing_button" ||
     value === "opening_broadcast_include_open_button" ||
     value === "opening_broadcast_message_text" ||
     value === "status" ||

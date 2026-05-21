@@ -34,6 +34,7 @@ export async function ensureAudienceVoteOpeningBroadcast({
   const broadcast = await broadcastService.createAudienceVoteBroadcast({
     audience_vote_id: vote.id,
     broadcastId: buildAudienceVoteOpeningBroadcastId(vote.id),
+    include_landing_button: vote.opening_broadcast_include_landing_button,
     include_open_button: vote.opening_broadcast_include_open_button,
     message_text: messageText,
     now,

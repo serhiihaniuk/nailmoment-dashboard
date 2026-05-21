@@ -173,6 +173,7 @@ export const audienceVoteSchema = z.object({
   created_at: dateSchema,
   id: audienceVoteIdSchema,
   kind: audienceVoteKindSchema,
+  opening_broadcast_include_landing_button: z.boolean(),
   opening_broadcast_include_open_button: z.boolean(),
   opening_broadcast_message_text: nullableTextSchema,
   status: audienceVoteStatusSchema,
@@ -207,6 +208,7 @@ export const audienceVoteBroadcastSchema = z.object({
   delivery_counts: audienceVoteBroadcastDeliveryCountsByStageSchema,
   estimated_recipient_count: z.number().int().min(0),
   id: audienceVoteBroadcastIdSchema,
+  include_landing_button: z.boolean(),
   include_open_button: z.boolean(),
   interrupted_at: nullableDateSchema,
   message_text: nonEmptyStringSchema,
@@ -222,6 +224,7 @@ export const audienceVoteBroadcastListSchema = z.array(
 export const audienceVoteBroadcastPreviewSchema = z.object({
   audience_vote_id: audienceVoteIdSchema,
   estimated_recipient_count: z.number().int().min(0),
+  include_landing_button: z.boolean(),
   include_open_button: z.boolean(),
   message_text: nonEmptyStringSchema,
 });

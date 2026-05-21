@@ -16,6 +16,7 @@ describe("audience vote opening message", () => {
 
     expect(draft).toEqual({
       enabled: false,
+      include_landing_button: false,
       include_open_button: false,
       message_text: "",
     });
@@ -24,6 +25,7 @@ describe("audience vote opening message", () => {
   test("creates an enabled draft from a saved start message", () => {
     const draft = createAudienceVoteOpeningMessageDraft(
       makeVote({
+        opening_broadcast_include_landing_button: true,
         opening_broadcast_include_open_button: false,
         opening_broadcast_message_text: "Voting starts now",
       })
@@ -31,6 +33,7 @@ describe("audience vote opening message", () => {
 
     expect(draft).toEqual({
       enabled: true,
+      include_landing_button: true,
       include_open_button: false,
       message_text: "Voting starts now",
     });
@@ -45,6 +48,7 @@ describe("audience vote opening message", () => {
     const parsed = parseAudienceVoteOpeningMessageDraft({
       draft: {
         enabled: true,
+        include_landing_button: true,
         include_open_button: false,
         message_text: "  Voting starts now  ",
       },
@@ -56,6 +60,7 @@ describe("audience vote opening message", () => {
     if (parsed.ok) {
       expect(parsed.data).toEqual({
         opening_broadcast: {
+          include_landing_button: true,
           include_open_button: false,
           message_text: "Voting starts now",
         },
@@ -74,6 +79,7 @@ describe("audience vote opening message", () => {
     const parsed = parseAudienceVoteOpeningMessageDraft({
       draft: {
         enabled: false,
+        include_landing_button: true,
         include_open_button: true,
         message_text: "",
       },
@@ -91,6 +97,7 @@ describe("audience vote opening message", () => {
     const parsed = parseAudienceVoteOpeningMessageDraft({
       draft: {
         enabled: true,
+        include_landing_button: false,
         include_open_button: true,
         message_text: "",
       },
@@ -107,6 +114,7 @@ describe("audience vote opening message", () => {
   test("maps API opening broadcast errors to the dialog fields", () => {
     const errors = mapAudienceVoteOpeningMessageApiErrors({
       errors: {
+        "opening_broadcast.include_landing_button": ["Invalid link value"],
         "opening_broadcast.include_open_button": ["Invalid button value"],
         "opening_broadcast.message_text": ["Message required"],
       },
@@ -114,6 +122,7 @@ describe("audience vote opening message", () => {
     });
 
     expect(errors).toEqual({
+      include_landing_button: "Invalid link value",
       include_open_button: "Invalid button value",
       message_text: "Message required",
     });
@@ -126,6 +135,7 @@ function makeVote(overrides: Partial<AudienceVote> = {}): AudienceVote {
     created_at: new Date("2026-05-09T10:00:00.000Z"),
     id: audienceVoteIdSchema.parse("vote_1"),
     kind: "speaker",
+    opening_broadcast_include_landing_button: false,
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "scheduled",

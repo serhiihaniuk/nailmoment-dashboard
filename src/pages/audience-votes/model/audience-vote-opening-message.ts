@@ -9,6 +9,7 @@ import type {
 
 export type AudienceVoteOpeningMessageDraft = {
   enabled: boolean;
+  include_landing_button: boolean;
   include_open_button: boolean;
   message_text: string;
 };
@@ -31,6 +32,9 @@ export function createAudienceVoteOpeningMessageDraft(
 
   return {
     enabled: hasSavedMessage,
+    include_landing_button: hasSavedMessage
+      ? vote.opening_broadcast_include_landing_button
+      : false,
     include_open_button: hasSavedMessage
       ? vote.opening_broadcast_include_open_button
       : false,
@@ -48,6 +52,7 @@ export function parseAudienceVoteOpeningMessageDraft({
   const parsed = patchAudienceVoteScheduleClientSchema.safeParse({
     opening_broadcast: draft.enabled
       ? {
+          include_landing_button: draft.include_landing_button,
           include_open_button: draft.include_open_button,
           message_text: draft.message_text,
         }
@@ -112,9 +117,11 @@ function mapAudienceVoteOpeningMessageIssuePath(
   const fieldName = path[0];
 
   if (fieldName === "opening_broadcast") {
-    return path[1] === "include_open_button"
-      ? "include_open_button"
-      : "message_text";
+    if (path[1] === "include_landing_button") {
+      return "include_landing_button";
+    }
+
+    return path[1] === "include_open_button" ? "include_open_button" : "message_text";
   }
 
   return typeof fieldName === "string"
@@ -138,6 +145,13 @@ function mapAudienceVoteOpeningMessageFieldName(
   }
 
   if (
+    value === "opening_broadcast.include_landing_button" ||
+    value === "opening_broadcast_include_landing_button"
+  ) {
+    return "include_landing_button";
+  }
+
+  if (
     value === "opening_broadcast.include_open_button" ||
     value === "opening_broadcast_include_open_button"
   ) {
@@ -152,6 +166,7 @@ function isAudienceVoteOpeningMessageField(
 ): value is keyof AudienceVoteOpeningMessageDraft {
   return (
     value === "enabled" ||
+    value === "include_landing_button" ||
     value === "include_open_button" ||
     value === "message_text"
   );

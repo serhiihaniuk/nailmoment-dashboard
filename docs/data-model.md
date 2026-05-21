@@ -113,6 +113,7 @@ erDiagram
     timestamptz window_end
     text opening_broadcast_message_text
     boolean opening_broadcast_include_open_button
+    boolean opening_broadcast_include_landing_button
     boolean archived
     timestamptz created_at
     timestamptz updated_at
@@ -308,6 +309,8 @@ Important fields:
   when the vote opens.
 - `opening_broadcast_include_open_button`: whether the generated opening
   broadcast includes the Mini App button.
+- `opening_broadcast_include_landing_button`: whether the generated opening
+  broadcast includes a link button to the Nail Moment landing page.
 - `archived`: soft-delete flag; normal Operator lists exclude archived rows.
 
 Only one non-archived `audience_vote` row may have `status = 'open'` at a
@@ -365,8 +368,10 @@ and migration order does not break the production bot.
 `audience_vote_broadcast` stores Operator-confirmed broadcast messages,
 canary/normal workflow status, the estimated active recipient count, the
 primary Operator Telegram id for audit/backward compatibility, and the
-DB-backed interrupt status. Current canary recipients are stored as delivery
-rows, so multiple configured Operators can receive the test stages.
+DB-backed interrupt status. It also stores the optional Mini App and landing
+page button flags that are used by every delayed delivery stage. Current canary
+recipients are stored as delivery rows, so multiple configured Operators can
+receive the test stages.
 
 `audience_vote_broadcast_delivery` stores one durable delivery row per
 recipient and stage. Important fields:
@@ -433,5 +438,7 @@ Relevant finance/Stripe migrations:
   Telegram `/start` and `/vote` entry message/button settings.
 - `drizzle/0032_audience_vote_opening_broadcast.sql`: adds optional scheduled
   opening broadcast fields to `audience_vote`.
+- `drizzle/0035_audience_vote_landing_button.sql`: adds optional landing-page
+  button flags for manual and scheduled Audience Vote broadcasts.
 
 Production migration work must follow `AGENTS.md`.

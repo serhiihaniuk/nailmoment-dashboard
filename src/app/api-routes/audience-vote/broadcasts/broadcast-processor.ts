@@ -25,10 +25,13 @@ import {
 
 const OPEN_VOTING_BUTTON_TEXT =
   "\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u0433\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
+const LANDING_BUTTON_TEXT = "Nail Moment";
+const NAIL_MOMENT_LANDING_URL = "https://www.nailmoment.pl";
 const DELIVERY_ATTEMPT_LOCK_MS = 5 * 60 * 1000;
 
 export interface AudienceVoteBroadcastTelegramClient {
   sendMessage: (input: {
+    includeLandingButton: boolean;
     includeOpenButton: boolean;
     messageText: string;
     telegramUserId: number;
@@ -175,13 +178,16 @@ function createTelegramBroadcastClient(): AudienceVoteBroadcastTelegramClient {
   }
 
   return {
-    async sendMessage({ includeOpenButton, messageText, telegramUserId }) {
-      const reply_markup = includeOpenButton
-        ? new InlineKeyboard().webApp(
-            OPEN_VOTING_BUTTON_TEXT,
-            readTelegramAudienceVoteMiniAppUrl()
-          )
-        : undefined;
+    async sendMessage({
+      includeLandingButton,
+      includeOpenButton,
+      messageText,
+      telegramUserId,
+    }) {
+      const reply_markup = buildBroadcastKeyboard({
+        includeLandingButton,
+        includeOpenButton,
+      });
       const options = reply_markup ? { reply_markup } : undefined;
 
       await getBot().api.sendMessage(telegramUserId, messageText, options);
@@ -415,6 +421,7 @@ async function processDeliveryStage({
   return sendDeliveryBatch({
     deliveries,
     expectedStatus,
+    includeLandingButton: broadcast.include_landing_button,
     includeOpenButton: broadcast.include_open_button,
     messageText: broadcast.message_text,
     now,
@@ -427,6 +434,7 @@ async function sendDeliveryBatch({
   deliveries,
   expectedStatus,
   includeOpenButton,
+  includeLandingButton,
   messageText,
   now,
   service,
@@ -435,6 +443,7 @@ async function sendDeliveryBatch({
   deliveries: AudienceVoteBroadcastDelivery[];
   expectedStatus: AudienceVoteBroadcastStatus;
   includeOpenButton: boolean;
+  includeLandingButton: boolean;
   messageText: string;
   now: Date;
   service: AudienceVoteBroadcastProcessorService;
@@ -487,6 +496,7 @@ async function sendDeliveryBatch({
 
     try {
       await telegramClient.sendMessage({
+        includeLandingButton,
         includeOpenButton,
         messageText,
         telegramUserId: claimed.telegram_user_id,
@@ -559,6 +569,34 @@ function formatTelegramBroadcastError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : "Telegram send failed.";
+}
+
+function buildBroadcastKeyboard({
+  includeLandingButton,
+  includeOpenButton,
+}: {
+  includeLandingButton: boolean;
+  includeOpenButton: boolean;
+}) {
+  if (!includeOpenButton && !includeLandingButton) {
+    return undefined;
+  }
+
+  const keyboard = new InlineKeyboard();
+
+  if (includeOpenButton) {
+    keyboard.webApp(OPEN_VOTING_BUTTON_TEXT, readTelegramAudienceVoteMiniAppUrl());
+  }
+
+  if (includeLandingButton) {
+    if (includeOpenButton) {
+      keyboard.row();
+    }
+
+    keyboard.url(LANDING_BUTTON_TEXT, NAIL_MOMENT_LANDING_URL);
+  }
+
+  return keyboard;
 }
 
 function getTelegramErrorLike(

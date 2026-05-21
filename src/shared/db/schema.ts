@@ -452,6 +452,11 @@ export const audienceVoteTable = pgTable(
     )
       .notNull()
       .default(true),
+    opening_broadcast_include_landing_button: boolean(
+      "opening_broadcast_include_landing_button"
+    )
+      .notNull()
+      .default(false),
     archived: boolean("archived").notNull().default(false),
     created_at: timestamp("created_at", {
       withTimezone: true,
@@ -692,6 +697,9 @@ export const audienceVoteBroadcastTable = pgTable(
       .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
     message_text: text("message_text").notNull(),
     include_open_button: boolean("include_open_button")
+      .notNull()
+      .default(false),
+    include_landing_button: boolean("include_landing_button")
       .notNull()
       .default(false),
     status: audienceVoteBroadcastStatusEnum("status")

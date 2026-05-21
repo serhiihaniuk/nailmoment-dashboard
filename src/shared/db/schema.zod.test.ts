@@ -57,6 +57,7 @@ describe("audience vote route schemas", () => {
     });
 
     expect(parsed.opening_broadcast_include_open_button).toBe(true);
+    expect(parsed.opening_broadcast_include_landing_button).toBe(false);
     expect(parsed.opening_broadcast_message_text).toBeNull();
   });
 
@@ -145,6 +146,7 @@ describe("vote candidate route schemas", () => {
     });
 
     expect(parsed.opening_broadcast).toEqual({
+      include_landing_button: false,
       include_open_button: false,
       message_text: "Voting starts now",
     });
