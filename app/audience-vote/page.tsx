@@ -37,10 +37,14 @@ export default async function Page({
           strategy="beforeInteractive"
         />
       )}
-      <AudienceVoteMiniAppPage
-        dashboardPreview={dashboardPreview}
-        previewVoteId={dashboardPreview ? previewVoteId : undefined}
-      />
+      {dashboardPreview && previewVoteId ? (
+        <AudienceVoteMiniAppPage
+          dashboardPreview={dashboardPreview}
+          previewVoteId={previewVoteId}
+        />
+      ) : (
+        <AudienceVoteMiniAppPage dashboardPreview={dashboardPreview} />
+      )}
     </>
   );
 }

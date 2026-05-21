@@ -79,10 +79,12 @@ export default function AudienceVoteMiniAppPage({
       }
 
       try {
-        const data = await fetchAudienceVoteMiniAppFeed(initData, {
-          dashboardPreview,
-          previewVoteId,
-        });
+        const data = await fetchAudienceVoteMiniAppFeed(
+          initData,
+          previewVoteId
+            ? { dashboardPreview, previewVoteId }
+            : { dashboardPreview }
+        );
 
         if (data.status === "open_vote") {
           prepareTelegramMiniAppViewport({ fullscreen: true });
