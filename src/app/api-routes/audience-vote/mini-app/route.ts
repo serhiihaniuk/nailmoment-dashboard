@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 import {
+  audienceVoteIdSchema,
   defaultAudienceVoteUpdateScreen,
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
@@ -27,6 +28,51 @@ export async function GET(request: Request) {
     });
     if (!authenticated.ok) return authenticated.response;
 
+    const previewVoteId = new URL(request.url).searchParams
+      .get("voteId")
+      ?.trim();
+
+    if (previewVoteId) {
+      if (!authenticated.dashboardPreview) {
+        return NextResponse.json(
+          { message: "Dashboard preview is required." },
+          { status: 403 }
+        );
+      }
+
+      const parsedVoteId = audienceVoteIdSchema.safeParse(previewVoteId);
+
+      if (!parsedVoteId.success) {
+        return NextResponse.json(
+          { message: "Invalid Audience Vote id." },
+          { status: 400 }
+        );
+      }
+
+      const previewVote = await audienceVoteService.getAudienceVote(
+        parsedVoteId.data
+      );
+
+      if (!previewVote || previewVote.archived) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+      }
+
+      if (previewVote.status !== "draft" && previewVote.status !== "scheduled") {
+        return NextResponse.json(
+          { message: "Only unopened votes can be previewed this way." },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json(
+        await buildOpenVoteResponse({
+          selectedCandidateId: null,
+          vote: previewVote,
+        }),
+        { status: 200 }
+      );
+    }
+
     const openVote = await audienceVoteService.getOpenAudienceVote();
 
     if (!openVote) {
@@ -46,24 +92,15 @@ export async function GET(request: Request) {
       );
     }
 
-    const candidates = await audienceVoteService.getVoteCandidates({
-      archived: false,
-      audienceVoteId: openVote.id,
-    });
-    const candidatesWithMedia = await Promise.all(
-      candidates.map(async (candidate) => ({
-        ...candidate,
-        media: await audienceVoteService.getVoteCandidateMediaList({
-          archived: false,
-          candidateId: candidate.id,
-        }),
-      }))
-    );
     const currentVote =
       await audienceVoteService.getCurrentVoteForTelegramVoter({
         audienceVoteId: openVote.id,
         telegramUserId: authenticated.user.id,
       });
+    const candidates = await audienceVoteService.getVoteCandidates({
+      archived: false,
+      audienceVoteId: openVote.id,
+    });
     const activeCandidateIds = new Set(
       candidates.map((candidate) => candidate.id)
     );
@@ -73,10 +110,8 @@ export async function GET(request: Request) {
         : null;
 
     return NextResponse.json(
-      parseAudienceVoteMiniAppResponse({
-        candidates: candidatesWithMedia,
-        selected_candidate_id: selectedCandidateId,
-        status: "open_vote",
+      await buildOpenVoteResponse({
+        selectedCandidateId,
         vote: openVote,
       }),
       { status: 200 }
@@ -149,6 +184,39 @@ async function getSafeAudienceVoteUpdateScreen() {
   }
 }
 
+async function buildOpenVoteResponse({
+  selectedCandidateId,
+  vote,
+}: {
+  selectedCandidateId: string | null;
+  vote: Awaited<ReturnType<typeof audienceVoteService.getAudienceVote>>;
+}) {
+  if (!vote) {
+    throw new Error("Audience Vote is required.");
+  }
+
+  const candidates = await audienceVoteService.getVoteCandidates({
+    archived: false,
+    audienceVoteId: vote.id,
+  });
+  const candidatesWithMedia = await Promise.all(
+    candidates.map(async (candidate) => ({
+      ...candidate,
+      media: await audienceVoteService.getVoteCandidateMediaList({
+        archived: false,
+        candidateId: candidate.id,
+      }),
+    }))
+  );
+
+  return parseAudienceVoteMiniAppResponse({
+    candidates: candidatesWithMedia,
+    selected_candidate_id: selectedCandidateId,
+    status: "open_vote",
+    vote,
+  });
+}
+
 function readTelegramInitData(request: Request): string | undefined {
   const authorization = request.headers.get("authorization");
   const authMatch = authorization?.match(/^tma\s+(.+)$/i);
@@ -166,7 +234,7 @@ async function authenticateMiniAppRequest(
   request: Request,
   options: { allowDashboardPreview?: boolean } = {}
 ): Promise<
-  | { ok: true; user: TelegramMiniAppUser }
+  | { dashboardPreview: boolean; ok: true; user: TelegramMiniAppUser }
   | { ok: false; response: NextResponse }
 > {
   if (
@@ -177,6 +245,7 @@ async function authenticateMiniAppRequest(
 
     if (session) {
       return {
+        dashboardPreview: true,
         ok: true,
         user: {
           firstName: "Dashboard",
@@ -220,7 +289,7 @@ async function authenticateMiniAppRequest(
     username: validatedInitData.user.username ?? null,
   });
 
-  return { ok: true, user: validatedInitData.user };
+  return { dashboardPreview: false, ok: true, user: validatedInitData.user };
 }
 
 export const dynamic = "force-dynamic";

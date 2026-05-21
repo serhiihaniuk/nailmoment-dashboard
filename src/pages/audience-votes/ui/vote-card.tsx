@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Loader2, RefreshCw, Smartphone } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type {
@@ -10,6 +11,7 @@ import type {
   AudienceVoteStatus,
 } from "@/entities/audience-vote";
 import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/cn";
 import { fetchAudienceVoteResults } from "../api/audience-votes-client";
 import {
@@ -37,6 +39,8 @@ interface VoteCardProps {
 }
 
 export function VoteCard({ vote, votes }: VoteCardProps) {
+  const canPreviewVote = vote.status === "draft" || vote.status === "scheduled";
+
   return (
     <article className="overflow-hidden rounded-xl border border-border/60 bg-white shadow-surface">
       <div className="px-4 py-4 sm:px-5">
@@ -72,6 +76,7 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
         <VoteResultSummary vote={vote} />
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {canPreviewVote ? <AudienceVotePreviewButton vote={vote} /> : null}
           <AudienceVoteScheduleDialog vote={vote} votes={votes} />
           <AudienceVoteOpeningMessageDialog vote={vote} />
           <AudienceVoteCandidatesDialog vote={vote} />
@@ -79,6 +84,21 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
         </div>
       </div>
     </article>
+  );
+}
+
+function AudienceVotePreviewButton({ vote }: { vote: AudienceVote }) {
+  return (
+    <Button asChild variant="outline">
+      <Link
+        href={`/audience-vote?preview=1&voteId=${encodeURIComponent(vote.id)}`}
+        rel="noreferrer"
+        target="_blank"
+      >
+        <Smartphone aria-hidden="true" />
+        Перегляд
+      </Link>
+    </Button>
   );
 }
 

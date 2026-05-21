@@ -9,9 +9,19 @@ import {
 
 export async function fetchAudienceVoteMiniAppFeed(
   initData: string,
-  options: { dashboardPreview?: boolean } = {}
+  options: { dashboardPreview?: boolean; previewVoteId?: string } = {}
 ): Promise<AudienceVoteMiniAppResponse> {
-  const response = await fetch("/api/audience-vote/mini-app", {
+  const searchParams = new URLSearchParams();
+
+  if (options.previewVoteId) {
+    searchParams.set("voteId", options.previewVoteId);
+  }
+
+  const url = searchParams.size
+    ? `/api/audience-vote/mini-app?${searchParams.toString()}`
+    : "/api/audience-vote/mini-app";
+
+  const response = await fetch(url, {
     cache: "no-store",
     headers: {
       "x-telegram-init-data": initData,

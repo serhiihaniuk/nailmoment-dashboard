@@ -48,8 +48,10 @@ const miniAppHeaderLabel =
 
 export default function AudienceVoteMiniAppPage({
   dashboardPreview = false,
+  previewVoteId,
 }: {
   dashboardPreview?: boolean;
+  previewVoteId?: string;
 }) {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "booting",
@@ -77,9 +79,12 @@ export default function AudienceVoteMiniAppPage({
       }
 
       try {
-        const data = await fetchAudienceVoteMiniAppFeed(initData, {
-          dashboardPreview,
-        });
+        const data = await fetchAudienceVoteMiniAppFeed(
+          initData,
+          previewVoteId
+            ? { dashboardPreview, previewVoteId }
+            : { dashboardPreview }
+        );
 
         if (data.status === "open_vote") {
           prepareTelegramMiniAppViewport({ fullscreen: true });
@@ -106,7 +111,7 @@ export default function AudienceVoteMiniAppPage({
     return () => {
       cancelled = true;
     };
-  }, [dashboardPreview, reloadCount]);
+  }, [dashboardPreview, previewVoteId, reloadCount]);
 
   return (
     <main className="tg-mini-app-safe-top tg-mini-app-no-select min-h-svh bg-neutral-950 text-white">

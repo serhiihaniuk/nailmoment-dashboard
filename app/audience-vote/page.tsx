@@ -12,12 +12,18 @@ export const metadata: Metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ preview?: string | string[] | undefined }>;
+  searchParams: Promise<{
+    preview?: string | string[] | undefined;
+    voteId?: string | string[] | undefined;
+  }>;
 }) {
   const params = await searchParams;
   const previewParam = Array.isArray(params.preview)
     ? params.preview[0]
     : params.preview;
+  const previewVoteId = Array.isArray(params.voteId)
+    ? params.voteId[0]
+    : params.voteId;
   const wantsDashboardPreview =
     previewParam === "1" || previewParam === "true";
   const dashboardPreview =
@@ -31,7 +37,14 @@ export default async function Page({
           strategy="beforeInteractive"
         />
       )}
-      <AudienceVoteMiniAppPage dashboardPreview={dashboardPreview} />
+      {dashboardPreview && previewVoteId ? (
+        <AudienceVoteMiniAppPage
+          dashboardPreview={dashboardPreview}
+          previewVoteId={previewVoteId}
+        />
+      ) : (
+        <AudienceVoteMiniAppPage dashboardPreview={dashboardPreview} />
+      )}
     </>
   );
 }
