@@ -1,12 +1,16 @@
 "use client";
 
 import {
+  ArrowUpRight,
+  CalendarDays,
   CheckCircle2,
   ImageIcon,
   Loader2,
   RefreshCw,
   ShieldAlert,
+  Ticket,
   Vote,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -35,6 +39,7 @@ import {
   prepareTelegramMiniAppViewport,
   readTelegramInitData,
 } from "../model/telegram-web-app";
+import { NAIL_MOMENT_MINI_APP_TICKET_CTA_URL } from "../model/landing-link";
 
 type LoadState =
   | { status: "booting" }
@@ -45,6 +50,16 @@ type LoadState =
 
 const miniAppHeaderLabel =
   "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
+const ticketCtaLabel =
+  "Nail Moment \u0447\u0435\u043a\u0430\u0454 \u043d\u0430 \u0442\u0435\u0431\u0435";
+const ticketCtaDateLabel =
+  "\u0412\u0430\u0440\u0448\u0430\u0432\u0430 \u2022 7 \u0447\u0435\u0440\u0432\u043d\u044f";
+const ticketCtaDescription =
+  "\u0413\u043e\u043b\u043e\u0432\u043d\u043e\u0433\u043e \u043f\u0435\u0440\u0435\u043c\u043e\u0436\u0446\u044f \u043e\u0431\u0435\u0440\u0443\u0442\u044c \u0443\u0447\u0430\u0441\u043d\u0438\u043a\u0438 \u0444\u0435\u0441\u0442\u0438\u0432\u0430\u043b\u044e \u043d\u0430\u0436\u0438\u0432\u043e \u0437\u0456 \u0441\u0446\u0435\u043d\u0438";
+const ticketCtaButtonLabel =
+  "\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u043d\u0430 nailmoment.pl";
+const ticketCtaCloseLabel = "\u0417\u0430\u043a\u0440\u0438\u0442\u0438";
+const TICKET_CTA_MODAL_DELAY_MS = 1000;
 
 export default function AudienceVoteMiniAppPage({
   dashboardPreview = false,
@@ -238,7 +253,11 @@ function VoteFeed({
   const [pendingCandidateId, setPendingCandidateId] =
     useState<VoteCandidateId | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isTicketCtaModalOpen, setIsTicketCtaModalOpen] = useState(false);
   const feedRef = useRef<HTMLElement | null>(null);
+  const ticketCtaModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const handleVideoPlay = useCallback((currentVideo: HTMLVideoElement) => {
     const videos = feedRef.current?.querySelectorAll("video") ?? [];
@@ -248,6 +267,14 @@ function VoteFeed({
         video.pause();
       }
     });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (ticketCtaModalTimerRef.current) {
+        clearTimeout(ticketCtaModalTimerRef.current);
+      }
+    };
   }, []);
 
   async function handleVote(candidateId: VoteCandidateId) {
@@ -268,6 +295,13 @@ function VoteFeed({
         initData,
       });
       setSelectedCandidateId(response.selected_candidate_id);
+      if (ticketCtaModalTimerRef.current) {
+        clearTimeout(ticketCtaModalTimerRef.current);
+      }
+      ticketCtaModalTimerRef.current = setTimeout(() => {
+        setIsTicketCtaModalOpen(true);
+        ticketCtaModalTimerRef.current = null;
+      }, TICKET_CTA_MODAL_DELAY_MS);
     } catch (error) {
       setSelectedCandidateId(previousCandidateId);
       setSaveError(
@@ -281,7 +315,8 @@ function VoteFeed({
   }
 
   return (
-    <section className="flex flex-col gap-4" ref={feedRef}>
+    <>
+      <section className="flex flex-col gap-4" ref={feedRef}>
       {saveError ? (
         <div className="rounded-md border border-red-400/40 bg-red-950/50 px-3 py-2 text-sm text-red-100">
           {saveError}
@@ -303,7 +338,109 @@ function VoteFeed({
           votingLocked={previewMode || pendingCandidateId !== null}
         />
       ))}
-    </section>
+        <MiniAppTicketCta />
+      </section>
+      <MiniAppTicketCtaModal
+        onClose={() => setIsTicketCtaModalOpen(false)}
+        open={isTicketCtaModalOpen}
+      />
+    </>
+  );
+}
+
+function MiniAppTicketCta() {
+  return <MiniAppTicketCtaCard className="mt-2" />;
+}
+
+function MiniAppTicketCtaModal({
+  onClose,
+  open,
+}: {
+  onClose: () => void;
+  open: boolean;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <MiniAppTicketCtaCard
+        className="w-full max-w-sm"
+        onClose={onClose}
+        role="dialog"
+      />
+    </div>
+  );
+}
+
+function MiniAppTicketCtaCard({
+  className,
+  onClose,
+  role,
+}: {
+  className?: string;
+  onClose?: () => void;
+  role?: "dialog";
+}) {
+  return (
+    <aside
+      aria-label={ticketCtaLabel}
+      aria-modal={role === "dialog" ? true : undefined}
+      className={cn(
+        "rounded-lg border border-emerald-400/25 bg-neutral-900 px-4 py-5 text-center shadow-2xl shadow-emerald-950/30",
+        className
+      )}
+      role={role}
+    >
+      {onClose ? (
+        <header className="mb-1 flex justify-end">
+          <button
+            aria-label={ticketCtaCloseLabel}
+            className="inline-flex size-8 items-center justify-center rounded-md text-white/60 transition hover:bg-white/10 hover:text-white"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </button>
+        </header>
+      ) : null}
+      <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-300">
+        <Ticket aria-hidden="true" className="size-5" />
+      </span>
+      <span className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-200/80">
+        <CalendarDays aria-hidden="true" className="size-3.5" />
+        {ticketCtaDateLabel}
+      </span>
+      <h2 className="mt-2 text-lg font-semibold leading-tight text-white">
+        {ticketCtaLabel}
+      </h2>
+      <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-5 text-white/75">
+        {ticketCtaDescription}
+      </p>
+      <a
+        className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.99]"
+        href={NAIL_MOMENT_MINI_APP_TICKET_CTA_URL}
+        rel="noreferrer"
+        target="_blank"
+      >
+        {ticketCtaButtonLabel}
+        <ArrowUpRight aria-hidden="true" className="size-4" />
+      </a>
+    </aside>
   );
 }
 
