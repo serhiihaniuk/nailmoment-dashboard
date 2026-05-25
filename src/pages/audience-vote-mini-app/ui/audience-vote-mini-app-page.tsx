@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArrowUpRight,
+  CalendarDays,
   CheckCircle2,
   ImageIcon,
   Loader2,
@@ -49,7 +49,11 @@ type LoadState =
 const miniAppHeaderLabel =
   "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
 const ticketCtaLabel =
-  "\u0417\u0430\u0431\u0440\u0430\u0442\u0438 \u043a\u0432\u0438\u0442\u043e\u043a \u043d\u0430 Nail Moment";
+  "\u0414\u043e\u043b\u0443\u0447\u0430\u0439\u0441\u044f \u0434\u043e Nail Moment";
+const ticketCtaDateLabel =
+  "\u0412\u0430\u0440\u0448\u0430\u0432\u0430 \u2022 7 \u0447\u0435\u0440\u0432\u043d\u044f";
+const ticketCtaDescription =
+  "\u0413\u043e\u043b\u043e\u0432\u043d\u043e\u0433\u043e \u043f\u0435\u0440\u0435\u043c\u043e\u0436\u0446\u044f \u043e\u0431\u0435\u0440\u0443\u0442\u044c \u0443\u0447\u0430\u0441\u043d\u0438\u043a\u0438 \u0444\u0435\u0441\u0442\u0438\u0432\u0430\u043b\u044e \u043d\u0430\u0436\u0438\u0432\u043e \u0437\u0456 \u0441\u0446\u0435\u043d\u0438";
 
 export default function AudienceVoteMiniAppPage({
   dashboardPreview = false,
@@ -317,28 +321,24 @@ function MiniAppTicketCta() {
   return (
     <a
       aria-label={ticketCtaLabel}
-      className="group mt-2 flex min-h-14 items-center justify-between gap-3 rounded-lg bg-emerald-500 px-4 py-3 text-left text-neutral-950 shadow-[0_14px_40px_rgba(16,185,129,0.24)] transition hover:bg-emerald-400 active:scale-[0.99]"
+      className="group mt-2 flex min-h-28 flex-col items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-4 text-center text-neutral-950 shadow-[0_14px_40px_rgba(16,185,129,0.24)] transition hover:bg-emerald-400 active:scale-[0.99]"
       href={NAIL_MOMENT_MINI_APP_TICKET_CTA_URL}
       rel="noreferrer"
       target="_blank"
     >
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-white/25">
-          <Ticket aria-hidden="true" className="size-5" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-base font-semibold leading-tight">
-            {ticketCtaLabel}
-          </span>
-          <span className="mt-0.5 block text-xs font-medium text-neutral-950/70">
-            nailmoment.pl
-          </span>
-        </span>
+      <span className="flex size-10 items-center justify-center rounded-md bg-white/25">
+        <Ticket aria-hidden="true" className="size-5" />
       </span>
-      <ArrowUpRight
-        aria-hidden="true"
-        className="size-5 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-      />
+      <span className="block text-base font-semibold leading-tight">
+        {ticketCtaLabel}
+      </span>
+      <span className="block max-w-xs text-sm font-medium leading-5 text-neutral-950/80">
+        {ticketCtaDescription}
+      </span>
+      <span className="flex items-center justify-center gap-1.5 text-xs font-medium text-neutral-950/70">
+        <CalendarDays aria-hidden="true" className="size-3.5" />
+        {ticketCtaDateLabel}
+      </span>
     </a>
   );
 }
