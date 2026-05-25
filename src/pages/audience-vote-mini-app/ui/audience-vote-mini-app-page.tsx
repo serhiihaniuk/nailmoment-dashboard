@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ArrowUpRight,
   CheckCircle2,
   ImageIcon,
   Loader2,
   RefreshCw,
   ShieldAlert,
+  Ticket,
   Vote,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -35,6 +37,7 @@ import {
   prepareTelegramMiniAppViewport,
   readTelegramInitData,
 } from "../model/telegram-web-app";
+import { NAIL_MOMENT_MINI_APP_TICKET_CTA_URL } from "../model/landing-link";
 
 type LoadState =
   | { status: "booting" }
@@ -45,6 +48,8 @@ type LoadState =
 
 const miniAppHeaderLabel =
   "\u0413\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
+const ticketCtaLabel =
+  "\u0417\u0430\u0431\u0440\u0430\u0442\u0438 \u043a\u0432\u0438\u0442\u043e\u043a \u043d\u0430 Nail Moment";
 
 export default function AudienceVoteMiniAppPage({
   dashboardPreview = false,
@@ -303,7 +308,38 @@ function VoteFeed({
           votingLocked={previewMode || pendingCandidateId !== null}
         />
       ))}
+      <MiniAppTicketCta />
     </section>
+  );
+}
+
+function MiniAppTicketCta() {
+  return (
+    <a
+      aria-label={ticketCtaLabel}
+      className="group mt-2 flex min-h-14 items-center justify-between gap-3 rounded-lg bg-emerald-500 px-4 py-3 text-left text-neutral-950 shadow-[0_14px_40px_rgba(16,185,129,0.24)] transition hover:bg-emerald-400 active:scale-[0.99]"
+      href={NAIL_MOMENT_MINI_APP_TICKET_CTA_URL}
+      rel="noreferrer"
+      target="_blank"
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-white/25">
+          <Ticket aria-hidden="true" className="size-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-base font-semibold leading-tight">
+            {ticketCtaLabel}
+          </span>
+          <span className="mt-0.5 block text-xs font-medium text-neutral-950/70">
+            nailmoment.pl
+          </span>
+        </span>
+      </span>
+      <ArrowUpRight
+        aria-hidden="true"
+        className="size-5 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+      />
+    </a>
   );
 }
 

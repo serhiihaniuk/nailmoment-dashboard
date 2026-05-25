@@ -60,6 +60,12 @@ valid Better Auth dashboard session, sends a preview-only request header to the
 Mini App GET API, and disables voting in the client. Vote saves still require
 real Telegram `initData`.
 
+The open vote feed ends with a public Nail Moment ticket CTA. Its link uses
+Mini App-specific UTM tags (`utm_source=telegram`, `utm_medium=mini_app`,
+`utm_campaign=audience_vote`, `utm_content=bottom_ticket_cta`,
+`utm_term=ticket_button`) so ticket attribution can distinguish it from
+broadcast landing buttons.
+
 The update screen fallback is Operator-managed from the protected dashboard at
 `/audience-votes`. It stores one current title/message in
 `audience_vote_update_screen`; if that row does not exist yet, the Mini App
