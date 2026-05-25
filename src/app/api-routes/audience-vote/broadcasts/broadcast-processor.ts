@@ -26,7 +26,8 @@ import {
 const OPEN_VOTING_BUTTON_TEXT =
   "\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u0433\u043e\u043b\u043e\u0441\u0443\u0432\u0430\u043d\u043d\u044f";
 const LANDING_BUTTON_TEXT = "Nail Moment";
-const NAIL_MOMENT_LANDING_URL = "https://www.nailmoment.pl";
+export const NAIL_MOMENT_BROADCAST_LANDING_URL =
+  "https://www.nailmoment.pl/?utm_source=telegram&utm_medium=bot&utm_campaign=audience_vote&utm_content=broadcast_landing_button";
 const DELIVERY_ATTEMPT_LOCK_MS = 5 * 60 * 1000;
 
 export interface AudienceVoteBroadcastTelegramClient {
@@ -593,7 +594,7 @@ function buildBroadcastKeyboard({
       keyboard.row();
     }
 
-    keyboard.url(LANDING_BUTTON_TEXT, NAIL_MOMENT_LANDING_URL);
+    keyboard.url(LANDING_BUTTON_TEXT, NAIL_MOMENT_BROADCAST_LANDING_URL);
   }
 
   return keyboard;

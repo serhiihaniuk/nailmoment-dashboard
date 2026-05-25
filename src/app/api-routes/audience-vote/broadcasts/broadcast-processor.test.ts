@@ -16,6 +16,7 @@ import {
 } from "@/shared/db/service/audience-vote-broadcast-service";
 import {
   isTelegramBroadcastBlockedError,
+  NAIL_MOMENT_BROADCAST_LANDING_URL,
   processAudienceVoteBroadcast,
   processDueAudienceVoteBroadcasts,
   type AudienceVoteBroadcastProcessorService,
@@ -28,6 +29,19 @@ describe("Audience Vote Broadcast processor", () => {
   test("builds deterministic opening broadcast ids", () => {
     expect(buildAudienceVoteOpeningBroadcastId("vote_1")).toBe(
       "opening_vote_1"
+    );
+  });
+
+  test("tags the landing button URL as Telegram broadcast traffic", () => {
+    const url = new URL(NAIL_MOMENT_BROADCAST_LANDING_URL);
+
+    expect(url.origin).toBe("https://www.nailmoment.pl");
+    expect(url.pathname).toBe("/");
+    expect(url.searchParams.get("utm_source")).toBe("telegram");
+    expect(url.searchParams.get("utm_medium")).toBe("bot");
+    expect(url.searchParams.get("utm_campaign")).toBe("audience_vote");
+    expect(url.searchParams.get("utm_content")).toBe(
+      "broadcast_landing_button"
     );
   });
 
