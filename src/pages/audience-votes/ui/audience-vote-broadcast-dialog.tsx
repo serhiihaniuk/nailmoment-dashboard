@@ -65,7 +65,7 @@ export function AudienceVoteBroadcastDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="grid gap-4" onSubmit={handlePreview}>
+        <form className="grid min-w-0 gap-4" onSubmit={handlePreview}>
           {errors.audience_vote_id ? (
             <p className="text-sm font-medium text-destructive">
               {errors.audience_vote_id}
@@ -123,14 +123,14 @@ export function AudienceVoteBroadcastDialog({
           </div>
 
           {preview ? (
-            <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/30 p-4">
+            <div className="grid min-w-0 gap-3 rounded-lg border border-border/70 bg-muted/30 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">Попередній перегляд</p>
                 <p className="text-sm text-muted-foreground">
                   {preview.estimated_recipient_count} активних виборців
                 </p>
               </div>
-              <p className="whitespace-pre-wrap rounded-md bg-white p-3 text-sm text-foreground shadow-xs">
+              <p className="min-w-0 overflow-hidden whitespace-pre-wrap wrap-break-word rounded-md bg-white p-3 text-sm text-foreground shadow-xs">
                 {preview.message_text}
               </p>
               {preview.include_open_button ? (
