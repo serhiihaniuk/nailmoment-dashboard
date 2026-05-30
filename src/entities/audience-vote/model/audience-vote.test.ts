@@ -335,11 +335,13 @@ describe("audience vote parsing", () => {
       include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(preview.estimated_recipient_count).toBe(42);
     expect(preview.include_landing_button).toBe(true);
     expect(preview.include_open_button).toBe(true);
+    expect(preview.telegram_bot).toBe("final_battle");
   });
 
   test("parses Operator-managed bot start settings", () => {

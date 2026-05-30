@@ -237,6 +237,7 @@ export const audienceVoteBroadcastPreviewSchema = z.object({
   include_landing_button: z.boolean(),
   include_open_button: z.boolean(),
   message_text: nonEmptyStringSchema,
+  telegram_bot: audienceVoteTelegramBotSchema,
 });
 
 export type AudienceVoteBroadcastDeliveryCounts = z.infer<

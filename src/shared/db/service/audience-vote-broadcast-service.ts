@@ -235,6 +235,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     message_text,
     now = new Date(),
     operatorTelegramUserIds,
+    telegram_bot,
   }: CreateAudienceVoteBroadcastInput): Promise<
     AudienceVoteBroadcastSummary | undefined
   > => {
@@ -246,7 +247,6 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     const [vote] = await db
       .select({
         id: audienceVoteTable.id,
-        telegram_bot: audienceVoteTable.telegram_bot,
       })
       .from(audienceVoteTable)
       .where(
@@ -263,7 +263,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
 
     const activeVoters = await getActiveBroadcastTargetVoters({
       operatorTelegramUserIds: normalizedOperatorTelegramUserIds,
-      telegramBot: vote.telegram_bot,
+      telegramBot: telegram_bot,
     });
     const canaryVoters = activeVoters.slice(
       0,
@@ -281,7 +281,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       next_stage_at: now,
       operator_telegram_user_id: primaryOperatorTelegramUserId,
       status: "canary_operator_pending",
-      telegram_bot: vote.telegram_bot,
+      telegram_bot,
     } satisfies InsertAudienceVoteBroadcast);
 
     const [broadcast] = await db

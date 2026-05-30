@@ -115,12 +115,13 @@ TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS
 
 The final battle bot env is optional as a group. If any one final battle value
 is set, all three must be set. Dashboard-created Audience Votes persist
-`telegram_bot` as `main` or `final_battle`; broadcasts inherit that value from
-the vote and send through the matching bot token/Mini App URL. The scoped bot
-config appends `bot=main` or `bot=final_battle` to the configured Mini App URL
-before sending Telegram web_app buttons. Existing voters remain attached to the
-main bot until they open `/start`, `/vote`, or the Mini App from the final
-battle bot.
+`telegram_bot` as `main` or `final_battle`. Manual broadcasts let the Operator
+choose which configured bot should send the message and which bot's active
+voter list should be targeted; opening broadcasts use the Audience Vote's bot.
+The scoped bot config appends `bot=main` or `bot=final_battle` to the configured
+Mini App URL before sending Telegram web_app buttons. Existing voters remain
+attached to the main bot until they open `/start`, `/vote`, or the Mini App from
+the final battle bot.
 
 Telegram webhook and bot menu setup is manual. Do not configure production
 Telegram webhooks during development work. Use separate dev/prod bots and only
@@ -174,7 +175,7 @@ with Telegram broadcast UTM tags (`utm_source=telegram`, `utm_medium=bot`,
 button choices are persisted on the broadcast row so delayed canary and normal
 delivery batches send the same markup the Operator previewed.
 The broadcast row also persists `telegram_bot`, so delayed delivery batches keep
-using the same bot selected for the Audience Vote.
+using the same bot selected when the broadcast was confirmed.
 
 The processor checks the broadcast status from the database before each phase
 and before every recipient send. Setting a broadcast to `interrupted` is the

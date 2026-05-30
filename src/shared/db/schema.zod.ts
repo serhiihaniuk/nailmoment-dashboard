@@ -443,6 +443,7 @@ export const createAudienceVoteBroadcastClientSchema = z.object({
   include_landing_button: z.coerce.boolean().default(false),
   include_open_button: z.coerce.boolean().default(false),
   message_text: audienceVoteBroadcastMessageSchema,
+  telegram_bot: audienceVoteTelegramBotSchema.default("main"),
 });
 
 export const previewAudienceVoteBroadcastClientSchema =

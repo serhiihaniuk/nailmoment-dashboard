@@ -3,10 +3,11 @@
 import { type FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type {
-  AudienceVote,
-  AudienceVoteBroadcast,
-  AudienceVoteBroadcastPreview,
+import {
+  audienceVoteTelegramBotSchema,
+  type AudienceVote,
+  type AudienceVoteBroadcast,
+  type AudienceVoteBroadcastPreview,
 } from "@/entities/audience-vote";
 import {
   createAudienceVoteBroadcast,
@@ -107,6 +108,14 @@ export function useAudienceVoteBroadcastDialog(
     setPreview(null);
   }
 
+  function updateTelegramBot(value: string) {
+    const parsed = audienceVoteTelegramBotSchema.safeParse(value);
+
+    if (parsed.success) {
+      updateDraft("telegram_bot", parsed.data);
+    }
+  }
+
   function handlePreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = parseCurrentDraft();
@@ -159,6 +168,7 @@ export function useAudienceVoteBroadcastDialog(
     isPreviewing: previewMutation.isPending,
     open,
     preview,
+    updateTelegramBot,
     updateDraft,
   };
 }
@@ -170,6 +180,10 @@ function createBroadcastDraft(
   const draft = createAudienceVoteBroadcastDefaultDraft(votes);
 
   return preselectedVote
-    ? { ...draft, audience_vote_id: preselectedVote.id }
+    ? {
+        ...draft,
+        audience_vote_id: preselectedVote.id,
+        telegram_bot: preselectedVote.telegram_bot,
+      }
     : draft;
 }

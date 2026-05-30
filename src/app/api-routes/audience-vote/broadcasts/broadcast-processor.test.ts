@@ -278,6 +278,7 @@ describe("Audience Vote Broadcast processor", () => {
           include_landing_button: true,
           include_open_button: false,
           status: "ready",
+          telegram_bot: "final_battle",
         }),
       ],
       deliveries: [makeDelivery({ stage: "normal" })],
@@ -312,7 +313,7 @@ describe("Audience Vote Broadcast processor", () => {
       {
         includeLandingButton: true,
         includeOpenButton: false,
-        telegramBot: "main",
+        telegramBot: "final_battle",
       },
     ]);
   });

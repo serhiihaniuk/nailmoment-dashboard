@@ -15,8 +15,19 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
 import { Textarea } from "@/shared/ui/textarea";
+import {
+  audienceVoteTelegramBotOptions,
+  formatAudienceVoteTelegramBot,
+} from "../model/audience-vote-form";
 import { useAudienceVoteBroadcastDialog } from "../model/use-audience-vote-broadcast-dialog";
 
 interface AudienceVoteBroadcastDialogProps {
@@ -43,6 +54,7 @@ export function AudienceVoteBroadcastDialog({
     open,
     preview,
     updateDraft,
+    updateTelegramBot,
   } = useAudienceVoteBroadcastDialog(votes, {
     preselectedVote,
     onOpenChange: onOpenChangeProp,
@@ -71,6 +83,25 @@ export function AudienceVoteBroadcastDialog({
               {errors.audience_vote_id}
             </p>
           ) : null}
+
+          <Field label="Telegram bot" message={errors.telegram_bot}>
+            <Select
+              disabled={isPending}
+              onValueChange={updateTelegramBot}
+              value={draft.telegram_bot}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {audienceVoteTelegramBotOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
           <Field label="Текст повідомлення" message={errors.message_text}>
             <Textarea
@@ -127,6 +158,7 @@ export function AudienceVoteBroadcastDialog({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">Попередній перегляд</p>
                 <p className="text-sm text-muted-foreground">
+                  {formatAudienceVoteTelegramBot(preview.telegram_bot)} -{" "}
                   {preview.estimated_recipient_count} активних виборців
                 </p>
               </div>

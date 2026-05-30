@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   createAudienceVoteClientSchema,
+  createAudienceVoteBroadcastClientSchema,
   createVoteCandidateClientSchema,
   insertAudienceVoteSchema,
   insertVoteCandidateSchema,
@@ -75,6 +76,18 @@ describe("audience vote route schemas", () => {
     });
 
     expect(parsed.opening_broadcast_message_text).toBeNull();
+  });
+
+  test("parses the selected bot for manual broadcast input", () => {
+    const parsed = createAudienceVoteBroadcastClientSchema.parse({
+      audience_vote_id: "vote_1",
+      include_landing_button: false,
+      include_open_button: true,
+      message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
+    });
+
+    expect(parsed.telegram_bot).toBe("final_battle");
   });
 });
 

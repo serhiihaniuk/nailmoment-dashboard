@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
     const estimatedRecipientCount =
       await audienceVoteBroadcastService.getActiveBroadcastTargetVoterCount(
-        vote.telegram_bot,
+        parsed.data.telegram_bot,
         readAudienceVoteBroadcastOperatorTelegramUserIds()
       );
 

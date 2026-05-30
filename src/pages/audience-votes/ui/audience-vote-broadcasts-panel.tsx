@@ -56,7 +56,10 @@ import {
   processAudienceVoteBroadcast,
   type AudienceVoteBroadcastApiError,
 } from "../api/audience-vote-broadcasts-client";
-import { formatAudienceVoteDate } from "../model/audience-vote-form";
+import {
+  formatAudienceVoteDate,
+  formatAudienceVoteTelegramBot,
+} from "../model/audience-vote-form";
 import {
   formatAudienceVoteBroadcastNextStep,
   formatAudienceVoteBroadcastStatus,
@@ -328,6 +331,9 @@ function BroadcastRow({
             {formatAudienceVoteBroadcastStatus(broadcast.status)}
           </Badge>
           <span className="text-sm font-medium">{voteTitle}</span>
+          <Badge className="rounded-md" variant="outline">
+            {formatAudienceVoteTelegramBot(broadcast.telegram_bot)}
+          </Badge>
           {broadcast.include_open_button ? (
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Radio aria-hidden="true" size={12} />

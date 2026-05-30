@@ -82,6 +82,7 @@ describe("audience votes API client", () => {
         include_landing_button: true,
         include_open_button: true,
         message_text: "Public voting starts now",
+        telegram_bot: "final_battle",
       })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -91,6 +92,7 @@ describe("audience votes API client", () => {
       include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -98,11 +100,12 @@ describe("audience votes API client", () => {
       expect.objectContaining({ method: "POST" })
     );
     expect(preview.estimated_recipient_count).toBe(30);
+    expect(preview.telegram_bot).toBe("final_battle");
   });
 
   test("creates a broadcast and parses canary delivery state", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      Response.json(makeBroadcastResponse())
+      Response.json(makeBroadcastResponse({ telegram_bot: "final_battle" }))
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -111,6 +114,7 @@ describe("audience votes API client", () => {
       include_landing_button: false,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -119,6 +123,7 @@ describe("audience votes API client", () => {
     );
     expect(broadcast.created_at).toBeInstanceOf(Date);
     expect(broadcast.delivery_counts.operator_canary.sent).toBe(1);
+    expect(broadcast.telegram_bot).toBe("final_battle");
   });
 
   test("interrupts a canary broadcast by id", async () => {
