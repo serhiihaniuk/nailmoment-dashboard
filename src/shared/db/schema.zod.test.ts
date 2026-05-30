@@ -156,6 +156,7 @@ describe("vote candidate route schemas", () => {
         message_text: "  Voting starts now  ",
       },
       status: "scheduled",
+      telegram_bot: "final_battle",
       window_end: "2026-05-09T20:00:00.000Z",
       window_start: "2026-05-09T19:00:00.000Z",
     });
@@ -165,6 +166,7 @@ describe("vote candidate route schemas", () => {
       include_open_button: false,
       message_text: "Voting starts now",
     });
+    expect(parsed.telegram_bot).toBe("final_battle");
   });
 
   test("parses media reorder and restore patches", () => {

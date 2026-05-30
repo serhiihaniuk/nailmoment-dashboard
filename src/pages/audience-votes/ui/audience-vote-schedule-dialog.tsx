@@ -16,6 +16,14 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
+import { audienceVoteTelegramBotOptions } from "../model/audience-vote-form";
 import { getOpenEndedVoteScheduleNotice } from "../model/audience-vote-schedule";
 import { useAudienceVoteScheduleDialog } from "../model/use-audience-vote-schedule-dialog";
 
@@ -28,6 +36,8 @@ export function AudienceVoteScheduleDialog({
 }) {
   const state = useAudienceVoteScheduleDialog({ vote, votes });
   const isOpenVote = vote.status === "open";
+  const canEditTargetBot =
+    vote.status === "draft" || vote.status === "scheduled";
   const isEditable =
     vote.status === "draft" || vote.status === "scheduled" || isOpenVote;
   const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({
@@ -67,6 +77,27 @@ export function AudienceVoteScheduleDialog({
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={state.handleSubmit}>
+          {canEditTargetBot ? (
+            <Field label="Telegram bot" message={state.errors.telegram_bot}>
+              <Select
+                disabled={state.isPending}
+                onValueChange={state.updateTelegramBot}
+                value={state.draft.telegram_bot}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {audienceVoteTelegramBotOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+
           <div className="grid gap-4">
             <Field label="Початок" message={state.errors.window_start}>
               <div className="relative min-w-0 overflow-hidden">

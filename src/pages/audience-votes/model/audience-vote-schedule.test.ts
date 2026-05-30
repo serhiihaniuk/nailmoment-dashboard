@@ -115,6 +115,7 @@ describe("audience vote schedule", () => {
     expect(draft.opening_broadcast_include_landing_button).toBe(true);
     expect(draft.opening_broadcast_include_open_button).toBe(false);
     expect(draft.opening_broadcast_message_text).toBe("Voting starts now");
+    expect(draft.telegram_bot).toBe("main");
   });
 
   test("parses an enabled opening broadcast into the schedule payload", () => {
@@ -124,6 +125,7 @@ describe("audience vote schedule", () => {
       opening_broadcast_include_open_button: false,
       opening_broadcast_message_text: "  Voting starts now  ",
       status: "scheduled",
+      telegram_bot: "final_battle",
       window_end: "2026-05-09T13:00:00.000Z",
       window_start: "2026-05-09T12:00:00.000Z",
     });
@@ -136,6 +138,7 @@ describe("audience vote schedule", () => {
         include_open_button: false,
         message_text: "Voting starts now",
       });
+      expect(parsed.data.telegram_bot).toBe("final_battle");
     }
   });
 
@@ -146,6 +149,7 @@ describe("audience vote schedule", () => {
       opening_broadcast_include_open_button: true,
       opening_broadcast_message_text: "",
       status: "scheduled",
+      telegram_bot: "main",
       window_end: "",
       window_start: "2026-05-09T12:00:00.000Z",
     });

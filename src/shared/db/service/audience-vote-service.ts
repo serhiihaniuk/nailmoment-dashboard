@@ -927,6 +927,26 @@ export function createAudienceVoteService(
             window_start: currentVote.window_start,
           })
         : patchAudienceVoteScheduleClientSchema.parse(input);
+
+    if (
+      validatedData.telegram_bot !== undefined &&
+      validatedData.telegram_bot !== currentVote.telegram_bot &&
+      currentVote.status !== "draft" &&
+      currentVote.status !== "scheduled"
+    ) {
+      throw new AudienceVoteTransitionError({
+        issues: [
+          {
+            code: "target_bot_locked",
+            message:
+              "Target bot can be changed only before an Audience Vote is opened.",
+          },
+        ],
+        message: "Audience Vote target bot cannot be updated.",
+        status: 409,
+      });
+    }
+
     const updateData =
       currentVote.status === "open"
         ? {
@@ -936,6 +956,9 @@ export function createAudienceVoteService(
           }
         : {
             status: validatedData.status,
+            ...(validatedData.telegram_bot !== undefined
+              ? { telegram_bot: validatedData.telegram_bot }
+              : {}),
             window_end: validatedData.window_end,
             window_start: validatedData.window_start,
             ...("opening_broadcast" in validatedData

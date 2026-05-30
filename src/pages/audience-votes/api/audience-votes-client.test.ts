@@ -186,6 +186,7 @@ describe("audience votes API client", () => {
       Response.json(
         makeVoteResponse({
           status: "scheduled",
+          telegram_bot: "final_battle",
           window_end: "2026-05-09T13:00:00.000Z",
           window_start: "2026-05-09T12:00:00.000Z",
         })
@@ -197,6 +198,7 @@ describe("audience votes API client", () => {
       audienceVoteIdSchema.parse("vote_1"),
       {
         status: "scheduled",
+        telegram_bot: "final_battle",
         window_end: new Date("2026-05-09T13:00:00.000Z"),
         window_start: new Date("2026-05-09T12:00:00.000Z"),
       }
@@ -220,10 +222,12 @@ describe("audience votes API client", () => {
     }
     expect(JSON.parse(String(requestInit.body))).toEqual({
       status: "scheduled",
+      telegram_bot: "final_battle",
       window_end: "2026-05-09T13:00:00.000Z",
       window_start: "2026-05-09T12:00:00.000Z",
     });
     expect(vote.status).toBe("scheduled");
+    expect(vote.telegram_bot).toBe("final_battle");
     expect(vote.window_start).toBeInstanceOf(Date);
   });
 

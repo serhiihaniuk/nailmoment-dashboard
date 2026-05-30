@@ -344,6 +344,7 @@ export const createAudienceVoteClientSchema = z
 export const patchAudienceVoteScheduleClientSchema = z
   .object({
     status: z.enum(["draft", "scheduled", "open"]),
+    telegram_bot: audienceVoteTelegramBotSchema.optional(),
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
     opening_broadcast: audienceVoteOpeningBroadcastClientSchema

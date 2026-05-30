@@ -118,6 +118,8 @@ is set, all three must be set. Dashboard-created Audience Votes persist
 `telegram_bot` as `main` or `final_battle`. Manual broadcasts let the Operator
 choose which configured bot should send the message and which bot's active
 voter list should be targeted; opening broadcasts use the Audience Vote's bot.
+Operators can change an Audience Vote's target bot from the schedule dialog
+while the vote is still draft or scheduled; after opening, the bot is locked.
 The scoped bot config appends `bot=main` or `bot=final_battle` to the configured
 Mini App URL before sending Telegram web_app buttons. Existing voters remain
 attached to the main bot until they open `/start`, `/vote`, or the Mini App from
