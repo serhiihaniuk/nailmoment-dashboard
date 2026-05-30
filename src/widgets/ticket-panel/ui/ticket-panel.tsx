@@ -91,31 +91,6 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 
   const arrivedMutation = useMutation({
     mutationFn: (arrived: boolean) => patchArrived(ticketId, arrived),
-    onMutate: async (arrived) => {
-      await Promise.all([
-        qc.cancelQueries({ queryKey: ["ticket", ticketId] }),
-        qc.cancelQueries({ queryKey: ["tickets"] }),
-      ]);
-
-      const previousTicket = qc.getQueryData<TicketWithFinance | null>([
-        "ticket",
-        ticketId,
-      ]);
-      const previousTickets =
-        qc.getQueryData<TicketWithFinance[]>(["tickets"]);
-
-      setTicketArrivalInCache(qc, ticketId, arrived);
-
-      return { previousTicket, previousTickets };
-    },
-    onError: (_error, _arrived, context) => {
-      if (context?.previousTicket !== undefined) {
-        qc.setQueryData(["ticket", ticketId], context.previousTicket);
-      }
-      if (context?.previousTickets !== undefined) {
-        qc.setQueryData(["tickets"], context.previousTickets);
-      }
-    },
     onSuccess: (ticket) => {
       setTicketArrivalInCache(qc, ticketId, ticket.arrived);
     },
@@ -129,7 +104,10 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 
   if (!data || data.archived) return null;
 
-  const isPending = arrivedMutation.isPending || isFetching;
+  const isSavingArrival = arrivedMutation.isPending;
+  const isRefreshingTicket = !isSavingArrival && isFetching;
+  const isPending = isSavingArrival || isRefreshingTicket;
+  const pendingLabel = isSavingArrival ? "Зберігаємо..." : "Оновлюємо...";
 
   if (data.arrived) {
     return (
@@ -141,7 +119,7 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
           className="text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex items-center gap-1.5"
         >
           {isPending ? <Loader2 size={12} className="animate-spin" /> : null}
-          Скасувати прибуття
+          {isPending ? pendingLabel : "Скасувати прибуття"}
         </button>
       </div>
     );
@@ -155,7 +133,10 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
       className="w-full h-10 flex items-center justify-center gap-2 border border-border rounded-lg text-[13px] text-foreground font-medium bg-white hover:bg-muted/40 transition-colors disabled:opacity-50"
     >
       {isPending ? (
-        <Loader2 size={14} className="animate-spin text-muted-foreground" />
+        <>
+          <Loader2 size={14} className="animate-spin text-muted-foreground" />
+          {pendingLabel}
+        </>
       ) : (
         "Позначити прибуття"
       )}
