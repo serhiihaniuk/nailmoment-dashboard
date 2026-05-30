@@ -10,24 +10,29 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { cn } from "@/shared/lib/cn";
+import type { DashboardRole } from "@/shared/better-auth/roles";
 import { MenuIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Квитки" },
-  { href: "/finance", label: "Фінанси" },
-  { href: "/battle", label: "Батл" },
-  { href: "/audience-votes", label: "Голосування" },
-  { href: "/info", label: "Допомога" },
-  { href: "/cookie-analytics", label: "Згоди" },
-];
+  { href: "/dashboard", label: "Квитки", roles: ["admin", "check_in"] },
+  { href: "/finance", label: "Фінанси", roles: ["admin"] },
+  { href: "/battle", label: "Батл", roles: ["admin"] },
+  { href: "/audience-votes", label: "Голосування", roles: ["admin"] },
+  { href: "/info", label: "Допомога", roles: ["admin", "check_in"] },
+  { href: "/cookie-analytics", label: "Згоди", roles: ["admin"] },
+] as const;
 
 function isActiveRoute(pathname: string | null, href: string) {
   return pathname === href || (href === "/dashboard" && pathname?.startsWith("/ticket/"));
 }
 
-export const Header = () => {
+export const Header = ({ role }: { role: DashboardRole }) => {
+  const navItems = NAV_ITEMS.filter((item) =>
+    (item.roles as ReadonlyArray<DashboardRole>).includes(role)
+  );
+
   return (
     <header className="sticky top-0 z-50 h-12 w-full border-b border-border/60 bg-background">
       <div className="page-container flex h-full items-center gap-4">
@@ -35,19 +40,23 @@ export const Header = () => {
           <NailIcon className="w-16" />
         </Link>
         <nav className="hidden h-full items-center gap-6 md:flex">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.href} href={item.href}>
               {item.label}
             </NavLink>
           ))}
         </nav>
-        <MobileNavMenu />
+        <MobileNavMenu navItems={navItems} />
       </div>
     </header>
   );
 };
 
-function MobileNavMenu() {
+function MobileNavMenu({
+  navItems,
+}: {
+  navItems: ReadonlyArray<(typeof NAV_ITEMS)[number]>;
+}) {
   const pathname = usePathname();
 
   return (
@@ -64,7 +73,7 @@ function MobileNavMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuGroup>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <DropdownMenuItem
               asChild
               className={cn(

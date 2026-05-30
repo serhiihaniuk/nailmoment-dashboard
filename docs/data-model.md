@@ -183,6 +183,13 @@ foreign keys: `stripe_webhook_event.stripe_session_id` matches
 ### Auth
 
 `user`, `session`, `account`, and `verification` are Better Auth tables.
+Dashboard roles use Better Auth's Admin plugin:
+
+- Existing users are backfilled to `role = 'admin'`.
+- New users default to `role = 'check_in'`.
+- `admin` keeps the full dashboard surface.
+- `check_in` is limited to the existing Tickets and Info pages; ticket API
+  updates are restricted to the `arrived` field.
 
 Ownership:
 

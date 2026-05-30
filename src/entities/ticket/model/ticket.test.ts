@@ -28,4 +28,5 @@ describe("ticket domain parsing", () => {
     expect(splitMoney("10.00", 3)).toEqual(["3.34", "3.33", "3.33"]);
     expect(splitMoney("1.00", 0)).toEqual([]);
   });
+
 });

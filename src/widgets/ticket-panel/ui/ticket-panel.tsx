@@ -1,11 +1,18 @@
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
   formatInstagramLink,
+  parseTicket,
   parseTicketWithFinance,
+  type Ticket,
   type TicketWithFinance,
 } from "@/entities/ticket";
 import { cn } from "@/shared/lib/cn";
@@ -28,14 +35,30 @@ async function fetchTicket(id: string): Promise<TicketWithFinance | null> {
 async function patchArrived(
   id: string,
   arrived: boolean,
-): Promise<TicketWithFinance> {
+): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ arrived } satisfies UpdateTicketInput),
   });
   if (!r.ok) throw new Error(await r.text());
-  return parseTicketWithFinance(await r.json());
+  return parseTicket(await r.json());
+}
+
+function setTicketArrivalInCache(
+  queryClient: QueryClient,
+  ticketId: string,
+  arrived: boolean,
+) {
+  queryClient.setQueryData<TicketWithFinance | null>(
+    ["ticket", ticketId],
+    (ticket) => (ticket ? { ...ticket, arrived } : ticket),
+  );
+  queryClient.setQueryData<TicketWithFinance[]>(["tickets"], (tickets) =>
+    tickets?.map((ticket) =>
+      ticket.id === ticketId ? { ...ticket, arrived } : ticket,
+    ),
+  );
 }
 
 export function TicketPanelWrapper({
@@ -68,15 +91,23 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 
   const arrivedMutation = useMutation({
     mutationFn: (arrived: boolean) => patchArrived(ticketId, arrived),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
+    onSuccess: (ticket) => {
+      setTicketArrivalInCache(qc, ticketId, ticket.arrived);
+    },
+    onSettled: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+        qc.invalidateQueries({ queryKey: ["tickets"] }),
+      ]);
     },
   });
 
   if (!data || data.archived) return null;
 
-  const isPending = arrivedMutation.isPending || isFetching;
+  const isSavingArrival = arrivedMutation.isPending;
+  const isRefreshingTicket = !isSavingArrival && isFetching;
+  const isPending = isSavingArrival || isRefreshingTicket;
+  const pendingLabel = isSavingArrival ? "Зберігаємо..." : "Оновлюємо...";
 
   if (data.arrived) {
     return (
@@ -88,7 +119,7 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
           className="text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex items-center gap-1.5"
         >
           {isPending ? <Loader2 size={12} className="animate-spin" /> : null}
-          Скасувати прибуття
+          {isPending ? pendingLabel : "Скасувати прибуття"}
         </button>
       </div>
     );
@@ -102,7 +133,10 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
       className="w-full h-10 flex items-center justify-center gap-2 border border-border rounded-lg text-[13px] text-foreground font-medium bg-white hover:bg-muted/40 transition-colors disabled:opacity-50"
     >
       {isPending ? (
-        <Loader2 size={14} className="animate-spin text-muted-foreground" />
+        <>
+          <Loader2 size={14} className="animate-spin text-muted-foreground" />
+          {pendingLabel}
+        </>
       ) : (
         "Позначити прибуття"
       )}

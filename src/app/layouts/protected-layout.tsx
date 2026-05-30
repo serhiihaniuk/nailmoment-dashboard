@@ -8,12 +8,18 @@ import { Header } from "@/widgets/header";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import {
+  canAccessDashboardPath,
+  readDashboardRoleFromSession,
+} from "@/shared/better-auth/roles";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const session = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const role = readDashboardRoleFromSession(session.data);
+  const canAccessPath = role ? canAccessDashboardPath(pathname, role) : false;
 
   useEffect(() => {
     if (!session.data && !session.isPending) {
@@ -23,14 +29,29 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [session.data, session.isPending, router, pathname, searchParams]);
 
+  useEffect(() => {
+    if (session.data && role && !canAccessPath) {
+      router.replace("/dashboard");
+    }
+  }, [canAccessPath, role, router, session.data]);
+
   if (!session.data && !session.isPending) {
     return null;
+  }
+
+  if (session.data && (!role || !canAccessPath)) {
+    return <FancyLoader />;
   }
 
   return (
     <>
       {session.isPending && <FancyLoader />}
-      {session.data && children}
+      {session.data && role && (
+        <>
+          <Header role={role} />
+          {children}
+        </>
+      )}
     </>
   );
 }
@@ -42,7 +63,6 @@ export default function ProtectedLayout({
 }>) {
   return (
     <QueryProvider>
-      <Header />
       <Suspense>
         <AuthGuard>{children}</AuthGuard>
       </Suspense>

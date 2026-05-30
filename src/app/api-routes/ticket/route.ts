@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { getDashboardSession } from "@/shared/better-auth/auth";
+import { authorizeDashboardRequest } from "@/shared/better-auth/authorization";
 import { db } from "@/shared/db";
 import { createTicketService } from "@/shared/db/service/ticket-service";
 import {
@@ -56,14 +56,9 @@ const toDbPayload = async (body: z.infer<typeof insertTicketClientSchema>) => {
 
 export async function GET() {
   try {
-    const session = await getDashboardSession();
+    const authorization = await authorizeDashboardRequest({ ticket: ["read"] });
+    if (!authorization.ok) return authorization.response;
 
-    if (!session) {
-      return NextResponse.json(
-        { message: "Unauthorized: No session found." },
-        { status: 401 }
-      );
-    }
     const tickets = await ticketService.getTickets({ archived: true });
     return NextResponse.json(tickets, { status: 200 });
   } catch (error) {
@@ -77,9 +72,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getDashboardSession();
-    if (!session)
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const authorization = await authorizeDashboardRequest({
+      ticket: ["create"],
+    });
+    if (!authorization.ok) return authorization.response;
 
     const body = await parseBody(req);
     if (body instanceof NextResponse) return body;
