@@ -6,9 +6,8 @@ import {
   type PublicAudienceVoteBotSettings,
 } from "@/entities/audience-vote";
 import {
-  readTelegramAudienceVoteBotToken,
-  readTelegramAudienceVoteMiniAppUrl,
-  readTelegramAudienceVoteWebhookSecret,
+  readConfiguredTelegramAudienceVoteBotConfigs,
+  type TelegramAudienceVoteBotConfig,
 } from "@/shared/config/env";
 import { db } from "@/shared/db";
 import { isPostgresUndefinedTableError } from "@/shared/db/postgres-errors";
@@ -23,16 +22,19 @@ const audienceVoteService = createAudienceVoteService(db);
 const UNKNOWN_TELEGRAM_USER_MESSAGE =
   "\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0432\u0438\u0437\u043d\u0430\u0447\u0438\u0442\u0438 \u0432\u0430\u0448 Telegram \u043f\u0440\u043e\u0444\u0456\u043b\u044c. \u0421\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0449\u0435 \u0440\u0430\u0437.";
 
-function createAudienceVoteBot() {
-  const bot = new Bot(readTelegramAudienceVoteBotToken());
+function createAudienceVoteBot(config: TelegramAudienceVoteBotConfig) {
+  const bot = new Bot(config.token);
 
-  bot.command("start", handleMiniAppEntry);
-  bot.command("vote", handleMiniAppEntry);
+  bot.command("start", (ctx) => handleMiniAppEntry(ctx, config));
+  bot.command("vote", (ctx) => handleMiniAppEntry(ctx, config));
 
   return bot;
 }
 
-async function handleMiniAppEntry(ctx: Context) {
+async function handleMiniAppEntry(
+  ctx: Context,
+  config: TelegramAudienceVoteBotConfig
+) {
   if (!ctx.from) {
     await ctx.reply(UNKNOWN_TELEGRAM_USER_MESSAGE);
     return;
@@ -40,6 +42,7 @@ async function handleMiniAppEntry(ctx: Context) {
 
   await audienceVoteService.upsertTelegramVoter({
     firstName: ctx.from.first_name,
+    telegramBot: config.key,
     telegramUserId: ctx.from.id,
     username: ctx.from.username ?? null,
   });
@@ -49,7 +52,7 @@ async function handleMiniAppEntry(ctx: Context) {
   await ctx.reply(botSettings.start_message, {
     reply_markup: new InlineKeyboard().webApp(
       botSettings.start_button_text,
-      readTelegramAudienceVoteMiniAppUrl()
+      config.miniAppUrl
     ),
   });
 }
@@ -71,19 +74,22 @@ async function getAudienceVoteBotSettings(): Promise<PublicAudienceVoteBotSettin
 
 export async function POST(request: Request) {
   try {
-    const expectedSecret = readTelegramAudienceVoteWebhookSecret();
     const actualSecret = request.headers.get(TELEGRAM_WEBHOOK_SECRET_HEADER);
+    const config = readConfiguredTelegramAudienceVoteBotConfigs().find(
+      (candidate) =>
+        isValidTelegramWebhookSecret({
+          actual: actualSecret,
+          expected: candidate.webhookSecret,
+        })
+    );
 
-    if (
-      !isValidTelegramWebhookSecret({
-        actual: actualSecret,
-        expected: expectedSecret,
-      })
-    ) {
+    if (!config) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    return await webhookCallback(createAudienceVoteBot(), "std/http")(request);
+    return await webhookCallback(createAudienceVoteBot(config), "std/http")(
+      request
+    );
   } catch (error) {
     console.error("Audience Vote bot webhook failed:", error);
     const message =

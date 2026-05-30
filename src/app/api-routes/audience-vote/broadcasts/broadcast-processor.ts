@@ -1,9 +1,10 @@
 import { Bot, GrammyError, InlineKeyboard } from "grammy";
 
 import {
-  readTelegramAudienceVoteBotToken,
-  readTelegramAudienceVoteMiniAppUrl,
+  readTelegramAudienceVoteBotConfig,
+  type TelegramAudienceVoteBotConfig,
 } from "@/shared/config/env";
+import type { AudienceVoteTelegramBot } from "@/entities/audience-vote";
 import type {
   AudienceVoteBroadcast,
   AudienceVoteBroadcastDelivery,
@@ -35,6 +36,7 @@ export interface AudienceVoteBroadcastTelegramClient {
     includeLandingButton: boolean;
     includeOpenButton: boolean;
     messageText: string;
+    telegramBot: AudienceVoteTelegramBot;
     telegramUserId: number;
   }) => Promise<void>;
 }
@@ -43,9 +45,10 @@ export interface AudienceVoteBroadcastProcessorService {
   claimAudienceVoteBroadcastDeliveryAttempt: (
     input: ClaimAudienceVoteBroadcastDeliveryAttemptInput
   ) => Promise<AudienceVoteBroadcastDelivery | undefined>;
-  deactivateAudienceVoteBroadcastVoter: (
-    telegramUserId: number
-  ) => Promise<void>;
+  deactivateAudienceVoteBroadcastVoter: (input: {
+    telegramBot: AudienceVoteTelegramBot;
+    telegramUserId: number;
+  }) => Promise<void>;
   getAudienceVoteBroadcast: (
     id: string
   ) => Promise<AudienceVoteBroadcast | undefined>;
@@ -171,10 +174,14 @@ export async function processAudienceVoteBroadcast({
 }
 
 function createTelegramBroadcastClient(): AudienceVoteBroadcastTelegramClient {
-  let bot: Bot | null = null;
+  const bots = new Map<AudienceVoteTelegramBot, Bot>();
 
-  function getBot() {
-    bot ??= new Bot(readTelegramAudienceVoteBotToken());
+  function getBot(config: TelegramAudienceVoteBotConfig) {
+    const existingBot = bots.get(config.key);
+    if (existingBot) return existingBot;
+
+    const bot = new Bot(config.token);
+    bots.set(config.key, bot);
     return bot;
   }
 
@@ -183,15 +190,18 @@ function createTelegramBroadcastClient(): AudienceVoteBroadcastTelegramClient {
       includeLandingButton,
       includeOpenButton,
       messageText,
+      telegramBot,
       telegramUserId,
     }) {
+      const config = readTelegramAudienceVoteBotConfig(telegramBot);
       const reply_markup = buildBroadcastKeyboard({
         includeLandingButton,
         includeOpenButton,
+        miniAppUrl: config.miniAppUrl,
       });
       const options = reply_markup ? { reply_markup } : undefined;
 
-      await getBot().api.sendMessage(telegramUserId, messageText, options);
+      await getBot(config).api.sendMessage(telegramUserId, messageText, options);
     },
   };
 }
@@ -427,6 +437,7 @@ async function processDeliveryStage({
     messageText: broadcast.message_text,
     now,
     service,
+    telegramBot: broadcast.telegram_bot,
     telegramClient,
   });
 }
@@ -439,6 +450,7 @@ async function sendDeliveryBatch({
   messageText,
   now,
   service,
+  telegramBot,
   telegramClient,
 }: {
   deliveries: AudienceVoteBroadcastDelivery[];
@@ -448,6 +460,7 @@ async function sendDeliveryBatch({
   messageText: string;
   now: Date;
   service: AudienceVoteBroadcastProcessorService;
+  telegramBot: AudienceVoteTelegramBot;
   telegramClient: AudienceVoteBroadcastTelegramClient;
 }): Promise<SendDeliveryBatchResult> {
   let finalFailed = 0;
@@ -500,6 +513,7 @@ async function sendDeliveryBatch({
         includeLandingButton,
         includeOpenButton,
         messageText,
+        telegramBot,
         telegramUserId: claimed.telegram_user_id,
       });
       await service.markAudienceVoteBroadcastDeliverySent(claimed.id, now);
@@ -508,9 +522,10 @@ async function sendDeliveryBatch({
       const blocked = isTelegramBroadcastBlockedError(error);
 
       if (blocked) {
-        await service.deactivateAudienceVoteBroadcastVoter(
-          claimed.telegram_user_id
-        );
+        await service.deactivateAudienceVoteBroadcastVoter({
+          telegramBot,
+          telegramUserId: claimed.telegram_user_id,
+        });
       }
 
       await service.recordAudienceVoteBroadcastDeliveryFailure({
@@ -575,9 +590,11 @@ function formatTelegramBroadcastError(error: unknown): string {
 function buildBroadcastKeyboard({
   includeLandingButton,
   includeOpenButton,
+  miniAppUrl,
 }: {
   includeLandingButton: boolean;
   includeOpenButton: boolean;
+  miniAppUrl: string;
 }) {
   if (!includeOpenButton && !includeLandingButton) {
     return undefined;
@@ -586,7 +603,7 @@ function buildBroadcastKeyboard({
   const keyboard = new InlineKeyboard();
 
   if (includeOpenButton) {
-    keyboard.webApp(OPEN_VOTING_BUTTON_TEXT, readTelegramAudienceVoteMiniAppUrl());
+    keyboard.webApp(OPEN_VOTING_BUTTON_TEXT, miniAppUrl);
   }
 
   if (includeLandingButton) {

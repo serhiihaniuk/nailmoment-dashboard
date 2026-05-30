@@ -22,6 +22,7 @@ describe("audience vote route schemas", () => {
 
     expect(parsed.window_start).toBeInstanceOf(Date);
     expect(parsed.window_end).toBeNull();
+    expect(parsed.telegram_bot).toBe("main");
   });
 
   test("rejects transition statuses and invalid planning windows on create", () => {
@@ -59,6 +60,7 @@ describe("audience vote route schemas", () => {
     expect(parsed.opening_broadcast_include_open_button).toBe(true);
     expect(parsed.opening_broadcast_include_landing_button).toBe(false);
     expect(parsed.opening_broadcast_message_text).toBeNull();
+    expect(parsed.telegram_bot).toBe("main");
   });
 
   test("normalizes blank opening broadcast text on DB insert", () => {

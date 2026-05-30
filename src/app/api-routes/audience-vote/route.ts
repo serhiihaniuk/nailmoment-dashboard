@@ -26,6 +26,7 @@ function toDbAudienceVotePayload(
     id: nanoid(12),
     kind: clientData.kind,
     status: clientData.status,
+    telegram_bot: clientData.telegram_bot,
     title: clientData.title,
     window_end: clientData.window_end,
     window_start: clientData.window_start,

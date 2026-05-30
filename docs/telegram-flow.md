@@ -45,9 +45,10 @@ GET /audience-vote
   -> src/pages/audience-vote-mini-app
 
 GET /api/audience-vote/mini-app
-  -> validates Telegram Mini App initData with TG_AUDIENCE_VOTE_BOT_TOKEN
-  -> upserts/reactivates the Telegram Voter
-  -> returns the open public Audience Vote feed or a safe update screen fallback
+  -> reads bot=main|final_battle or x-audience-vote-telegram-bot
+  -> validates Telegram Mini App initData with the selected bot token
+  -> upserts/reactivates the Telegram Voter for the selected bot
+  -> returns the selected bot's open public Audience Vote feed or a safe update screen fallback
 ```
 
 This API is intentionally not Better Auth protected. It trusts only server-side
@@ -60,11 +61,12 @@ valid Better Auth dashboard session, sends a preview-only request header to the
 Mini App GET API, and disables voting in the client. Vote saves still require
 real Telegram `initData`.
 
-The open vote feed ends with a public Nail Moment ticket CTA. Its link uses
+The open vote feed normally ends with a public Nail Moment ticket CTA. Its link uses
 Mini App-specific UTM tags (`utm_source=telegram`, `utm_medium=mini_app`,
 `utm_campaign=audience_vote`, `utm_content=bottom_ticket_cta`,
 `utm_term=ticket_button`) so ticket attribution can distinguish it from
-broadcast landing buttons.
+broadcast landing buttons. Final battle votes hide this ticket CTA and the
+post-vote ticket modal.
 
 The update screen fallback is Operator-managed from the protected dashboard at
 `/audience-votes`. It stores one current title/message in
@@ -79,10 +81,10 @@ a Telegram-message voting surface and does not send Vote Candidate Media.
 
 ```txt
 POST /api/audience-vote/bot
-  -> validates x-telegram-bot-api-secret-token with TG_AUDIENCE_VOTE_WEBHOOK_SECRET
+  -> matches x-telegram-bot-api-secret-token against configured bot secrets
   -> handles /start and /vote through Grammy
-  -> upserts/reactivates the Telegram Voter
-  -> sends the Operator-managed Mini App entry message with a web_app button
+  -> upserts/reactivates the Telegram Voter for the matched bot
+  -> sends the Operator-managed Mini App entry message with the matched bot web_app URL
 ```
 
 Operators configure the `/start` and `/vote` reply from the protected
@@ -104,9 +106,21 @@ Required scoped env names:
 TG_AUDIENCE_VOTE_BOT_TOKEN
 TG_AUDIENCE_VOTE_WEBHOOK_SECRET
 TG_AUDIENCE_VOTE_MINI_APP_URL
+TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN
+TG_AUDIENCE_VOTE_FINAL_BATTLE_WEBHOOK_SECRET
+TG_AUDIENCE_VOTE_FINAL_BATTLE_MINI_APP_URL
 TG_AUDIENCE_VOTE_PROCESSOR_SECRET
 TG_AUDIENCE_VOTE_OPERATOR_TELEGRAM_IDS
 ```
+
+The final battle bot env is optional as a group. If any one final battle value
+is set, all three must be set. Dashboard-created Audience Votes persist
+`telegram_bot` as `main` or `final_battle`; broadcasts inherit that value from
+the vote and send through the matching bot token/Mini App URL. The scoped bot
+config appends `bot=main` or `bot=final_battle` to the configured Mini App URL
+before sending Telegram web_app buttons. Existing voters remain attached to the
+main bot until they open `/start`, `/vote`, or the Mini App from the final
+battle bot.
 
 Telegram webhook and bot menu setup is manual. Do not configure production
 Telegram webhooks during development work. Use separate dev/prod bots and only
@@ -159,6 +173,8 @@ with Telegram broadcast UTM tags (`utm_source=telegram`, `utm_medium=bot`,
 `utm_campaign=audience_vote`, `utm_content=broadcast_landing_button`). The
 button choices are persisted on the broadcast row so delayed canary and normal
 delivery batches send the same markup the Operator previewed.
+The broadcast row also persists `telegram_bot`, so delayed delivery batches keep
+using the same bot selected for the Audience Vote.
 
 The processor checks the broadcast status from the database before each phase
 and before every recipient send. Setting a broadcast to `interrupted` is the
@@ -170,7 +186,7 @@ failed unless a successful Telegram provider handoff is recorded afterward.
 This avoids duplicate Telegram messages when a provider response is ambiguous or
 a serverless invocation crashes between the Telegram call and the DB update.
 Telegram forbidden/block-style failures also mark that Telegram Voter inactive
-so future broadcasts do not target them.
+for that bot so future broadcasts from the same bot do not target them.
 
 Internal scheduled processing requires `TG_AUDIENCE_VOTE_PROCESSOR_SECRET`.
 Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`, so production should
@@ -221,6 +237,8 @@ Telegram tokens are read through scoped env readers:
 readTelegramAudienceVoteBotToken()
 readTelegramAudienceVoteWebhookSecret()
 readTelegramAudienceVoteMiniAppUrl()
+readTelegramAudienceVoteBotConfig()
+readConfiguredTelegramAudienceVoteBotConfigs()
 readTelegramAudienceVoteProcessorSecret()
 readTelegramAudienceVoteOperatorTelegramIds()
 ```

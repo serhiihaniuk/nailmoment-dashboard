@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 
+import { audienceVoteTelegramBotSchema } from "@/entities/audience-vote";
 import { AudienceVoteMiniAppPage } from "@/pages/audience-vote-mini-app";
 import { getDashboardSession } from "@/shared/better-auth/auth";
 
@@ -13,17 +14,21 @@ export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{
+    bot?: string | string[] | undefined;
     preview?: string | string[] | undefined;
     voteId?: string | string[] | undefined;
   }>;
 }) {
   const params = await searchParams;
+  const botParam = Array.isArray(params.bot) ? params.bot[0] : params.bot;
   const previewParam = Array.isArray(params.preview)
     ? params.preview[0]
     : params.preview;
   const previewVoteId = Array.isArray(params.voteId)
     ? params.voteId[0]
     : params.voteId;
+  const parsedBot = audienceVoteTelegramBotSchema.safeParse(botParam);
+  const telegramBot = parsedBot.success ? parsedBot.data : "main";
   const wantsDashboardPreview =
     previewParam === "1" || previewParam === "true";
   const dashboardPreview =
@@ -41,9 +46,13 @@ export default async function Page({
         <AudienceVoteMiniAppPage
           dashboardPreview={dashboardPreview}
           previewVoteId={previewVoteId}
+          telegramBot={telegramBot}
         />
       ) : (
-        <AudienceVoteMiniAppPage dashboardPreview={dashboardPreview} />
+        <AudienceVoteMiniAppPage
+          dashboardPreview={dashboardPreview}
+          telegramBot={telegramBot}
+        />
       )}
     </>
   );

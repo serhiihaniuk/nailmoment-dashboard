@@ -312,6 +312,7 @@ function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
     message_text: "Public voting starts now",
     next_stage_at: "2026-05-08T16:02:00.000Z",
     status: "canary_operator_sent",
+    telegram_bot: "main",
     updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };
@@ -338,6 +339,7 @@ function makeVoteResponse(overrides: Record<string, unknown> = {}) {
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",
+    telegram_bot: "main",
     title: "Dev smoke vote",
     updated_at: "2026-05-08T16:00:00.000Z",
     window_end: null,

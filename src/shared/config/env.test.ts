@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
+  readConfiguredTelegramAudienceVoteBotConfigs,
+  readTelegramAudienceVoteBotConfig,
   readTelegramAudienceVoteBotToken,
   readTelegramAudienceVoteMiniAppUrl,
   readTelegramAudienceVoteOperatorTelegramIds,
@@ -70,6 +72,46 @@ describe("env readers", () => {
       "processor-secret"
     );
     expect(readTelegramAudienceVoteWebhookSecret(env)).toBe("webhook-secret");
+    expect(readTelegramAudienceVoteBotConfig("main", env)).toEqual({
+      key: "main",
+      miniAppUrl: "https://example.com/audience-vote?bot=main",
+      token: "token",
+      webhookSecret: "webhook-secret",
+    });
+  });
+
+  test("reads optional final battle Audience Vote Telegram bot config", () => {
+    const env = testEnv({
+      TG_AUDIENCE_VOTE_BOT_TOKEN: " token ",
+      TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN: " final-token ",
+      TG_AUDIENCE_VOTE_FINAL_BATTLE_MINI_APP_URL:
+        " https://final.example.com/audience-vote ",
+      TG_AUDIENCE_VOTE_FINAL_BATTLE_WEBHOOK_SECRET: " final-secret ",
+      TG_AUDIENCE_VOTE_MINI_APP_URL: " https://example.com/audience-vote ",
+      TG_AUDIENCE_VOTE_WEBHOOK_SECRET: " webhook-secret ",
+    });
+
+    expect(readTelegramAudienceVoteBotConfig("final_battle", env)).toEqual({
+      key: "final_battle",
+      miniAppUrl: "https://final.example.com/audience-vote?bot=final_battle",
+      token: "final-token",
+      webhookSecret: "final-secret",
+    });
+    expect(readConfiguredTelegramAudienceVoteBotConfigs(env).map(({ key }) => key))
+      .toEqual(["main", "final_battle"]);
+  });
+
+  test("rejects partial final battle Audience Vote Telegram bot config", () => {
+    expect(() =>
+      readConfiguredTelegramAudienceVoteBotConfigs(
+        testEnv({
+          TG_AUDIENCE_VOTE_BOT_TOKEN: "token",
+          TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN: "final-token",
+          TG_AUDIENCE_VOTE_MINI_APP_URL: "https://example.com/audience-vote",
+          TG_AUDIENCE_VOTE_WEBHOOK_SECRET: "webhook-secret",
+        })
+      )
+    ).toThrow("Final battle Audience Vote bot env is partially configured.");
   });
 
   test("reads plural Audience Vote Operator Telegram ids with singular fallback", () => {

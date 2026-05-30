@@ -17,7 +17,9 @@ import {
   audienceVoteBroadcastDeliveryTable,
   audienceVoteBroadcastTable,
   audienceVoteTable,
+  telegramUserBotAccessTable,
   telegramUsersTable,
+  type AudienceVote,
   type AudienceVoteBroadcast,
   type AudienceVoteBroadcastDelivery,
   type InsertAudienceVoteBroadcast,
@@ -34,6 +36,7 @@ export const AUDIENCE_VOTE_BROADCAST_CANARY_WAIT_MS = 2 * 60 * 1000;
 export const AUDIENCE_VOTE_BROADCAST_DELIVERY_BATCH_LIMIT = 25;
 export const AUDIENCE_VOTE_BROADCAST_MAX_DELIVERY_ATTEMPTS = 1;
 
+export type AudienceVoteTelegramBot = AudienceVote["telegram_bot"];
 export type AudienceVoteBroadcastStatus = AudienceVoteBroadcast["status"];
 export type AudienceVoteBroadcastDeliveryStage =
   AudienceVoteBroadcastDelivery["stage"];
@@ -120,12 +123,20 @@ const interruptibleBroadcastStatuses: readonly AudienceVoteBroadcastStatus[] = [
 
 export function createAudienceVoteBroadcastService(db: DrizzleDB) {
   const getActiveBroadcastTargetVoterCount = async (
+    telegramBot: AudienceVoteTelegramBot,
     operatorTelegramUserIds: number[]
   ): Promise<number> => {
     const [result] = await db
       .select({ total: count(telegramUsersTable.telegramUserId) })
       .from(telegramUsersTable)
-      .where(activeBroadcastTargetWhere(operatorTelegramUserIds));
+      .innerJoin(
+        telegramUserBotAccessTable,
+        eq(
+          telegramUserBotAccessTable.telegramUserId,
+          telegramUsersTable.telegramUserId
+        )
+      )
+      .where(activeBroadcastTargetWhere(telegramBot, operatorTelegramUserIds));
 
     return result?.total ?? 0;
   };
@@ -233,7 +244,10 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       normalizedOperatorTelegramUserIds[0];
 
     const [vote] = await db
-      .select({ id: audienceVoteTable.id })
+      .select({
+        id: audienceVoteTable.id,
+        telegram_bot: audienceVoteTable.telegram_bot,
+      })
       .from(audienceVoteTable)
       .where(
         and(
@@ -247,9 +261,10 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       return undefined;
     }
 
-    const activeVoters = await getActiveBroadcastTargetVoters(
-      normalizedOperatorTelegramUserIds
-    );
+    const activeVoters = await getActiveBroadcastTargetVoters({
+      operatorTelegramUserIds: normalizedOperatorTelegramUserIds,
+      telegramBot: vote.telegram_bot,
+    });
     const canaryVoters = activeVoters.slice(
       0,
       AUDIENCE_VOTE_BROADCAST_CANARY_VOTER_LIMIT
@@ -266,6 +281,7 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
       next_stage_at: now,
       operator_telegram_user_id: primaryOperatorTelegramUserId,
       status: "canary_operator_pending",
+      telegram_bot: vote.telegram_bot,
     } satisfies InsertAudienceVoteBroadcast);
 
     const [broadcast] = await db
@@ -565,13 +581,22 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
 
-  const deactivateAudienceVoteBroadcastVoter = async (
-    telegramUserId: number
-  ): Promise<void> => {
+  const deactivateAudienceVoteBroadcastVoter = async ({
+    telegramBot,
+    telegramUserId,
+  }: {
+    telegramBot: AudienceVoteTelegramBot;
+    telegramUserId: number;
+  }): Promise<void> => {
     await db
-      .update(telegramUsersTable)
+      .update(telegramUserBotAccessTable)
       .set({ isActive: false })
-      .where(eq(telegramUsersTable.telegramUserId, telegramUserId));
+      .where(
+        and(
+          eq(telegramUserBotAccessTable.telegramBot, telegramBot),
+          eq(telegramUserBotAccessTable.telegramUserId, telegramUserId)
+        )
+      );
   };
 
   const interruptAudienceVoteBroadcast = async ({
@@ -634,13 +659,24 @@ export function createAudienceVoteBroadcastService(db: DrizzleDB) {
     return getAudienceVoteBroadcastSummary(broadcastId);
   };
 
-  async function getActiveBroadcastTargetVoters(
-    operatorTelegramUserIds: number[]
-  ) {
+  async function getActiveBroadcastTargetVoters({
+    operatorTelegramUserIds,
+    telegramBot,
+  }: {
+    operatorTelegramUserIds: number[];
+    telegramBot: AudienceVoteTelegramBot;
+  }) {
     return db
       .select({ telegramUserId: telegramUsersTable.telegramUserId })
       .from(telegramUsersTable)
-      .where(activeBroadcastTargetWhere(operatorTelegramUserIds))
+      .innerJoin(
+        telegramUserBotAccessTable,
+        eq(
+          telegramUserBotAccessTable.telegramUserId,
+          telegramUsersTable.telegramUserId
+        )
+      )
+      .where(activeBroadcastTargetWhere(telegramBot, operatorTelegramUserIds))
       .orderBy(
         asc(telegramUsersTable.createdAt),
         asc(telegramUsersTable.telegramUserId)
@@ -814,12 +850,17 @@ export function buildAudienceVoteBroadcastDeliveryRows({
   ];
 }
 
-function activeBroadcastTargetWhere(operatorTelegramUserIds: number[]) {
+function activeBroadcastTargetWhere(
+  telegramBot: AudienceVoteTelegramBot,
+  operatorTelegramUserIds: number[]
+) {
   const normalizedOperatorTelegramUserIds =
     normalizeOperatorTelegramUserIds(operatorTelegramUserIds);
 
   return and(
     eq(telegramUsersTable.isActive, true),
+    eq(telegramUserBotAccessTable.telegramBot, telegramBot),
+    eq(telegramUserBotAccessTable.isActive, true),
     notInArray(
       telegramUsersTable.telegramUserId,
       normalizedOperatorTelegramUserIds

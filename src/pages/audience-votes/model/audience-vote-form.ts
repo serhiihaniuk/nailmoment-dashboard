@@ -4,6 +4,7 @@ import {
   type AudienceVote,
   type AudienceVoteKind,
   type AudienceVoteStatus,
+  type AudienceVoteTelegramBot,
   type CreateAudienceVoteStatus,
 } from "@/entities/audience-vote";
 import {
@@ -14,6 +15,7 @@ import {
 export type CreateAudienceVoteFormDraft = {
   kind: AudienceVoteKind;
   status: CreateAudienceVoteStatus;
+  telegram_bot: AudienceVoteTelegramBot;
   title: string;
   window_end: string;
   window_start: string;
@@ -52,6 +54,11 @@ const statusLabels: Record<AudienceVoteStatus, string> = {
   scheduled: "Заплановано",
 };
 
+const telegramBotLabels: Record<AudienceVoteTelegramBot, string> = {
+  final_battle: "Final battle bot",
+  main: "Main bot",
+};
+
 export const audienceVoteKindOptions = [
   { label: kindLabels.speaker, value: "speaker" },
   { label: kindLabels.battle, value: "battle" },
@@ -63,6 +70,11 @@ export const createAudienceVoteStatusOptions = [
   { label: statusLabels.scheduled, value: "scheduled" },
 ] satisfies Array<{ label: string; value: CreateAudienceVoteStatus }>;
 
+export const audienceVoteTelegramBotOptions = [
+  { label: telegramBotLabels.main, value: "main" },
+  { label: telegramBotLabels.final_battle, value: "final_battle" },
+] satisfies Array<{ label: string; value: AudienceVoteTelegramBot }>;
+
 const dateTimeFormatter = new Intl.DateTimeFormat("uk-UA", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -73,6 +85,7 @@ export function createAudienceVoteDefaultDraft(): CreateAudienceVoteFormDraft {
   return {
     kind: "speaker",
     status: "draft",
+    telegram_bot: "main",
     title: "",
     window_end: "",
     window_start: "",
@@ -133,6 +146,16 @@ export function formatAudienceVoteStatus(status: AudienceVoteStatus) {
   return statusLabels[status];
 }
 
+export function formatAudienceVoteTelegramBot(bot: AudienceVoteTelegramBot) {
+  return telegramBotLabels[bot];
+}
+
+export function getDefaultTelegramBotForAudienceVoteKind(
+  kind: AudienceVoteKind
+): AudienceVoteTelegramBot {
+  return kind === "final_battle" ? "final_battle" : "main";
+}
+
 export function formatAudienceVoteDate(value: Date) {
   return dateTimeFormatter.format(value);
 }
@@ -173,6 +196,7 @@ function isCreateAudienceVoteField(
   return (
     value === "kind" ||
     value === "status" ||
+    value === "telegram_bot" ||
     value === "title" ||
     value === "window_end" ||
     value === "window_start"

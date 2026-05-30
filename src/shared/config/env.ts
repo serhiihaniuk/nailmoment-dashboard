@@ -1,5 +1,19 @@
 type Env = NodeJS.ProcessEnv;
 
+export const TELEGRAM_AUDIENCE_VOTE_BOT_KEYS = [
+  "main",
+  "final_battle",
+] as const;
+export type TelegramAudienceVoteBotKey =
+  (typeof TELEGRAM_AUDIENCE_VOTE_BOT_KEYS)[number];
+
+export interface TelegramAudienceVoteBotConfig {
+  key: TelegramAudienceVoteBotKey;
+  miniAppUrl: string;
+  token: string;
+  webhookSecret: string;
+}
+
 /**
  * Typed environment accessors.
  *
@@ -62,6 +76,88 @@ export function readTelegramAudienceVoteWebhookSecret(env: Env = process.env) {
 
 export function readTelegramAudienceVoteMiniAppUrl(env: Env = process.env) {
   return readRequiredEnv("TG_AUDIENCE_VOTE_MINI_APP_URL", env);
+}
+
+export function readTelegramAudienceVoteBotConfig(
+  key: TelegramAudienceVoteBotKey,
+  env: Env = process.env
+): TelegramAudienceVoteBotConfig {
+  if (key === "final_battle") {
+    return {
+      key,
+      miniAppUrl: appendTelegramAudienceVoteBotParam(
+        readRequiredEnv("TG_AUDIENCE_VOTE_FINAL_BATTLE_MINI_APP_URL", env),
+        key
+      ),
+      token: readRequiredEnv("TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN", env),
+      webhookSecret: readRequiredEnv(
+        "TG_AUDIENCE_VOTE_FINAL_BATTLE_WEBHOOK_SECRET",
+        env
+      ),
+    };
+  }
+
+  return {
+    key,
+    miniAppUrl: appendTelegramAudienceVoteBotParam(
+      readTelegramAudienceVoteMiniAppUrl(env),
+      key
+    ),
+    token: readTelegramAudienceVoteBotToken(env),
+    webhookSecret: readTelegramAudienceVoteWebhookSecret(env),
+  };
+}
+
+export function readConfiguredTelegramAudienceVoteBotConfigs(
+  env: Env = process.env
+): TelegramAudienceVoteBotConfig[] {
+  const mainConfig = readTelegramAudienceVoteBotConfig("main", env);
+  const finalBattleConfig = readOptionalTelegramAudienceVoteFinalBattleBotConfig(
+    env
+  );
+
+  return finalBattleConfig ? [mainConfig, finalBattleConfig] : [mainConfig];
+}
+
+function readOptionalTelegramAudienceVoteFinalBattleBotConfig(
+  env: Env
+): TelegramAudienceVoteBotConfig | undefined {
+  const miniAppUrl = readOptionalEnv(
+    "TG_AUDIENCE_VOTE_FINAL_BATTLE_MINI_APP_URL",
+    env
+  );
+  const token = readOptionalEnv("TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN", env);
+  const webhookSecret = readOptionalEnv(
+    "TG_AUDIENCE_VOTE_FINAL_BATTLE_WEBHOOK_SECRET",
+    env
+  );
+  const configuredValues = [miniAppUrl, token, webhookSecret].filter(Boolean);
+
+  if (configuredValues.length === 0) {
+    return undefined;
+  }
+
+  if (!miniAppUrl || !token || !webhookSecret) {
+    throw new Error(
+      "Final battle Audience Vote bot env is partially configured."
+    );
+  }
+
+  return {
+    key: "final_battle",
+    miniAppUrl: appendTelegramAudienceVoteBotParam(miniAppUrl, "final_battle"),
+    token,
+    webhookSecret,
+  };
+}
+
+function appendTelegramAudienceVoteBotParam(
+  miniAppUrl: string,
+  key: TelegramAudienceVoteBotKey
+) {
+  const url = new URL(miniAppUrl);
+  url.searchParams.set("bot", key);
+  return url.toString();
 }
 
 export function readTelegramAudienceVoteProcessorSecret(env: Env = process.env) {

@@ -27,6 +27,7 @@ function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",
+    telegram_bot: "main",
     title: "Speaker vote",
     updated_at: "2026-05-08T10:00:00.000Z",
     window_end: null,
@@ -92,6 +93,7 @@ function makeAudienceVoteBroadcastResponse(
     next_stage_at: "2026-05-08T16:02:00.000Z",
     operator_telegram_user_id: 299445418,
     status: "canary_operator_sent",
+    telegram_bot: "main",
     updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };

@@ -21,6 +21,7 @@ import {
   audienceVoteBotSettingsTable,
   audienceVoteCurrentVoteTable,
   audienceVoteUpdateScreenTable,
+  telegramUserBotAccessTable,
   telegramUsersTable,
   voteCandidateMediaTable,
   voteCandidateTable,
@@ -53,6 +54,7 @@ import {
 
 export const AUDIENCE_VOTE_BOT_SETTINGS_ID = "default";
 export const AUDIENCE_VOTE_UPDATE_SCREEN_ID = "default";
+export type AudienceVoteTelegramBot = AudienceVote["telegram_bot"];
 
 export function buildAudienceVoteCurrentVoteInsertSelectFields({
   candidateId,
@@ -94,6 +96,7 @@ export interface AudienceVoteCurrentVoteCount {
 
 export interface UpsertTelegramVoterInput {
   firstName: string;
+  telegramBot?: AudienceVoteTelegramBot;
   telegramUserId: number;
   username?: string | null;
 }
@@ -106,6 +109,7 @@ export interface GetCurrentVoteForTelegramVoterInput {
 export interface SaveCurrentVoteInput
   extends GetCurrentVoteForTelegramVoterInput {
   candidateId: string;
+  telegramBot: AudienceVoteTelegramBot;
 }
 
 export type SaveCurrentVoteOutcome = "created" | "unchanged" | "updated";
@@ -197,6 +201,9 @@ export interface IAudienceVoteService {
   getDueScheduledAudienceVotes: (now?: Date) => Promise<AudienceVote[]>;
   getOpenAudienceVote: (
     excludeId?: string
+  ) => Promise<AudienceVote | undefined>;
+  getOpenAudienceVoteForTelegramBot: (
+    telegramBot: AudienceVoteTelegramBot
   ) => Promise<AudienceVote | undefined>;
   getAudienceVoteCurrentVoteCounts: (
     audienceVoteId: string
@@ -388,6 +395,26 @@ export function createAudienceVoteService(
     return result[0];
   };
 
+  const getOpenAudienceVoteForTelegramBot = async (
+    telegramBot: AudienceVoteTelegramBot
+  ): Promise<AudienceVote | undefined> => {
+    await closeExpiredOpenAudienceVotes();
+
+    const result = await db
+      .select()
+      .from(audienceVoteTable)
+      .where(
+        and(
+          eq(audienceVoteTable.archived, false),
+          eq(audienceVoteTable.status, "open"),
+          eq(audienceVoteTable.telegram_bot, telegramBot)
+        )
+      )
+      .limit(1);
+
+    return result[0];
+  };
+
   const getAudienceVoteCurrentVoteCounts = async (
     audienceVoteId: string
   ): Promise<AudienceVoteCurrentVoteCount[]> => {
@@ -425,10 +452,12 @@ export function createAudienceVoteService(
 
   const upsertTelegramVoter = async ({
     firstName,
+    telegramBot = "main",
     telegramUserId,
     username,
   }: UpsertTelegramVoterInput): Promise<TelegramUser> => {
     const normalizedUsername = username ?? null;
+    const now = new Date();
     const [telegramVoter] = await db
       .insert(telegramUsersTable)
       .values({
@@ -450,6 +479,26 @@ export function createAudienceVoteService(
     if (!telegramVoter) {
       throw new Error("Telegram Voter upsert failed to return the record.");
     }
+
+    await db
+      .insert(telegramUserBotAccessTable)
+      .values({
+        isActive: true,
+        lastSeenAt: now,
+        telegramBot,
+        telegramUserId,
+      })
+      .onConflictDoUpdate({
+        set: {
+          isActive: true,
+          lastSeenAt: now,
+          updatedAt: now,
+        },
+        target: [
+          telegramUserBotAccessTable.telegramBot,
+          telegramUserBotAccessTable.telegramUserId,
+        ],
+      });
 
     return telegramVoter;
   };
@@ -944,15 +993,16 @@ export function createAudienceVoteService(
   const saveCurrentVote = async ({
     audienceVoteId,
     candidateId,
+    telegramBot,
     telegramUserId,
   }: SaveCurrentVoteInput): Promise<SaveCurrentVoteResult> => {
-    const openVote = await getOpenAudienceVote();
+    const openVote = await getOpenAudienceVoteForTelegramBot(telegramBot);
 
     if (!openVote) {
       await assertVoteIsNotClosed(audienceVoteId);
       throw new AudienceVoteWriteError({
         code: "no_open_vote",
-        message: "No Audience Vote is open for voting.",
+        message: "No Audience Vote is open for this Telegram bot.",
         status: 409,
       });
     }
@@ -986,6 +1036,7 @@ export function createAudienceVoteService(
           audienceVoteId,
           candidateId,
           currentVoteId: existingVote.id,
+          telegramBot,
         }),
         outcome: "updated",
       };
@@ -994,6 +1045,7 @@ export function createAudienceVoteService(
     const insertedVote = await insertCurrentVoteIfOpen({
       audienceVoteId,
       candidateId,
+      telegramBot,
       telegramUserId,
     });
 
@@ -1007,7 +1059,7 @@ export function createAudienceVoteService(
     });
 
     if (!conflictedVote) {
-      await assertVoteIsOpenForWrite(audienceVoteId);
+      await assertVoteIsOpenForWrite(audienceVoteId, telegramBot);
 
       throw new Error(
         "Audience Vote current vote insert conflicted, but no existing vote was found."
@@ -1023,6 +1075,7 @@ export function createAudienceVoteService(
         audienceVoteId,
         candidateId,
         currentVoteId: conflictedVote.id,
+        telegramBot,
       }),
       outcome: "updated",
     };
@@ -1234,13 +1287,17 @@ export function createAudienceVoteService(
     }
   }
 
-  async function assertVoteIsOpenForWrite(audienceVoteId: string) {
+  async function assertVoteIsOpenForWrite(
+    audienceVoteId: string,
+    telegramBot: AudienceVoteTelegramBot
+  ) {
     const requestedVote = await getAudienceVote(audienceVoteId);
 
     if (
       requestedVote &&
       !requestedVote.archived &&
-      requestedVote.status === "open"
+      requestedVote.status === "open" &&
+      requestedVote.telegram_bot === telegramBot
     ) {
       return;
     }
@@ -1353,10 +1410,12 @@ export function createAudienceVoteService(
   async function insertCurrentVoteIfOpen({
     audienceVoteId,
     candidateId,
+    telegramBot,
     telegramUserId,
   }: {
     audienceVoteId: string;
     candidateId: string;
+    telegramBot: AudienceVoteTelegramBot;
     telegramUserId: number;
   }): Promise<AudienceVoteCurrentVote | undefined> {
     const currentVoteId = nanoid(12);
@@ -1377,6 +1436,7 @@ export function createAudienceVoteService(
               eq(audienceVoteTable.id, audienceVoteId),
               eq(audienceVoteTable.archived, false),
               eq(audienceVoteTable.status, "open"),
+              eq(audienceVoteTable.telegram_bot, telegramBot),
               sql`(${audienceVoteTable.window_end} is null or ${audienceVoteTable.window_end} > ${new Date()})`
             )
           )
@@ -1396,10 +1456,12 @@ export function createAudienceVoteService(
     audienceVoteId,
     candidateId,
     currentVoteId,
+    telegramBot,
   }: {
     audienceVoteId: string;
     candidateId: string;
     currentVoteId: string;
+    telegramBot: AudienceVoteTelegramBot;
   }): Promise<AudienceVoteCurrentVote> {
     const [updatedVote] = await db
       .update(audienceVoteCurrentVoteTable)
@@ -1417,6 +1479,7 @@ export function createAudienceVoteService(
             where ${audienceVoteTable.id} = ${audienceVoteCurrentVoteTable.audience_vote_id}
               and ${audienceVoteTable.status} = 'open'
               and ${audienceVoteTable.archived} = false
+              and ${audienceVoteTable.telegram_bot} = ${telegramBot}
               and (${audienceVoteTable.window_end} is null or ${audienceVoteTable.window_end} > ${new Date()})
           )`
         )
@@ -1424,7 +1487,7 @@ export function createAudienceVoteService(
       .returning();
 
     if (!updatedVote) {
-      await assertVoteIsOpenForWrite(audienceVoteId);
+      await assertVoteIsOpenForWrite(audienceVoteId, telegramBot);
 
       throw new Error("Audience Vote current vote update returned no record.");
     }
@@ -1536,6 +1599,7 @@ export function createAudienceVoteService(
     getCurrentVoteForTelegramVoter,
     getDueScheduledAudienceVotes,
     getOpenAudienceVote,
+    getOpenAudienceVoteForTelegramBot,
     getVoteCandidate,
     getVoteCandidateMedia,
     getVoteCandidateMediaList,

@@ -6,6 +6,7 @@ import {
   audienceVoteBroadcastStatusEnum,
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
+  audienceVoteTelegramBotEnum,
   voteCandidateMediaTypeEnum,
 } from "@/shared/db/schema";
 
@@ -46,6 +47,13 @@ export const audienceVoteStatusSchema = z.enum(
   audienceVoteStatusEnum.enumValues
 );
 export type AudienceVoteStatus = z.infer<typeof audienceVoteStatusSchema>;
+
+export const audienceVoteTelegramBotSchema = z.enum(
+  audienceVoteTelegramBotEnum.enumValues
+);
+export type AudienceVoteTelegramBot = z.infer<
+  typeof audienceVoteTelegramBotSchema
+>;
 
 export const createAudienceVoteStatusSchema = z.enum(["draft", "scheduled"]);
 export type CreateAudienceVoteStatus = z.infer<
@@ -177,6 +185,7 @@ export const audienceVoteSchema = z.object({
   opening_broadcast_include_open_button: z.boolean(),
   opening_broadcast_message_text: nullableTextSchema,
   status: audienceVoteStatusSchema,
+  telegram_bot: audienceVoteTelegramBotSchema,
   title: nonEmptyStringSchema,
   updated_at: dateSchema,
   window_end: nullableDateSchema,
@@ -214,6 +223,7 @@ export const audienceVoteBroadcastSchema = z.object({
   message_text: nonEmptyStringSchema,
   next_stage_at: dateSchema,
   status: audienceVoteBroadcastStatusSchema,
+  telegram_bot: audienceVoteTelegramBotSchema,
   updated_at: dateSchema,
 });
 

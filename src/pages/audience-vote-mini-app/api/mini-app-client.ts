@@ -4,14 +4,22 @@ import {
   type AudienceVoteId,
   type AudienceVoteMiniAppResponse,
   type AudienceVoteMiniAppVoteResponse,
+  type AudienceVoteTelegramBot,
   type VoteCandidateId,
 } from "@/entities/audience-vote";
 
 export async function fetchAudienceVoteMiniAppFeed(
   initData: string,
-  options: { dashboardPreview?: boolean; previewVoteId?: string } = {}
+  options: {
+    dashboardPreview?: boolean;
+    previewVoteId?: string;
+    telegramBot?: AudienceVoteTelegramBot;
+  } = {}
 ): Promise<AudienceVoteMiniAppResponse> {
   const searchParams = new URLSearchParams();
+  const telegramBot = options.telegramBot ?? "main";
+
+  searchParams.set("bot", telegramBot);
 
   if (options.previewVoteId) {
     searchParams.set("voteId", options.previewVoteId);
@@ -24,6 +32,7 @@ export async function fetchAudienceVoteMiniAppFeed(
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
+      "x-audience-vote-telegram-bot": telegramBot,
       "x-telegram-init-data": initData,
       ...(options.dashboardPreview
         ? { "x-dashboard-mini-app-preview": "1" }
@@ -49,10 +58,12 @@ export async function saveAudienceVoteMiniAppVote({
   audienceVoteId,
   candidateId,
   initData,
+  telegramBot = "main",
 }: {
   audienceVoteId: AudienceVoteId;
   candidateId: VoteCandidateId;
   initData: string;
+  telegramBot?: AudienceVoteTelegramBot;
 }): Promise<AudienceVoteMiniAppVoteResponse> {
   const response = await fetch("/api/audience-vote/mini-app", {
     body: JSON.stringify({
@@ -62,6 +73,7 @@ export async function saveAudienceVoteMiniAppVote({
     cache: "no-store",
     headers: {
       "content-type": "application/json",
+      "x-audience-vote-telegram-bot": telegramBot,
       "x-telegram-init-data": initData,
     },
     method: "POST",

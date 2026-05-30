@@ -18,6 +18,7 @@ import {
   formatAudienceVoteDate,
   formatAudienceVoteKind,
   formatAudienceVoteStatus,
+  formatAudienceVoteTelegramBot,
   formatAudienceVoteWindow,
 } from "../model/audience-vote-form";
 import { AudienceVoteCandidatesDialog } from "./audience-vote-candidates-dialog";
@@ -62,6 +63,8 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
               <span>{formatAudienceVoteKind(vote.kind)}</span>
               <span className="text-border">·</span>
+              <span>{formatAudienceVoteTelegramBot(vote.telegram_bot)}</span>
+              <span className="text-border">·</span>
               <span>Створено {formatAudienceVoteDate(vote.created_at)}</span>
               <span className="text-border">·</span>
               <span>{formatAudienceVoteWindow(vote)}</span>
@@ -88,10 +91,16 @@ export function VoteCard({ vote, votes }: VoteCardProps) {
 }
 
 function AudienceVotePreviewButton({ vote }: { vote: AudienceVote }) {
+  const previewParams = new URLSearchParams({
+    bot: vote.telegram_bot,
+    preview: "1",
+    voteId: vote.id,
+  });
+
   return (
     <Button asChild variant="outline">
       <Link
-        href={`/audience-vote?preview=1&voteId=${encodeURIComponent(vote.id)}`}
+        href={`/audience-vote?${previewParams.toString()}`}
         rel="noreferrer"
         target="_blank"
       >

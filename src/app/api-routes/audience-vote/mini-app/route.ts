@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import { parseRequestJson } from "@/app/api-routes/lib/request";
 import {
   audienceVoteIdSchema,
+  audienceVoteTelegramBotSchema,
   defaultAudienceVoteUpdateScreen,
   parseAudienceVoteMiniAppResponse,
   parseAudienceVoteMiniAppVoteResponse,
   saveAudienceVoteMiniAppVoteRequestSchema,
+  type AudienceVoteTelegramBot,
 } from "@/entities/audience-vote";
-import { readTelegramAudienceVoteBotToken } from "@/shared/config/env";
+import { readTelegramAudienceVoteBotConfig } from "@/shared/config/env";
 import { db } from "@/shared/db";
 import {
   AudienceVoteWriteError,
@@ -20,6 +22,7 @@ import type { TelegramMiniAppUser } from "@/shared/telegram/mini-app-init-data";
 import { validateTelegramMiniAppInitData } from "@/shared/telegram/mini-app-init-data";
 
 const audienceVoteService = createAudienceVoteService(db);
+const TELEGRAM_BOT_HEADER = "x-audience-vote-telegram-bot";
 
 export async function GET(request: Request) {
   try {
@@ -57,6 +60,10 @@ export async function GET(request: Request) {
         return NextResponse.json({ message: "Not found" }, { status: 404 });
       }
 
+      if (previewVote.telegram_bot !== authenticated.telegramBot) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+      }
+
       if (previewVote.status !== "draft" && previewVote.status !== "scheduled") {
         return NextResponse.json(
           { message: "Only unopened votes can be previewed this way." },
@@ -73,7 +80,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const openVote = await audienceVoteService.getOpenAudienceVote();
+    const openVote =
+      await audienceVoteService.getOpenAudienceVoteForTelegramBot(
+        authenticated.telegramBot
+      );
 
     if (!openVote) {
       const updateScreen = await getSafeAudienceVoteUpdateScreen();
@@ -139,6 +149,7 @@ export async function POST(request: Request) {
     const result = await audienceVoteService.saveCurrentVote({
       audienceVoteId: parsed.data.audience_vote_id,
       candidateId: parsed.data.candidate_id,
+      telegramBot: authenticated.telegramBot,
       telegramUserId: authenticated.user.id,
     });
 
@@ -234,9 +245,19 @@ async function authenticateMiniAppRequest(
   request: Request,
   options: { allowDashboardPreview?: boolean } = {}
 ): Promise<
-  | { dashboardPreview: boolean; ok: true; user: TelegramMiniAppUser }
+  | {
+      dashboardPreview: boolean;
+      ok: true;
+      telegramBot: AudienceVoteTelegramBot;
+      user: TelegramMiniAppUser;
+    }
   | { ok: false; response: NextResponse }
 > {
+  const requestedBot = readRequestedTelegramBot(request);
+  if (!requestedBot.ok) {
+    return requestedBot;
+  }
+
   if (
     options.allowDashboardPreview &&
     request.headers.get("x-dashboard-mini-app-preview") === "1"
@@ -247,6 +268,7 @@ async function authenticateMiniAppRequest(
       return {
         dashboardPreview: true,
         ok: true,
+        telegramBot: requestedBot.telegramBot,
         user: {
           firstName: "Dashboard",
           id: 0,
@@ -270,7 +292,7 @@ async function authenticateMiniAppRequest(
 
   const validatedInitData = validateTelegramMiniAppInitData(
     initData,
-    readTelegramAudienceVoteBotToken()
+    readTelegramAudienceVoteBotConfig(requestedBot.telegramBot).token
   );
 
   if (!validatedInitData.ok) {
@@ -285,11 +307,41 @@ async function authenticateMiniAppRequest(
 
   await audienceVoteService.upsertTelegramVoter({
     firstName: validatedInitData.user.firstName,
+    telegramBot: requestedBot.telegramBot,
     telegramUserId: validatedInitData.user.id,
     username: validatedInitData.user.username ?? null,
   });
 
-  return { dashboardPreview: false, ok: true, user: validatedInitData.user };
+  return {
+    dashboardPreview: false,
+    ok: true,
+    telegramBot: requestedBot.telegramBot,
+    user: validatedInitData.user,
+  };
+}
+
+function readRequestedTelegramBot(
+  request: Request
+):
+  | { ok: true; telegramBot: AudienceVoteTelegramBot }
+  | { ok: false; response: NextResponse } {
+  const url = new URL(request.url);
+  const queryValue = url.searchParams.get("bot")?.trim();
+  const headerValue = request.headers.get(TELEGRAM_BOT_HEADER)?.trim();
+  const rawValue = headerValue || queryValue || "main";
+  const parsed = audienceVoteTelegramBotSchema.safeParse(rawValue);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { message: "Invalid Audience Vote Telegram bot." },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return { ok: true, telegramBot: parsed.data };
 }
 
 export const dynamic = "force-dynamic";
