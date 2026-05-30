@@ -1,9 +1,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { db } from "@/shared/db";
 import * as schema from "@/shared/db/schema";
 import { readVercelUrl } from "@/shared/config/env";
+import {
+  dashboardAccessControl,
+  dashboardRoles,
+} from "@/shared/better-auth/permissions";
+import { DASHBOARD_ROLE, readDashboardRoleFromSession } from "./roles";
 
 const vercelUrl = readVercelUrl();
 const vercelOrigin = vercelUrl ? `https://${vercelUrl}` : undefined;
@@ -38,10 +44,29 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
+  plugins: [
+    admin({
+      ac: dashboardAccessControl,
+      roles: dashboardRoles,
+      defaultRole: DASHBOARD_ROLE.CHECK_IN,
+      adminRoles: [DASHBOARD_ROLE.ADMIN],
+    }),
+  ],
 });
 
 type DashboardSession = Awaited<ReturnType<typeof auth.api.getSession>>;
 
-export async function getDashboardSession(): Promise<DashboardSession> {
+export type { DashboardSession };
+
+export async function getAnyDashboardSession(): Promise<DashboardSession> {
   return auth.api.getSession({ headers: await headers() });
+}
+
+export async function getDashboardSession(): Promise<DashboardSession> {
+  const session = await getAnyDashboardSession();
+  if (!session) return null;
+
+  return readDashboardRoleFromSession(session) === DASHBOARD_ROLE.ADMIN
+    ? session
+    : null;
 }

@@ -12,6 +12,8 @@ export {
 } from "./model/payment-edit-policy";
 export {
   financePaymentStatusSchema,
+  checkInTicketListSchema,
+  checkInTicketSchema,
   TICKET_PRICE_BY_GRADE,
   TICKET_TYPE,
   TICKET_TYPE_LIST,
@@ -19,6 +21,8 @@ export {
   moneyStringSchema,
   normalizeMoneyString,
   normalizeTicketGrade,
+  parseCheckInTicket,
+  parseCheckInTicketList,
   parseMoneyNumber,
   parsePaymentInstallmentId,
   parseTicket,
@@ -44,6 +48,7 @@ export {
   ticketWithFinanceSchema,
   toMoneyNumber,
   type FinancePaymentStatus,
+  type CheckInTicket,
   type InvoiceStatus,
   type PaymentInstallment,
   type PaymentInstallmentId,
