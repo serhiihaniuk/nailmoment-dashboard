@@ -241,27 +241,12 @@ export const ticketWithFinanceSchema = ticketSchema.extend({
 
 export const ticketWithFinanceListSchema = z.array(ticketWithFinanceSchema);
 
-export const checkInTicketSchema = z.object({
-  arrived: z.boolean(),
-  date: dateSchema,
-  email: z.string(),
-  grade: ticketGradeOrUnknownSchema,
-  id: z.string(),
-  instagram: z.string(),
-  name: z.string(),
-  phone: z.string(),
-  updated_grade: ticketGradeOrUnknownSchema.nullable(),
-});
-
-export const checkInTicketListSchema = z.array(checkInTicketSchema);
-
 export type Ticket = z.infer<typeof ticketSchema>;
 export type TicketAttribution = z.infer<typeof ticketAttributionSchema>;
 export type TicketFinance = z.infer<typeof ticketFinanceSchema>;
 export type PaymentInstallment = z.infer<typeof paymentInstallmentSchema>;
 export type TicketFinanceSummary = z.infer<typeof ticketFinanceSummarySchema>;
 export type TicketWithFinance = z.infer<typeof ticketWithFinanceSchema>;
-export type CheckInTicket = z.infer<typeof checkInTicketSchema>;
 
 /** Parse a single ticket API response before a widget consumes it. */
 export function parseTicket(value: unknown): Ticket {
@@ -276,12 +261,4 @@ export function parseTicketWithFinance(value: unknown): TicketWithFinance {
 /** Parse the ticket list shape returned by dashboard/finance API reads. */
 export function parseTicketWithFinanceList(value: unknown): TicketWithFinance[] {
   return ticketWithFinanceListSchema.parse(value);
-}
-
-export function parseCheckInTicket(value: unknown): CheckInTicket {
-  return checkInTicketSchema.parse(value);
-}
-
-export function parseCheckInTicketList(value: unknown): CheckInTicket[] {
-  return checkInTicketListSchema.parse(value);
 }

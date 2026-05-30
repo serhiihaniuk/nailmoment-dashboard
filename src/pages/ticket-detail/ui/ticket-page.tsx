@@ -4,21 +4,9 @@ import { ArrivalFooter, TicketPanelContent } from "@/widgets/ticket-panel";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "@/shared/better-auth/hooks";
-import {
-  DASHBOARD_ROLE,
-  readDashboardRoleFromSession,
-} from "@/shared/better-auth/roles";
-import { CheckInTicketPage } from "./check-in-ticket-page";
 
 export default function TicketPage() {
   const id = useParams<{ id: string }>()?.id;
-  const session = useSession();
-  const role = readDashboardRoleFromSession(session.data);
-
-  if (id && role === DASHBOARD_ROLE.CHECK_IN) {
-    return <CheckInTicketPage ticketId={id} />;
-  }
 
   return (
     <div className="page-container py-6 max-w-lg">

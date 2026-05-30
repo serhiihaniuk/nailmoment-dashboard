@@ -188,7 +188,8 @@ Dashboard roles use Better Auth's Admin plugin:
 - Existing users are backfilled to `role = 'admin'`.
 - New users default to `role = 'check_in'`.
 - `admin` keeps the full dashboard surface.
-- `check_in` is limited to sanitized ticket reads and arrival updates.
+- `check_in` is limited to the existing Tickets and Info pages; ticket API
+  updates are restricted to the `arrived` field.
 
 Ownership:
 

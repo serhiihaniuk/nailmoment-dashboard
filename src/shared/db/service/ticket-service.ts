@@ -35,44 +35,13 @@ export interface TicketServiceDependencies {
 export interface ITicketService {
   getTickets: (filters?: GetTicketsFilters) => Promise<TicketWithFinance[]>;
   getTicket: (id: string) => Promise<TicketWithFinance | undefined>;
-  getCheckInTickets: () => Promise<CheckInTicketRow[]>;
-  getCheckInTicket: (id: string) => Promise<CheckInTicketRow | undefined>;
   addTicket: (ticketData: InsertTicketInput) => Promise<DbTicket>;
   updateTicket: (
     id: string,
     updateData: UpdateTicketInput
   ) => Promise<DbTicket | undefined>;
   markTicketArrived: (id: string) => Promise<DbTicket | undefined>;
-  setTicketArrival: (
-    id: string,
-    arrived: boolean
-  ) => Promise<CheckInTicketRow | undefined>;
 }
-
-const checkInTicketSelect = {
-  arrived: ticketTable.arrived,
-  date: ticketTable.date,
-  email: ticketTable.email,
-  grade: ticketTable.grade,
-  id: ticketTable.id,
-  instagram: ticketTable.instagram,
-  name: ticketTable.name,
-  phone: ticketTable.phone,
-  updated_grade: ticketTable.updated_grade,
-};
-
-export type CheckInTicketRow = Pick<
-  DbTicket,
-  | "arrived"
-  | "date"
-  | "email"
-  | "grade"
-  | "id"
-  | "instagram"
-  | "name"
-  | "phone"
-  | "updated_grade"
->;
 
 export function createTicketService(
   db: DrizzleDB,
@@ -105,26 +74,6 @@ export function createTicketService(
       .limit(1);
 
     const [ticket] = await hydrateTickets(result);
-    return ticket;
-  };
-
-  const getCheckInTickets = async (): Promise<CheckInTicketRow[]> => {
-    return db
-      .select(checkInTicketSelect)
-      .from(ticketTable)
-      .where(eq(ticketTable.archived, false))
-      .orderBy(ticketTable.date);
-  };
-
-  const getCheckInTicket = async (
-    id: string
-  ): Promise<CheckInTicketRow | undefined> => {
-    const [ticket] = await db
-      .select(checkInTicketSelect)
-      .from(ticketTable)
-      .where(and(eq(ticketTable.id, id), eq(ticketTable.archived, false)))
-      .limit(1);
-
     return ticket;
   };
 
@@ -172,19 +121,6 @@ export function createTicketService(
     return updateTicket(id, { arrived: true });
   };
 
-  const setTicketArrival = async (
-    id: string,
-    arrived: boolean
-  ): Promise<CheckInTicketRow | undefined> => {
-    const [ticket] = await db
-      .update(ticketTable)
-      .set({ arrived })
-      .where(and(eq(ticketTable.id, id), eq(ticketTable.archived, false)))
-      .returning(checkInTicketSelect);
-
-    return ticket;
-  };
-
   async function hydrateTickets(
     tickets: DbTicket[]
   ): Promise<TicketWithFinance[]> {
@@ -227,12 +163,9 @@ export function createTicketService(
   return {
     getTickets,
     getTicket,
-    getCheckInTickets,
-    getCheckInTicket,
     addTicket,
     updateTicket,
     markTicketArrived,
-    setTicketArrival,
   };
 }
 

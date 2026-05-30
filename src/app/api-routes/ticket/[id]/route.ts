@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/db";
 import { createTicketService } from "@/shared/db/service/ticket-service";
-import { getDashboardSession } from "@/shared/better-auth/auth";
+import { authorizeDashboardRequest } from "@/shared/better-auth/authorization";
 import { updateTicketSchema } from "@/shared/db/schema.zod";
 import { z } from "zod";
 import {
+  objectKeys,
   parseRequestJson,
   parseRouteParams,
 } from "@/app/api-routes/lib/request";
 import { buildTicketFinanceSummary, ticketIdSchema } from "@/entities/ticket";
 import { deliverTicket } from "@/app/ticket-delivery";
+import { canPatchTicketForRole } from "../patch-policy";
 
 const ticketService = createTicketService(db, {
   buildFinanceSummary: buildTicketFinanceSummary,
@@ -20,10 +22,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getDashboardSession();
-    if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const authorization = await authorizeDashboardRequest({ ticket: ["read"] });
+    if (!authorization.ok) return authorization.response;
 
     const parsedParams = await parseRouteParams(
       params,
@@ -50,10 +50,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getDashboardSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authorization = await authorizeDashboardRequest({
+    ticket: ["check-in"],
+  });
+  if (!authorization.ok) return authorization.response;
 
   const parsedParams = await parseRouteParams(
     params,
@@ -67,8 +67,12 @@ export async function PATCH(
   const { id } = parsedParams.data;
   const patch: Patch = parsedBody.data;
 
-  if (Object.keys(patch).length === 0) {
+  if (objectKeys(patch).length === 0) {
     return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
+  }
+
+  if (!canPatchTicketForRole(authorization.role, patch)) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const updated = await ticketService.updateTicket(id, patch);
@@ -82,10 +86,10 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getDashboardSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const authorization = await authorizeDashboardRequest({
+    ticket: ["resend-email"],
+  });
+  if (!authorization.ok) return authorization.response;
 
   const parsedParams = await parseRouteParams(
     params,
