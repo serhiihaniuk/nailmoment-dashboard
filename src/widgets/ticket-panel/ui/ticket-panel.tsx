@@ -1,11 +1,18 @@
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
   formatInstagramLink,
+  parseTicket,
   parseTicketWithFinance,
+  type Ticket,
   type TicketWithFinance,
 } from "@/entities/ticket";
 import { cn } from "@/shared/lib/cn";
@@ -28,14 +35,30 @@ async function fetchTicket(id: string): Promise<TicketWithFinance | null> {
 async function patchArrived(
   id: string,
   arrived: boolean,
-): Promise<TicketWithFinance> {
+): Promise<Ticket> {
   const r = await fetch(`/api/ticket/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ arrived } satisfies UpdateTicketInput),
   });
   if (!r.ok) throw new Error(await r.text());
-  return parseTicketWithFinance(await r.json());
+  return parseTicket(await r.json());
+}
+
+function setTicketArrivalInCache(
+  queryClient: QueryClient,
+  ticketId: string,
+  arrived: boolean,
+) {
+  queryClient.setQueryData<TicketWithFinance | null>(
+    ["ticket", ticketId],
+    (ticket) => (ticket ? { ...ticket, arrived } : ticket),
+  );
+  queryClient.setQueryData<TicketWithFinance[]>(["tickets"], (tickets) =>
+    tickets?.map((ticket) =>
+      ticket.id === ticketId ? { ...ticket, arrived } : ticket,
+    ),
+  );
 }
 
 export function TicketPanelWrapper({
@@ -68,9 +91,39 @@ export function ArrivalFooter({ ticketId }: { ticketId: string }) {
 
   const arrivedMutation = useMutation({
     mutationFn: (arrived: boolean) => patchArrived(ticketId, arrived),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
+    onMutate: async (arrived) => {
+      await Promise.all([
+        qc.cancelQueries({ queryKey: ["ticket", ticketId] }),
+        qc.cancelQueries({ queryKey: ["tickets"] }),
+      ]);
+
+      const previousTicket = qc.getQueryData<TicketWithFinance | null>([
+        "ticket",
+        ticketId,
+      ]);
+      const previousTickets =
+        qc.getQueryData<TicketWithFinance[]>(["tickets"]);
+
+      setTicketArrivalInCache(qc, ticketId, arrived);
+
+      return { previousTicket, previousTickets };
+    },
+    onError: (_error, _arrived, context) => {
+      if (context?.previousTicket !== undefined) {
+        qc.setQueryData(["ticket", ticketId], context.previousTicket);
+      }
+      if (context?.previousTickets !== undefined) {
+        qc.setQueryData(["tickets"], context.previousTickets);
+      }
+    },
+    onSuccess: (ticket) => {
+      setTicketArrivalInCache(qc, ticketId, ticket.arrived);
+    },
+    onSettled: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+        qc.invalidateQueries({ queryKey: ["tickets"] }),
+      ]);
     },
   });
 
