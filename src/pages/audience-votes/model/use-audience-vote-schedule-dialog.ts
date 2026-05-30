@@ -3,7 +3,10 @@
 import { type FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { AudienceVote } from "@/entities/audience-vote";
+import {
+  audienceVoteTelegramBotSchema,
+  type AudienceVote,
+} from "@/entities/audience-vote";
 import {
   updateAudienceVoteSchedule,
   type AudienceVoteScheduleApiError,
@@ -85,6 +88,14 @@ export function useAudienceVoteScheduleDialog({
     setFormError(null);
   }
 
+  function updateTelegramBot(value: string) {
+    const parsed = audienceVoteTelegramBotSchema.safeParse(value);
+
+    if (parsed.success) {
+      updateDraft("telegram_bot", parsed.data);
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors({});
@@ -130,5 +141,6 @@ export function useAudienceVoteScheduleDialog({
     isPending: mutation.isPending,
     open,
     updateDraft,
+    updateTelegramBot,
   };
 }

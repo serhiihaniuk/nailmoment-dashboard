@@ -22,6 +22,7 @@ function makeTicket(
     mail_sent: false,
     qr_code: "",
     stripe_event_id: "",
+    attribution: null,
     finance,
     payments: [],
     finance_summary: {

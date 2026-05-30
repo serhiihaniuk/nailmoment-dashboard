@@ -1,0 +1,8 @@
+.env*.local
+.next
+.omx
+.vercel
+*.log
+output
+nailmoment-wroclaw
+node_modules

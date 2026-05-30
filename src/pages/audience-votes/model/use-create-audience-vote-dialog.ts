@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 
 import {
   audienceVoteKindSchema,
+  audienceVoteTelegramBotSchema,
   createAudienceVoteStatusSchema,
   type AudienceVote,
 } from "@/entities/audience-vote";
@@ -14,6 +15,7 @@ import {
 } from "../api/audience-votes-client";
 import {
   createAudienceVoteDefaultDraft,
+  getDefaultTelegramBotForAudienceVoteKind,
   mapCreateAudienceVoteApiErrors,
   parseCreateAudienceVoteDraft,
   type CreateAudienceVoteFieldErrors,
@@ -85,7 +87,26 @@ export function useCreateAudienceVoteDialog(votes: AudienceVote[]) {
     const parsed = audienceVoteKindSchema.safeParse(value);
 
     if (parsed.success) {
-      updateDraft("kind", parsed.data);
+      setDraft((current) => ({
+        ...current,
+        kind: parsed.data,
+        telegram_bot: getDefaultTelegramBotForAudienceVoteKind(parsed.data),
+      }));
+      setErrors((current) => {
+        const next = { ...current };
+        delete next.kind;
+        delete next.telegram_bot;
+        return next;
+      });
+      setFormError(null);
+    }
+  }
+
+  function updateTelegramBot(value: string) {
+    const parsed = audienceVoteTelegramBotSchema.safeParse(value);
+
+    if (parsed.success) {
+      updateDraft("telegram_bot", parsed.data);
     }
   }
 
@@ -134,5 +155,6 @@ export function useCreateAudienceVoteDialog(votes: AudienceVote[]) {
     updateDraft,
     updateKind,
     updateStatus,
+    updateTelegramBot,
   };
 }

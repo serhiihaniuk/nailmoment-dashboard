@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import type { AudienceVote, AudienceVoteStatus } from "@/entities/audience-vote";
+import type {
+  AudienceVote,
+  AudienceVoteStatus,
+  AudienceVoteTelegramBot,
+} from "@/entities/audience-vote";
 import { doTimeWindowsOverlap, type TimeWindow } from "@/shared/lib/time-window";
 import {
   patchAudienceVoteScheduleClientSchema,
@@ -13,6 +17,7 @@ export type AudienceVoteScheduleDraft = {
   opening_broadcast_include_open_button: boolean;
   opening_broadcast_message_text: string;
   status: AudienceVoteStatus;
+  telegram_bot: AudienceVoteTelegramBot;
   window_end: string;
   window_start: string;
 };
@@ -79,6 +84,7 @@ export function createAudienceVoteScheduleDraft(
       vote.opening_broadcast_include_open_button,
     opening_broadcast_message_text: vote.opening_broadcast_message_text ?? "",
     status: vote.status,
+    telegram_bot: vote.telegram_bot,
     window_end: formatDateTimeLocalInput(vote.window_end),
     window_start: formatDateTimeLocalInput(vote.window_start),
   };
@@ -97,6 +103,7 @@ export function parseAudienceVoteScheduleDraft(
         }
       : null,
     status: draft.status,
+    telegram_bot: draft.telegram_bot,
     window_end: draft.window_end,
     window_start: draft.window_start,
   });
@@ -293,6 +300,7 @@ function isAudienceVoteScheduleField(
     value === "opening_broadcast_include_open_button" ||
     value === "opening_broadcast_message_text" ||
     value === "status" ||
+    value === "telegram_bot" ||
     value === "window_end" ||
     value === "window_start"
   );

@@ -33,9 +33,10 @@ describe("Audience Vote Mini App API client", () => {
 
     const feed = await fetchAudienceVoteMiniAppFeed("signed-init-data");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/mini-app", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/mini-app?bot=main", {
       cache: "no-store",
       headers: {
+        "x-audience-vote-telegram-bot": "main",
         "x-telegram-init-data": "signed-init-data",
       },
     });
@@ -62,9 +63,10 @@ describe("Audience Vote Mini App API client", () => {
       dashboardPreview: true,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/mini-app", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/audience-vote/mini-app?bot=main", {
       cache: "no-store",
       headers: {
+        "x-audience-vote-telegram-bot": "main",
         "x-dashboard-mini-app-preview": "1",
         "x-telegram-init-data": "dashboard-preview",
       },
@@ -92,13 +94,15 @@ describe("Audience Vote Mini App API client", () => {
     const feed = await fetchAudienceVoteMiniAppFeed("dashboard-preview", {
       dashboardPreview: true,
       previewVoteId: "vote_1",
+      telegramBot: "final_battle",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/audience-vote/mini-app?voteId=vote_1",
+      "/api/audience-vote/mini-app?bot=final_battle&voteId=vote_1",
       {
         cache: "no-store",
         headers: {
+          "x-audience-vote-telegram-bot": "final_battle",
           "x-dashboard-mini-app-preview": "1",
           "x-telegram-init-data": "dashboard-preview",
         },
@@ -135,6 +139,7 @@ describe("Audience Vote Mini App API client", () => {
       cache: "no-store",
       headers: {
         "content-type": "application/json",
+        "x-audience-vote-telegram-bot": "main",
         "x-telegram-init-data": "signed-init-data",
       },
       method: "POST",

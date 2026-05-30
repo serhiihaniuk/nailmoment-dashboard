@@ -4,6 +4,7 @@ import type {
   AudienceVote,
   AudienceVoteBroadcast,
   AudienceVoteBroadcastStatus,
+  AudienceVoteTelegramBot,
 } from "@/entities/audience-vote";
 import {
   createAudienceVoteBroadcastClientSchema,
@@ -16,6 +17,7 @@ export type CreateAudienceVoteBroadcastFormDraft = {
   include_landing_button: boolean;
   include_open_button: boolean;
   message_text: string;
+  telegram_bot: AudienceVoteTelegramBot;
 };
 
 export type CreateAudienceVoteBroadcastFormValues =
@@ -62,6 +64,7 @@ export function createAudienceVoteBroadcastDefaultDraft(
     include_landing_button: false,
     include_open_button: true,
     message_text: "",
+    telegram_bot: preferredVote?.telegram_bot ?? "main",
   };
 }
 
@@ -206,6 +209,7 @@ function isAudienceVoteBroadcastField(
     value === "audience_vote_id" ||
     value === "include_landing_button" ||
     value === "include_open_button" ||
-    value === "message_text"
+    value === "message_text" ||
+    value === "telegram_bot"
   );
 }

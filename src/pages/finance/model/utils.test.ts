@@ -50,6 +50,7 @@ function makeTicket(
     mail_sent: false,
     qr_code: "",
     stripe_event_id: "manual_ticket-1",
+    attribution: null,
     finance,
     payments,
     finance_summary: {

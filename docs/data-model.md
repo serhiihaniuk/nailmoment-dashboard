@@ -440,5 +440,8 @@ Relevant finance/Stripe migrations:
   opening broadcast fields to `audience_vote`.
 - `drizzle/0035_audience_vote_landing_button.sql`: adds optional landing-page
   button flags for manual and scheduled Audience Vote broadcasts.
+- `drizzle/0036_selectable_audience_vote_bot.sql`: adds the Audience Vote bot
+  selector, per-bot Telegram voter access records, and matching broadcast bot
+  persistence.
 
 Production migration work must follow `AGENTS.md`.

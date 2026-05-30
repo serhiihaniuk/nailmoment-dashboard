@@ -27,6 +27,7 @@ function makeAudienceVoteResponse(overrides: Record<string, unknown> = {}) {
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",
+    telegram_bot: "main",
     title: "Speaker vote",
     updated_at: "2026-05-08T10:00:00.000Z",
     window_end: null,
@@ -92,6 +93,7 @@ function makeAudienceVoteBroadcastResponse(
     next_stage_at: "2026-05-08T16:02:00.000Z",
     operator_telegram_user_id: 299445418,
     status: "canary_operator_sent",
+    telegram_bot: "main",
     updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };
@@ -333,11 +335,13 @@ describe("audience vote parsing", () => {
       include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(preview.estimated_recipient_count).toBe(42);
     expect(preview.include_landing_button).toBe(true);
     expect(preview.include_open_button).toBe(true);
+    expect(preview.telegram_bot).toBe("final_battle");
   });
 
   test("parses Operator-managed bot start settings", () => {

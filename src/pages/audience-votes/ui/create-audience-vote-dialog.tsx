@@ -26,6 +26,7 @@ import {
 } from "@/shared/ui/select";
 import {
   audienceVoteKindOptions,
+  audienceVoteTelegramBotOptions,
   createAudienceVoteStatusOptions,
 } from "../model/audience-vote-form";
 import { useCreateAudienceVoteDialog } from "../model/use-create-audience-vote-dialog";
@@ -46,6 +47,7 @@ export function CreateAudienceVoteDialog({
     updateDraft,
     updateKind,
     updateStatus,
+    updateTelegramBot,
   } = useCreateAudienceVoteDialog(votes);
   const openEndedVoteNotice = getOpenEndedVoteScheduleNotice({ votes });
 
@@ -111,6 +113,25 @@ export function CreateAudienceVoteDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {createAudienceVoteStatusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Telegram bot" message={errors.telegram_bot}>
+              <Select
+                disabled={isPending}
+                onValueChange={updateTelegramBot}
+                value={draft.telegram_bot}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {audienceVoteTelegramBotOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

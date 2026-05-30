@@ -119,9 +119,12 @@ const eslintConfig = defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".omx/**",
     "out/**",
     "build/**",
     ".test-dist/**",
+    "nailmoment-wroclaw/**",
+    "output/**",
     "next-env.d.ts",
   ]),
 ]);

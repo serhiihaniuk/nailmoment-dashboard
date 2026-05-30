@@ -39,6 +39,7 @@ export async function ensureAudienceVoteOpeningBroadcast({
     message_text: messageText,
     now,
     operatorTelegramUserIds: readAudienceVoteBroadcastOperatorTelegramUserIds(),
+    telegram_bot: vote.telegram_bot,
   });
 
   if (!broadcast) {

@@ -82,6 +82,7 @@ describe("audience votes API client", () => {
         include_landing_button: true,
         include_open_button: true,
         message_text: "Public voting starts now",
+        telegram_bot: "final_battle",
       })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -91,6 +92,7 @@ describe("audience votes API client", () => {
       include_landing_button: true,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -98,11 +100,12 @@ describe("audience votes API client", () => {
       expect.objectContaining({ method: "POST" })
     );
     expect(preview.estimated_recipient_count).toBe(30);
+    expect(preview.telegram_bot).toBe("final_battle");
   });
 
   test("creates a broadcast and parses canary delivery state", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      Response.json(makeBroadcastResponse())
+      Response.json(makeBroadcastResponse({ telegram_bot: "final_battle" }))
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -111,6 +114,7 @@ describe("audience votes API client", () => {
       include_landing_button: false,
       include_open_button: true,
       message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -119,6 +123,7 @@ describe("audience votes API client", () => {
     );
     expect(broadcast.created_at).toBeInstanceOf(Date);
     expect(broadcast.delivery_counts.operator_canary.sent).toBe(1);
+    expect(broadcast.telegram_bot).toBe("final_battle");
   });
 
   test("interrupts a canary broadcast by id", async () => {
@@ -181,6 +186,7 @@ describe("audience votes API client", () => {
       Response.json(
         makeVoteResponse({
           status: "scheduled",
+          telegram_bot: "final_battle",
           window_end: "2026-05-09T13:00:00.000Z",
           window_start: "2026-05-09T12:00:00.000Z",
         })
@@ -192,6 +198,7 @@ describe("audience votes API client", () => {
       audienceVoteIdSchema.parse("vote_1"),
       {
         status: "scheduled",
+        telegram_bot: "final_battle",
         window_end: new Date("2026-05-09T13:00:00.000Z"),
         window_start: new Date("2026-05-09T12:00:00.000Z"),
       }
@@ -215,10 +222,12 @@ describe("audience votes API client", () => {
     }
     expect(JSON.parse(String(requestInit.body))).toEqual({
       status: "scheduled",
+      telegram_bot: "final_battle",
       window_end: "2026-05-09T13:00:00.000Z",
       window_start: "2026-05-09T12:00:00.000Z",
     });
     expect(vote.status).toBe("scheduled");
+    expect(vote.telegram_bot).toBe("final_battle");
     expect(vote.window_start).toBeInstanceOf(Date);
   });
 
@@ -312,6 +321,7 @@ function makeBroadcastResponse(overrides: Record<string, unknown> = {}) {
     message_text: "Public voting starts now",
     next_stage_at: "2026-05-08T16:02:00.000Z",
     status: "canary_operator_sent",
+    telegram_bot: "main",
     updated_at: "2026-05-08T16:00:00.000Z",
     ...overrides,
   };
@@ -338,6 +348,7 @@ function makeVoteResponse(overrides: Record<string, unknown> = {}) {
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "draft",
+    telegram_bot: "main",
     title: "Dev smoke vote",
     updated_at: "2026-05-08T16:00:00.000Z",
     window_end: null,

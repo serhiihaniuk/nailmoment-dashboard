@@ -11,6 +11,7 @@ import {
   audienceVoteBroadcastTable,
   audienceVoteKindEnum,
   audienceVoteStatusEnum,
+  audienceVoteTelegramBotEnum,
   audienceVoteBotSettingsTable,
   audienceVoteTable,
   audienceVoteUpdateScreenTable,
@@ -247,6 +248,9 @@ const audienceVoteOpeningBroadcastClientSchema = z.object({
   include_open_button: z.coerce.boolean().default(true),
   message_text: audienceVoteBroadcastMessageSchema,
 });
+export const audienceVoteTelegramBotSchema = z.enum(
+  audienceVoteTelegramBotEnum.enumValues
+);
 const audienceVoteBotStartMessageSchema = z
   .string()
   .trim()
@@ -319,6 +323,7 @@ export const insertAudienceVoteSchema = createInsertSchema(
       "Текст повідомлення має бути не довшим за 4096 символів"
     ),
     status: z.enum(audienceVoteStatusEnum.enumValues),
+    telegram_bot: audienceVoteTelegramBotSchema.default("main"),
     title: audienceVoteTitleSchema,
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
@@ -329,6 +334,7 @@ export const createAudienceVoteClientSchema = z
   .object({
     kind: z.enum(audienceVoteKindEnum.enumValues),
     status: z.enum(["draft", "scheduled"]).default("draft"),
+    telegram_bot: audienceVoteTelegramBotSchema.default("main"),
     title: audienceVoteTitleSchema,
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
@@ -338,6 +344,7 @@ export const createAudienceVoteClientSchema = z
 export const patchAudienceVoteScheduleClientSchema = z
   .object({
     status: z.enum(["draft", "scheduled", "open"]),
+    telegram_bot: audienceVoteTelegramBotSchema.optional(),
     window_start: optionalDateInputSchema,
     window_end: optionalDateInputSchema,
     opening_broadcast: audienceVoteOpeningBroadcastClientSchema
@@ -413,6 +420,7 @@ export const insertAudienceVoteBroadcastSchema = createInsertSchema(
       .positive()
       .max(Number.MAX_SAFE_INTEGER),
     status: z.enum(audienceVoteBroadcastStatusEnum.enumValues),
+    telegram_bot: audienceVoteTelegramBotSchema.default("main"),
   }
 );
 
@@ -436,6 +444,7 @@ export const createAudienceVoteBroadcastClientSchema = z.object({
   include_landing_button: z.coerce.boolean().default(false),
   include_open_button: z.coerce.boolean().default(false),
   message_text: audienceVoteBroadcastMessageSchema,
+  telegram_bot: audienceVoteTelegramBotSchema.default("main"),
 });
 
 export const previewAudienceVoteBroadcastClientSchema =

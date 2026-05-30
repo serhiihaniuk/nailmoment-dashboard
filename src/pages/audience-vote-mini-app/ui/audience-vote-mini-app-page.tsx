@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AudienceVoteKind,
   AudienceVoteMiniAppResponse,
+  AudienceVoteTelegramBot,
   MiniAppVoteCandidate,
   PublicVoteCandidateMedia,
   VoteCandidateId,
@@ -64,9 +65,11 @@ const TICKET_CTA_MODAL_DELAY_MS = 1000;
 export default function AudienceVoteMiniAppPage({
   dashboardPreview = false,
   previewVoteId,
+  telegramBot = "main",
 }: {
   dashboardPreview?: boolean;
   previewVoteId?: string;
+  telegramBot?: AudienceVoteTelegramBot;
 }) {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "booting",
@@ -97,8 +100,8 @@ export default function AudienceVoteMiniAppPage({
         const data = await fetchAudienceVoteMiniAppFeed(
           initData,
           previewVoteId
-            ? { dashboardPreview, previewVoteId }
-            : { dashboardPreview }
+            ? { dashboardPreview, previewVoteId, telegramBot }
+            : { dashboardPreview, telegramBot }
         );
 
         if (data.status === "open_vote") {
@@ -126,7 +129,7 @@ export default function AudienceVoteMiniAppPage({
     return () => {
       cancelled = true;
     };
-  }, [dashboardPreview, previewVoteId, reloadCount]);
+  }, [dashboardPreview, previewVoteId, reloadCount, telegramBot]);
 
   return (
     <main className="tg-mini-app-safe-top tg-mini-app-no-select min-h-svh bg-neutral-950 text-white">
@@ -137,6 +140,7 @@ export default function AudienceVoteMiniAppPage({
             dashboardPreview={dashboardPreview}
             loadState={loadState}
             onRetry={() => setReloadCount((count) => count + 1)}
+            telegramBot={telegramBot}
           />
         </div>
       </div>
@@ -176,10 +180,12 @@ function MiniAppBody({
   dashboardPreview,
   loadState,
   onRetry,
+  telegramBot,
 }: {
   dashboardPreview: boolean;
   loadState: LoadState;
   onRetry: () => void;
+  telegramBot: AudienceVoteTelegramBot;
 }) {
   if (loadState.status === "booting" || loadState.status === "loading") {
     return (
@@ -235,6 +241,7 @@ function MiniAppBody({
       data={loadState.data}
       initData={loadState.initData}
       previewMode={dashboardPreview}
+      telegramBot={telegramBot}
     />
   );
 }
@@ -243,10 +250,12 @@ function VoteFeed({
   data,
   initData,
   previewMode,
+  telegramBot,
 }: {
   data: Extract<AudienceVoteMiniAppResponse, { status: "open_vote" }>;
   initData: string;
   previewMode: boolean;
+  telegramBot: AudienceVoteTelegramBot;
 }) {
   const [selectedCandidateId, setSelectedCandidateId] =
     useState<VoteCandidateId | null>(data.selected_candidate_id);
@@ -258,6 +267,7 @@ function VoteFeed({
   const ticketCtaModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const showTicketCta = data.vote.kind !== "final_battle";
 
   const handleVideoPlay = useCallback((currentVideo: HTMLVideoElement) => {
     const videos = feedRef.current?.querySelectorAll("video") ?? [];
@@ -293,15 +303,18 @@ function VoteFeed({
         audienceVoteId: data.vote.id,
         candidateId,
         initData,
+        telegramBot,
       });
       setSelectedCandidateId(response.selected_candidate_id);
-      if (ticketCtaModalTimerRef.current) {
-        clearTimeout(ticketCtaModalTimerRef.current);
+      if (showTicketCta) {
+        if (ticketCtaModalTimerRef.current) {
+          clearTimeout(ticketCtaModalTimerRef.current);
+        }
+        ticketCtaModalTimerRef.current = setTimeout(() => {
+          setIsTicketCtaModalOpen(true);
+          ticketCtaModalTimerRef.current = null;
+        }, TICKET_CTA_MODAL_DELAY_MS);
       }
-      ticketCtaModalTimerRef.current = setTimeout(() => {
-        setIsTicketCtaModalOpen(true);
-        ticketCtaModalTimerRef.current = null;
-      }, TICKET_CTA_MODAL_DELAY_MS);
     } catch (error) {
       setSelectedCandidateId(previousCandidateId);
       setSaveError(
@@ -338,12 +351,14 @@ function VoteFeed({
           votingLocked={previewMode || pendingCandidateId !== null}
         />
       ))}
-        <MiniAppTicketCta />
+        {showTicketCta ? <MiniAppTicketCta /> : null}
       </section>
-      <MiniAppTicketCtaModal
-        onClose={() => setIsTicketCtaModalOpen(false)}
-        open={isTicketCtaModalOpen}
-      />
+      {showTicketCta ? (
+        <MiniAppTicketCtaModal
+          onClose={() => setIsTicketCtaModalOpen(false)}
+          open={isTicketCtaModalOpen}
+        />
+      ) : null}
     </>
   );
 }

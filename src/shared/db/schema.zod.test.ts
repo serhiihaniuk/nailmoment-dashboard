@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   createAudienceVoteClientSchema,
+  createAudienceVoteBroadcastClientSchema,
   createVoteCandidateClientSchema,
   insertAudienceVoteSchema,
   insertVoteCandidateSchema,
@@ -22,6 +23,7 @@ describe("audience vote route schemas", () => {
 
     expect(parsed.window_start).toBeInstanceOf(Date);
     expect(parsed.window_end).toBeNull();
+    expect(parsed.telegram_bot).toBe("main");
   });
 
   test("rejects transition statuses and invalid planning windows on create", () => {
@@ -59,6 +61,7 @@ describe("audience vote route schemas", () => {
     expect(parsed.opening_broadcast_include_open_button).toBe(true);
     expect(parsed.opening_broadcast_include_landing_button).toBe(false);
     expect(parsed.opening_broadcast_message_text).toBeNull();
+    expect(parsed.telegram_bot).toBe("main");
   });
 
   test("normalizes blank opening broadcast text on DB insert", () => {
@@ -73,6 +76,18 @@ describe("audience vote route schemas", () => {
     });
 
     expect(parsed.opening_broadcast_message_text).toBeNull();
+  });
+
+  test("parses the selected bot for manual broadcast input", () => {
+    const parsed = createAudienceVoteBroadcastClientSchema.parse({
+      audience_vote_id: "vote_1",
+      include_landing_button: false,
+      include_open_button: true,
+      message_text: "Public voting starts now",
+      telegram_bot: "final_battle",
+    });
+
+    expect(parsed.telegram_bot).toBe("final_battle");
   });
 });
 
@@ -141,6 +156,7 @@ describe("vote candidate route schemas", () => {
         message_text: "  Voting starts now  ",
       },
       status: "scheduled",
+      telegram_bot: "final_battle",
       window_end: "2026-05-09T20:00:00.000Z",
       window_start: "2026-05-09T19:00:00.000Z",
     });
@@ -150,6 +166,7 @@ describe("vote candidate route schemas", () => {
       include_open_button: false,
       message_text: "Voting starts now",
     });
+    expect(parsed.telegram_bot).toBe("final_battle");
   });
 
   test("parses media reorder and restore patches", () => {

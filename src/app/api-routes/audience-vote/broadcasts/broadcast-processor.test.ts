@@ -278,6 +278,7 @@ describe("Audience Vote Broadcast processor", () => {
           include_landing_button: true,
           include_open_button: false,
           status: "ready",
+          telegram_bot: "final_battle",
         }),
       ],
       deliveries: [makeDelivery({ stage: "normal" })],
@@ -285,10 +286,19 @@ describe("Audience Vote Broadcast processor", () => {
     const sentButtons: Array<{
       includeLandingButton: boolean;
       includeOpenButton: boolean;
+      telegramBot: AudienceVoteBroadcast["telegram_bot"];
     }> = [];
     const telegramClient: AudienceVoteBroadcastTelegramClient = {
-      async sendMessage({ includeLandingButton, includeOpenButton }) {
-        sentButtons.push({ includeLandingButton, includeOpenButton });
+      async sendMessage({
+        includeLandingButton,
+        includeOpenButton,
+        telegramBot,
+      }) {
+        sentButtons.push({
+          includeLandingButton,
+          includeOpenButton,
+          telegramBot,
+        });
       },
     };
 
@@ -300,7 +310,11 @@ describe("Audience Vote Broadcast processor", () => {
     });
 
     expect(sentButtons).toEqual([
-      { includeLandingButton: true, includeOpenButton: false },
+      {
+        includeLandingButton: true,
+        includeOpenButton: false,
+        telegramBot: "final_battle",
+      },
     ]);
   });
 
@@ -390,7 +404,11 @@ class FakeBroadcastService implements AudienceVoteBroadcastProcessorService {
     return claimed;
   }
 
-  async deactivateAudienceVoteBroadcastVoter(telegramUserId: number) {
+  async deactivateAudienceVoteBroadcastVoter({
+    telegramUserId,
+  }: Parameters<
+    AudienceVoteBroadcastProcessorService["deactivateAudienceVoteBroadcastVoter"]
+  >[0]) {
     this.deactivatedTelegramUserIds.push(telegramUserId);
   }
 
@@ -701,6 +719,7 @@ function makeBroadcast(
     next_stage_at: now,
     operator_telegram_user_id: 299445418,
     status: "ready",
+    telegram_bot: "main",
     updated_at: now,
     ...overrides,
   };

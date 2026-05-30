@@ -139,6 +139,7 @@ function makeVote(overrides: Partial<AudienceVote> = {}): AudienceVote {
     opening_broadcast_include_open_button: true,
     opening_broadcast_message_text: null,
     status: "scheduled",
+    telegram_bot: "main",
     title: "Speaker vote",
     updated_at: new Date("2026-05-09T10:00:00.000Z"),
     window_end: null,

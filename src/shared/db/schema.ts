@@ -11,6 +11,7 @@ import {
   unique,
   uniqueIndex,
   decimal,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -127,6 +128,11 @@ export const audienceVoteKindEnum = pgEnum("audience_vote_kind_enum", [
   "battle",
   "final_battle",
 ]);
+
+export const audienceVoteTelegramBotEnum = pgEnum(
+  "audience_vote_telegram_bot_enum",
+  ["main", "final_battle"]
+);
 
 export const audienceVoteStatusEnum = pgEnum("audience_vote_status_enum", [
   "draft",
@@ -436,6 +442,9 @@ export const audienceVoteTable = pgTable(
   {
     id: text("id").primaryKey(),
     kind: audienceVoteKindEnum("kind").notNull(),
+    telegram_bot: audienceVoteTelegramBotEnum("telegram_bot")
+      .notNull()
+      .default("main"),
     title: text("title").notNull(),
     status: audienceVoteStatusEnum("status").notNull().default("draft"),
     window_start: timestamp("window_start", {
@@ -688,6 +697,50 @@ export const telegramUsersTable = pgTable("telegram_users", {
     .defaultNow(),
 });
 
+export const telegramUserBotAccessTable = pgTable(
+  "telegram_user_bot_access",
+  {
+    telegramBot: audienceVoteTelegramBotEnum("telegram_bot").notNull(),
+    telegramUserId: bigint("telegram_user_id", { mode: "number" })
+      .notNull()
+      .references(() => telegramUsersTable.telegramUserId, {
+        onDelete: "cascade",
+      }),
+    isActive: boolean("is_active").notNull().default(true),
+    lastSeenAt: timestamp("last_seen_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    telegramUserBotAccessPk: primaryKey({
+      columns: [table.telegramBot, table.telegramUserId],
+      name: "telegram_user_bot_access_pk",
+    }),
+    telegramUserBotAccessBotIdx: index("telegram_user_bot_access_bot_idx").on(
+      table.telegramBot
+    ),
+  })
+);
+
+export type TelegramUserBotAccess =
+  typeof telegramUserBotAccessTable.$inferSelect;
+
 export const audienceVoteBroadcastTable = pgTable(
   "audience_vote_broadcast",
   {
@@ -695,6 +748,9 @@ export const audienceVoteBroadcastTable = pgTable(
     audience_vote_id: text("audience_vote_id")
       .notNull()
       .references(() => audienceVoteTable.id, { onDelete: "cascade" }),
+    telegram_bot: audienceVoteTelegramBotEnum("telegram_bot")
+      .notNull()
+      .default("main"),
     message_text: text("message_text").notNull(),
     include_open_button: boolean("include_open_button")
       .notNull()
