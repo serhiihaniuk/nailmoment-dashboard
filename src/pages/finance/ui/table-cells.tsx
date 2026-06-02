@@ -1,49 +1,12 @@
 import { TicketTypeBadge } from '@/entities/ticket/index.client';
 import type { TicketWithFinance } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
-import type { PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
 import {
   getInvoiceCountsTitle,
   getTicketInvoiceCounts,
   pluralizeInvoiceRequested,
   pluralizeInvoiceSent,
 } from '../model/utils';
-
-export function PaymentStatusFilter({
-  value,
-  onChange,
-}: {
-  value: PaymentStatusFilterValue;
-  onChange: (value: PaymentStatusFilterValue) => void;
-}) {
-  const options: { value: PaymentStatusFilterValue; label: string }[] = [
-    { value: "all", label: "Всі" },
-    { value: "paid", label: "Оплачені" },
-    { value: "partial", label: "Часткова оплата" },
-    { value: "pending", label: "Очікують оплату" },
-    { value: "overdue", label: "Прострочені" },
-  ];
-
-  return (
-    <div className="flex items-center gap-1">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors",
-            value === option.value
-              ? "bg-foreground text-background"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function InvoiceStatusCell({ ticket }: { ticket: TicketWithFinance }) {
   const counts = getTicketInvoiceCounts(ticket);

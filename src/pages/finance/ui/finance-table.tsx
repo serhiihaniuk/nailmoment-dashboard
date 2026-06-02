@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Loader2, Search } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
-import { Input } from '@/shared/ui/input';
 import { Skeleton } from '@/shared/ui/skeleton';
 import {
   Table,
@@ -25,6 +24,12 @@ import {
 } from '../api/client';
 import type { PaymentStatusFilter as PaymentStatusFilterValue } from '../model/types';
 import { buildDiscountOptions } from '../model/discount-options';
+import {
+  filterFinanceTickets,
+  hasActiveFinanceFilters,
+  type InvoiceStatusFilter,
+  type SaleSourceFilter,
+} from '../model/filters';
 import { ticketsQueryKey } from '../model/finance-cache';
 import { useFinanceAutosave } from '../model/use-finance-autosave';
 import {
@@ -36,12 +41,12 @@ import {
   toMoneyNumber,
 } from '../model/utils';
 import { FinanceCharts, buildFinanceCharts } from './finance-charts';
+import { FinanceFiltersToolbar } from './finance-filters-toolbar';
 import { NewTicketFinanceDialog } from './new-ticket-finance-dialog';
 import { PaymentsPanel } from './payments-panel';
 import {
   GradeMarker,
   InvoiceStatusCell,
-  PaymentStatusFilter,
   StatusIndicator,
 } from './table-cells';
 
@@ -83,7 +88,12 @@ function getFinanceAttributionTitle(
 export function FinanceTable() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PaymentStatusFilterValue>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] =
+    useState<PaymentStatusFilterValue>("all");
+  const [saleSourceFilter, setSaleSourceFilter] =
+    useState<SaleSourceFilter>("all");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] =
+    useState<InvoiceStatusFilter>("all");
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [pendingCloseTicketId, setPendingCloseTicketId] = useState<string | null>(
     null
@@ -117,39 +127,20 @@ export function FinanceTable() {
   });
 
   const tickets = useMemo(() => {
-    let activeTickets = (data ?? []).filter((ticket) => !ticket.archived);
-    
-    // Apply status filter
-    if (statusFilter !== "all") {
-      activeTickets = activeTickets.filter((ticket) => {
-        const status = ticket.finance_summary.payment_status;
-        if (statusFilter === "paid") return status === "paid";
-        if (statusFilter === "partial") return status === "partial";
-        if (statusFilter === "overdue") return status === "overdue";
-        if (statusFilter === "pending") return status === "unpaid" || status === "untracked";
-        return true;
-      });
-    }
-    
-    // Apply search
-    if (!query.trim()) return activeTickets;
+    return filterFinanceTickets(data ?? [], {
+      invoiceStatus: invoiceStatusFilter,
+      paymentStatus: paymentStatusFilter,
+      query,
+      saleSource: saleSourceFilter,
+    });
+  }, [data, invoiceStatusFilter, paymentStatusFilter, query, saleSourceFilter]);
 
-    const normalizedQuery = query.trim().toLowerCase();
-    return activeTickets.filter((ticket) =>
-      [
-        ticket.name,
-        ticket.email,
-        ticket.phone,
-        ticket.instagram,
-        ticket.finance?.nip,
-        ticket.attribution?.utm_source,
-        ticket.attribution?.utm_campaign,
-        ticket.attribution?.utm_medium,
-        ticket.attribution?.utm_content,
-        ticket.attribution?.utm_term,
-      ].some((value) => value?.toLowerCase().includes(normalizedQuery))
-    );
-  }, [data, query, statusFilter]);
+  const hasActiveFilters = hasActiveFinanceFilters({
+    invoiceStatus: invoiceStatusFilter,
+    paymentStatus: paymentStatusFilter,
+    query,
+    saleSource: saleSourceFilter,
+  });
 
   const financeTotals = useMemo(() => {
     return tickets.reduce(
@@ -294,26 +285,33 @@ export function FinanceTable() {
         </p>
       )}
 
-      <FinanceCharts data={financeCharts} />
-
       {/* Main table */}
-      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/40">
-          <div className="relative w-full sm:w-auto sm:min-w-64">
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40"
-            />
-            <Input
-              placeholder="Пошук..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-9 h-9 border-border/50 text-base md:text-[13px] placeholder:text-muted-foreground/40"
-            />
-          </div>
-          <PaymentStatusFilter value={statusFilter} onChange={setStatusFilter} />
-        </div>
+      <div className="sticky top-12 z-40 rounded-xl border border-border/60 bg-white shadow-surface animate-in-fade md:hidden">
+        <FinanceFiltersToolbar
+          query={query}
+          paymentStatus={paymentStatusFilter}
+          saleSource={saleSourceFilter}
+          invoiceStatus={invoiceStatusFilter}
+          onQueryChange={setQuery}
+          onPaymentStatusChange={setPaymentStatusFilter}
+          onSaleSourceChange={setSaleSourceFilter}
+          onInvoiceStatusChange={setInvoiceStatusFilter}
+          className="flex"
+        />
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-white shadow-surface overflow-hidden animate-in-fade">
+        <FinanceFiltersToolbar
+          query={query}
+          paymentStatus={paymentStatusFilter}
+          saleSource={saleSourceFilter}
+          invoiceStatus={invoiceStatusFilter}
+          onQueryChange={setQuery}
+          onPaymentStatusChange={setPaymentStatusFilter}
+          onSaleSourceChange={setSaleSourceFilter}
+          onInvoiceStatusChange={setInvoiceStatusFilter}
+          className="hidden border-b border-border/40 md:flex"
+        />
 
         <div className="overflow-x-auto">
           <Table className="w-full min-w-240">
@@ -352,7 +350,7 @@ export function FinanceTable() {
               {tickets.length === 0 && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                    {query || statusFilter !== "all" ? "Нічого не знайдено" : "Фінансових записів ще немає"}
+                    {hasActiveFilters ? "Нічого не знайдено" : "Фінансових записів ще немає"}
                   </TableCell>
                 </TableRow>
               )}
@@ -525,6 +523,8 @@ export function FinanceTable() {
           </div>
         )}
       </div>
+
+      <FinanceCharts data={financeCharts} />
 
       {selectedTicket && (
         <PaymentsPanel
