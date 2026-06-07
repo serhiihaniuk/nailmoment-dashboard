@@ -70,6 +70,17 @@ export function readTelegramAudienceVoteBotToken(env: Env = process.env) {
   return readRequiredEnv("TG_AUDIENCE_VOTE_BOT_TOKEN", env);
 }
 
+export function readTelegramAudienceVoteBotTokenForKey(
+  key: TelegramAudienceVoteBotKey,
+  env: Env = process.env
+) {
+  if (key === "final_battle") {
+    return readRequiredEnv("TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN", env);
+  }
+
+  return readTelegramAudienceVoteBotToken(env);
+}
+
 export function readTelegramAudienceVoteWebhookSecret(env: Env = process.env) {
   return readRequiredEnv("TG_AUDIENCE_VOTE_WEBHOOK_SECRET", env);
 }
