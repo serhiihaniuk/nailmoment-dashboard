@@ -3,6 +3,7 @@ import {
   readConfiguredTelegramAudienceVoteBotConfigs,
   readTelegramAudienceVoteBotConfig,
   readTelegramAudienceVoteBotToken,
+  readTelegramAudienceVoteBotTokenForKey,
   readTelegramAudienceVoteMiniAppUrl,
   readTelegramAudienceVoteOperatorTelegramIds,
   readTelegramAudienceVoteProcessorSecret,
@@ -99,6 +100,16 @@ describe("env readers", () => {
     });
     expect(readConfiguredTelegramAudienceVoteBotConfigs(env).map(({ key }) => key))
       .toEqual(["main", "final_battle"]);
+  });
+
+  test("reads final battle bot token without requiring the Mini App URL", () => {
+    const env = testEnv({
+      TG_AUDIENCE_VOTE_FINAL_BATTLE_BOT_TOKEN: " final-token ",
+    });
+
+    expect(readTelegramAudienceVoteBotTokenForKey("final_battle", env)).toBe(
+      "final-token"
+    );
   });
 
   test("rejects partial final battle Audience Vote Telegram bot config", () => {

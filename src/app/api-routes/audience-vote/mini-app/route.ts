@@ -10,7 +10,7 @@ import {
   saveAudienceVoteMiniAppVoteRequestSchema,
   type AudienceVoteTelegramBot,
 } from "@/entities/audience-vote";
-import { readTelegramAudienceVoteBotConfig } from "@/shared/config/env";
+import { readTelegramAudienceVoteBotTokenForKey } from "@/shared/config/env";
 import { db } from "@/shared/db";
 import {
   AudienceVoteWriteError,
@@ -292,7 +292,7 @@ async function authenticateMiniAppRequest(
 
   const validatedInitData = validateTelegramMiniAppInitData(
     initData,
-    readTelegramAudienceVoteBotConfig(requestedBot.telegramBot).token
+    readTelegramAudienceVoteBotTokenForKey(requestedBot.telegramBot)
   );
 
   if (!validatedInitData.ok) {
